@@ -222,7 +222,7 @@
 
   <header class="pgm-header">
     <div class="pgm-logo">
-      <div class="pgm-logo-suit">♠</div>
+      <div class="pgm-logo-suit" onclick="adminClick()" style="cursor:default" id="admin-trigger">♠</div>
       <div><div class="pgm-logo-text">Home Game</div><div class="pgm-logo-sub">Gerenciador</div></div>
     </div>
     <div class="pgm-season-info">
@@ -546,27 +546,43 @@ function openAddCuriosidade() {
   const players = S.activeSession.players;
   const sessionLabel = S.activeSession.num ? 'Sessão ' + S.activeSession.num : 'Sessão Casual';
   const dateStr = new Date(S.activeSession.date+'T12:00:00').toLocaleDateString('pt-BR');
-  const catGrid = CURIO_CATS.map(cat =>
-    '<button type="button" id="cat-btn-' + cat.id + '" onclick="selectCurioCat('' + cat.id + '')" ' +
+
+  const catBtns = CURIO_CATS.map(cat =>
+    '<button type="button" data-catid="' + cat.id + '" class="curio-cat-btn" ' +
     'style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:0.5rem 0.25rem;' +
     'border-radius:9px;border:1px solid rgba(201,168,76,0.25);background:rgba(255,255,255,0.04);' +
     'color:var(--nav);font-family:Nunito,sans-serif;font-size:11px;font-weight:800;cursor:pointer;width:100%;transition:all 0.15s">' +
     '<span style="font-size:22px;line-height:1">' + cat.icon + '</span>' +
     '<span>' + cat.label + '</span></button>'
   ).join('');
-  const playerOpts = players.map(p => '<option value="' + p.name + '">' + p.name + '</option>').join('');
+
+  const playerOpts = players.map(function(p) {
+    return '<option value="' + p.name + '">' + p.name + '</option>';
+  }).join('');
+
   showModal(
     '<div class="pgm-modal-title">✨ Nova Curiosidade <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem">' + sessionLabel + ' · ' + dateStr + '</div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Jogador</label>' +
     '<select id="curio-player" class="pgm-select">' + playerOpts + '</select></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Categoria</label>' +
-    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:0.25rem">' + catGrid + '</div></div>' +
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:0.25rem" id="curio-cat-grid">' + catBtns + '</div></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">O que aconteceu?</label>' +
     '<textarea id="curio-text" class="pgm-textarea" placeholder="Conta o que rolou..."></textarea></div>' +
     '<div class="pgm-row-btns"><button class="pgm-btn pgm-btn-purple" style="flex:1" onclick="saveCuriosidade()">Salvar</button></div>'
   );
-  setTimeout(function() { selectCurioCat('outro'); var t=document.getElementById('curio-text'); if(t) t.focus(); }, 80);
+
+  // Adicionar eventos aos botoes de categoria via JS (sem onclick inline)
+  setTimeout(function() {
+    document.querySelectorAll('.curio-cat-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        selectCurioCat(this.dataset.catid);
+      });
+    });
+    selectCurioCat('outro');
+    var t = document.getElementById('curio-text');
+    if(t) t.focus();
+  }, 80);
 }
 
 function saveCuriosidade() {
@@ -949,26 +965,38 @@ function showSessionDetail(num) {
 }
 
 function showSeasonDetail(idx) {
-  const ps = S.pastSeasons[idx];
+  var ps = S.pastSeasons[idx];
   if(!ps) return;
-  const oficiais = ps.sessions.filter(s=>s.type==='oficial');
-  const curios = ps.curiosidades || [];
-  showModal(`
-    <div class="pgm-modal-title">📦 Temporada ${ps.season} <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
-    <div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem">${oficiais.length} sessões oficiais · ${ps.sessions.length} total${curios.length?' · ✨ '+curios.length+' curiosidade(s)':''}</div>
-    ${ps.sessions.map(s=>{
-      const date=s.date?new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR'):'—';
-      const winner=s.players.length?s.players.reduce((a,b)=>(a.profit||0)>(b.profit||0)?a:b,s.players[0]):null;
-      const sc=s.curiosidades&&s.curiosidades.length?' ✨':'';
-      return \`<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0;border-bottom:1px solid var(--border);font-size:12px;font-weight:700">
-        <span style="color:var(--cream)">\${s.num?'Sessão '+s.num:'Casual'}\${sc}</span>
-        <span style="color:var(--text-dim)">\${date} · 🏆 \${winner?winner.name:'-'}</span>
-      </div>\`;
-    }).join('')}
-    ${curios.length?`<div style="margin-top:0.75rem"><div class="pgm-section-title" style="color:var(--curio-light)">Curiosidades</div>${curios.map(c=>`<div class="curio-card" style="margin-bottom:6px"><div class="curio-player" style="margin-bottom:4px">✨ ${c.playerName} <span style="font-size:10px;color:var(--text-dim);font-weight:700">${c.sessionLabel}</span></div><div class="curio-text">${escHtml(c.text)}</div></div>`).join('')}</div>`:''}
-    <div class="pgm-row-btns" style="margin-top:1rem">
-      <button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>
-    </div>`);
+  var oficiais = ps.sessions.filter(function(s){ return s.type==='oficial'; });
+  var curios = ps.curiosidades || [];
+  var sessionsHTML = ps.sessions.map(function(s) {
+    var date = s.date ? new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+    var winner = s.players.length ? s.players.reduce(function(a,b){ return (a.profit||0)>(b.profit||0)?a:b; }, s.players[0]) : null;
+    var sc = s.curiosidades && s.curiosidades.length ? ' ✨' : '';
+    var label = s.num ? 'Sessão '+s.num : 'Casual';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0;border-bottom:1px solid var(--border);font-size:12px;font-weight:700">' +
+      '<span style="color:var(--cream)">' + label + sc + '</span>' +
+      '<span style="color:var(--text-dim)">' + date + ' · 🏆 ' + (winner?winner.name:'-') + '</span>' +
+      '</div>';
+  }).join('');
+  var curiosHTML = '';
+  if(curios.length) {
+    curiosHTML = '<div style="margin-top:0.75rem"><div class="pgm-section-title" style="color:var(--curio-light)">Curiosidades</div>' +
+      curios.map(function(cu) {
+        return '<div class="curio-card" style="margin-bottom:6px">' +
+          '<div class="curio-player" style="margin-bottom:4px">' + (cu.catIcon||'✨') + ' ' + cu.playerName +
+          ' <span style="font-size:10px;color:var(--text-dim);font-weight:700">' + cu.sessionLabel + ' · ' + (cu.catLabel||'') + '</span></div>' +
+          '<div class="curio-text">' + escHtml(cu.text) + '</div></div>';
+      }).join('') + '</div>';
+  }
+  showModal(
+    '<div class="pgm-modal-title">📦 Temporada ' + ps.season + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem">' +
+      oficiais.length + ' sessões oficiais · ' + ps.sessions.length + ' total' +
+      (curios.length ? ' · ✨ ' + curios.length + ' curiosidade(s)' : '') + '</div>' +
+    sessionsHTML + curiosHTML +
+    '<div class="pgm-row-btns" style="margin-top:1rem"><button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button></div>'
+  );
 }
 
 function confirmNewSeason() {
@@ -998,6 +1026,98 @@ function doNewSeason() {
 function showModal(html) { const el=document.getElementById('pgm-modal'); el.innerHTML=`<div class="pgm-modal-backdrop"><div class="pgm-modal">${html}</div></div>`; el.style.display='block'; }
 function closeModal() { const el=document.getElementById('pgm-modal'); el.style.display='none'; el.innerHTML=''; }
 function showAlert(msg) { showModal(`<div style="font-size:14px;font-weight:800;color:var(--cream);margin-bottom:1rem">${msg}</div><button class="pgm-btn" onclick="closeModal()">Ok</button>`); }
+
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+let _adminClicks = 0;
+let _adminTimer = null;
+let _adminAuth = false;
+
+function adminClick() {
+  _adminClicks++;
+  clearTimeout(_adminTimer);
+  _adminTimer = setTimeout(() => { _adminClicks = 0; }, 800);
+  if(_adminClicks >= 3) {
+    _adminClicks = 0;
+    if(_adminAuth) {
+      showAdminPanel();
+    } else {
+      showAdminLogin();
+    }
+  }
+}
+
+function showAdminLogin() {
+  showModal(`
+    <div class="pgm-modal-title">🔐 Admin <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
+    <div class="pgm-field">
+      <label class="pgm-input-label">Senha</label>
+      <input type="password" id="admin-senha" class="pgm-input" style="text-align:center;letter-spacing:0.15em" placeholder="••••••">
+    </div>
+    <div id="admin-erro" style="font-size:12px;font-weight:800;color:#e74c3c;height:16px;margin-bottom:0.5rem"></div>
+    <div class="pgm-row-btns">
+      <button class="pgm-btn pgm-btn-success" style="flex:1" onclick="checkAdminSenha()">Entrar</button>
+    </div>`);
+  setTimeout(()=>{ const i=document.getElementById('admin-senha'); if(i){i.focus();i.addEventListener('keydown',e=>{if(e.key==='Enter')checkAdminSenha();});} }, 80);
+}
+
+function checkAdminSenha() {
+  const val = document.getElementById('admin-senha').value;
+  if(val === '800320') {
+    _adminAuth = true;
+    closeModal();
+    showAdminPanel();
+  } else {
+    const err = document.getElementById('admin-erro');
+    err.textContent = 'Senha incorreta';
+    document.getElementById('admin-senha').value = '';
+    setTimeout(()=>{ err.textContent=''; }, 2000);
+  }
+}
+
+function showAdminPanel() {
+  // Calcular ranking geral de todas as temporadas
+  const allSessions = [
+    ...S.sessions,
+    ...S.pastSeasons.flatMap(ps => ps.sessions)
+  ];
+
+  const map = {};
+  allSessions.forEach(sess => {
+    if(sess.type !== 'oficial') return;
+    sess.players.forEach(p => {
+      if(!map[p.name]) map[p.name] = { name: p.name, sessions: 0, profit: 0, best: null };
+      const profit = p.profit || 0;
+      map[p.name].sessions++;
+      map[p.name].profit += profit;
+      if(map[p.name].best === null || profit > map[p.name].best) map[p.name].best = profit;
+    });
+  });
+
+  const ranked = Object.values(map).sort((a,b) => b.profit - a.profit);
+  const medals = ['🥇','🥈','🥉'];
+  const totalTemporadas = S.pastSeasons.length + 1;
+
+  showModal(`
+    <div class="pgm-modal-title">📊 Ranking Geral <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
+    <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem">${totalTemporadas} temporada(s) · apenas sessões oficiais</div>
+    ${ranked.length ? ranked.map((p,i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:0.6rem 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:16px;min-width:26px;text-align:center">${medals[i]||'#'+(i+1)}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:900;color:var(--cream)">${p.name}</div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim)">${p.sessions} sessões oficiais</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:${p.profit>=0?'var(--positive)':'var(--negative)'}">${fmtR(p.profit)}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--text-dim)">média ${fmtR(p.sessions>0?p.profit/p.sessions:0)}/sess</div>
+        </div>
+      </div>`).join('')
+    : '<div style="color:var(--text-dim);font-size:13px">Nenhuma sessão oficial ainda</div>'}
+    <div class="pgm-row-btns" style="margin-top:1rem">
+      <button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>
+      <button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="_adminAuth=false;closeModal()">Sair do admin</button>
+    </div>`);
+}
 
 document.addEventListener('click', e=>{ const b=e.target.closest('.pgm-modal-backdrop'); if(b&&e.target===b) closeModal(); });
 
