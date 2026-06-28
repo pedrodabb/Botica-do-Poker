@@ -200,7 +200,25 @@
   </style>
 </head>
 <body>
-<div id="app">
+<!-- Tela de senha -->
+<div id="senha-screen" style="position:fixed;inset:0;background:#0d2218;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;padding:2rem">
+  <div style="font-size:40px;margin-bottom:1rem">♠</div>
+  <div style="font-size:22px;font-weight:900;color:#ffffff;font-family:Nunito,sans-serif;margin-bottom:0.5rem">Botica do Poker</div>
+  <div style="font-size:13px;font-weight:700;color:#8a9080;font-family:Nunito,sans-serif;margin-bottom:2rem;letter-spacing:0.05em">Acesso restrito</div>
+  <input type="password" id="senha-input" placeholder="Senha" 
+    style="background:rgba(255,255,255,0.06);border:1px solid rgba(201,168,76,0.45);border-radius:10px;
+           color:#fff;font-family:DM Mono,monospace;font-size:18px;padding:0.75rem 1.25rem;
+           width:100%;max-width:260px;outline:none;text-align:center;letter-spacing:0.15em;margin-bottom:0.75rem">
+  <div id="senha-erro" style="font-size:12px;font-weight:800;color:#e74c3c;font-family:Nunito,sans-serif;height:18px;margin-bottom:0.75rem"></div>
+  <button onclick="checkSenha()" 
+    style="background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.45);color:#e8c97a;
+           font-family:Nunito,sans-serif;font-size:14px;font-weight:900;padding:0.7rem 2rem;
+           border-radius:10px;cursor:pointer;width:100%;max-width:260px">
+    Entrar
+  </button>
+</div>
+
+<div id="app" style="display:none">
 
   <header class="pgm-header">
     <div class="pgm-logo">
@@ -983,38 +1001,73 @@ function showAlert(msg) { showModal(`<div style="font-size:14px;font-weight:800;
 
 document.addEventListener('click', e=>{ const b=e.target.closest('.pgm-modal-backdrop'); if(b&&e.target===b) closeModal(); });
 
+// ─── SENHA ────────────────────────────────────────────────────────────────────
+
+
+
+
 document.addEventListener('DOMContentLoaded', ()=>{
-  document.getElementById('new-player-name').addEventListener('keydown', e=>{ if(e.key==='Enter') addPlayer(); });
-  document.getElementById('reg-player-name').addEventListener('keydown', e=>{ if(e.key==='Enter') registerPlayer(); });
-  document.getElementById('new-session-date').value = new Date().toISOString().split('T')[0];
+  // ─── SENHA ────────────────────────────────────────────────────────────────
+  const senhaScreen = document.getElementById('senha-screen');
+  const appDiv = document.getElementById('app');
+  const senhaInput = document.getElementById('senha-input');
 
-  // Carregar dados locais primeiro (resposta imediata)
-  load(); updateOverview(); resetNewSessionForm();
-  if(S.activeSession){
-    document.getElementById('no-session-state').style.display='none';
-    document.getElementById('active-session-state').style.display='block';
-    renderActiveSession();
+  function mostrarApp() {
+    senhaScreen.style.display = 'none';
+    appDiv.style.display = 'block';
+    iniciarApp();
   }
 
-  // Iniciar sync Firebase quando estiver pronto
-  if(window._fbReady) {
-    initFirebaseSync();
-  } else {
-    document.addEventListener('firebase-ready', initFirebaseSync);
+  if(sessionStorage.getItem('pgm_auth') === '1') {
+    mostrarApp();
   }
 
-  // Indicador de conexão Firebase no header
-  const si = document.getElementById('season-label');
-  if(si) {
-    const dot = document.createElement('span');
-    dot.id = 'fb-dot';
-    dot.style.cssText = 'display:inline-block;width:7px;height:7px;border-radius:50%;background:#e74c3c;margin-left:6px;vertical-align:middle;transition:background 0.3s';
-    dot.title = 'Conectando ao servidor...';
-    si.parentNode.appendChild(dot);
-    document.addEventListener('firebase-ready', ()=>{
-      dot.style.background = '#2ecc71';
-      dot.title = 'Conectado — dados sincronizando';
-    });
+  senhaInput.addEventListener('keydown', e=>{ if(e.key==='Enter') checkSenha(); });
+
+  window.checkSenha = function() {
+    if(senhaInput.value === '800') {
+      sessionStorage.setItem('pgm_auth', '1');
+      mostrarApp();
+    } else {
+      const err = document.getElementById('senha-erro');
+      err.textContent = 'Senha incorreta';
+      senhaInput.value = '';
+      senhaInput.focus();
+      setTimeout(()=>{ err.textContent=''; }, 2000);
+    }
+  };
+
+  // ─── INICIAR APP ──────────────────────────────────────────────────────────
+  function iniciarApp() {
+    document.getElementById('new-player-name').addEventListener('keydown', e=>{ if(e.key==='Enter') addPlayer(); });
+    document.getElementById('reg-player-name').addEventListener('keydown', e=>{ if(e.key==='Enter') registerPlayer(); });
+    document.getElementById('new-session-date').value = new Date().toISOString().split('T')[0];
+
+    load(); updateOverview(); resetNewSessionForm();
+    if(S.activeSession){
+      document.getElementById('no-session-state').style.display='none';
+      document.getElementById('active-session-state').style.display='block';
+      renderActiveSession();
+    }
+
+    if(window._fbReady) {
+      initFirebaseSync();
+    } else {
+      document.addEventListener('firebase-ready', initFirebaseSync);
+    }
+
+    const si = document.getElementById('season-label');
+    if(si) {
+      const dot = document.createElement('span');
+      dot.id = 'fb-dot';
+      dot.style.cssText = 'display:inline-block;width:7px;height:7px;border-radius:50%;background:#e74c3c;margin-left:6px;vertical-align:middle;transition:background 0.3s';
+      dot.title = 'Conectando ao servidor...';
+      si.parentNode.appendChild(dot);
+      document.addEventListener('firebase-ready', ()=>{
+        dot.style.background = '#2ecc71';
+        dot.title = 'Conectado — dados sincronizando';
+      });
+    }
   }
 });
 </script>
