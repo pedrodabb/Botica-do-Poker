@@ -40,6 +40,18 @@
       });
     };
 
+    // Monitor de conexão real
+    import { getDatabase as getDb2, ref as ref2, onValue as onVal2 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+    const connRef = ref(db, '.info/connected');
+    onValue(connRef, function(snap) {
+      const connected = snap.val() === true;
+      const dot = document.getElementById('fb-dot');
+      if(dot) {
+        dot.style.background = connected ? '#2ecc71' : '#e74c3c';
+        dot.title = connected ? 'Conectado — sincronizando' : 'Desconectado';
+      }
+    });
+
     // Sinalizar que Firebase está pronto
     window._fbReady = true;
     document.dispatchEvent(new Event('firebase-ready'));
