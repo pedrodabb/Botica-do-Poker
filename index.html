@@ -848,6 +848,7 @@ function renderActiveSession() {
   document.getElementById('active-buyin').textContent = fmtRaw(s.buyin);
   document.getElementById('active-rebuy').textContent = fmtRaw(s.rebuy||s.buyin);
   document.getElementById('session-type-switch-btn').textContent = s.type==='oficial'?'🥃 Casual':'🏆 Oficial';
+  if(s.players) s.players.forEach(function(p){ if(!p.rebuys) p.rebuys=[]; });
   const totalIn = s.players.reduce((a,p)=>a+p.buyin+p.rebuys.reduce((r,v)=>r+v,0),0);
   document.getElementById('active-pot').textContent = fmtRaw(totalIn);
   document.getElementById('active-players-rows').innerHTML = s.players.map((p,i)=>{
@@ -1501,17 +1502,7 @@ function doAdminResetAll() {
   showTab('sessao');
 }
 
-function adminDeleteSession(numOrId) {
-  const label = typeof numOrId === 'number' ? 'Sessão ' + numOrId : 'Sessão Casual (' + numOrId.replace('casual-','') + ')';
-  showModal(
-    '<div class="pgm-modal-title">Apagar sessão? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div class="pgm-warn">Apagar <strong>' + label + '</strong>? Esta ação não pode ser desfeita.</div>' +
-    '<div class="pgm-row-btns">' +
-    '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doAdminDeleteSession(' + (typeof numOrId === 'number' ? numOrId : "'"+numOrId+"'") + ')">Sim, apagar</button>' +
-    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">Cancelar</button>' +
-    '</div>'
-  );
-}
+
 
 function doAdminDeleteSession(numOrId) {
   if(typeof numOrId === 'number') {
