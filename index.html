@@ -27,11 +27,14 @@
 
     // Expor funções para o código principal
     window._fbSave = function(data) {
+      window._fbIgnoreNext = true; // ignorar o próximo sync (é o nosso próprio save)
+      setTimeout(function(){ window._fbIgnoreNext = false; }, 3000);
       set(ref(db, DB_REF), data).catch(e => console.error('Firebase save error:', e));
     };
 
     window._fbListen = function(callback) {
       onValue(ref(db, DB_REF), snapshot => {
+        if(window._fbIgnoreNext) { window._fbIgnoreNext = false; return; }
         const data = snapshot.val();
         if(data) callback(data);
       });
@@ -235,8 +238,8 @@
 
   <nav class="pgm-nav">
     <button class="pgm-nav-btn active" onclick="showTab('sessao')">Sessão</button>
-    <button class="pgm-nav-btn" onclick="showTab('jogadores')">Jogadores</button>
     <button class="pgm-nav-btn" onclick="showTab('ranking')">Ranking</button>
+    <button class="pgm-nav-btn" onclick="showTab('jogadores')">Jogadores</button>
     <button class="pgm-nav-btn" onclick="showTab('historico')">Histórico</button>
     <button class="pgm-nav-btn" onclick="showTab('curiosidades')">Curiosidades</button>
     <button class="pgm-nav-btn" id="nav-acumulado" onclick="showTab('acumulado')" style="display:none;color:#e8c97a">Acumulado ★</button>
@@ -433,6 +436,8 @@ function initFirebaseSync() {
     keys.forEach(k=>{ if(data[k]!==undefined) S[k]=data[k]; });
     // Só atualizar activeSession do Firebase se não houver uma local
     if(data.activeSession && !S.activeSession) S.activeSession = data.activeSession;
+    // Se tiver sessão ativa local, não sobrescrever com dado do servidor
+    if(S.activeSession && data.activeSession) S.activeSession = data.activeSession;
     // Atualizar localStorage
     try { localStorage.setItem('pgm_v4', JSON.stringify(S)); } catch(e){}
     // Refresh da UI
@@ -465,7 +470,7 @@ function showTab(n) {
   document.querySelectorAll('.pgm-tab-content').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.pgm-nav-btn').forEach(e=>e.classList.remove('active'));
   document.getElementById('tab-'+n).classList.add('active');
-  const m = {sessao:0,jogadores:1,ranking:2,historico:3,curiosidades:4,acumulado:5};
+  const m = {sessao:0,ranking:1,jogadores:2,historico:3,curiosidades:4,acumulado:5};
   if(m[n]!==undefined) document.querySelectorAll('.pgm-nav-btn')[m[n]].classList.add('active');
   if(n==='ranking') renderRanking();
   if(n==='historico') renderHistorico();
