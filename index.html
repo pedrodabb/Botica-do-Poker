@@ -72,9 +72,9 @@
     .pgm-season-info { text-align: right; font-size: 12px; font-weight: 700; color: var(--cream-dim); }
     .pgm-season-info strong { color: var(--gold); font-size: 13px; font-weight: 900; display: block; }
 
-    .pgm-nav { display: flex; border-bottom: 1px solid var(--border); background: var(--felt-mid); padding: 0 0.25rem; position: sticky; top: 61px; z-index: 99; overflow-x: auto; scrollbar-width: none; }
+    .pgm-nav { display: flex; border-bottom: 1px solid var(--border); background: var(--felt-mid); padding: 0; position: sticky; top: 61px; z-index: 99; overflow-x: auto; scrollbar-width: none; justify-content: space-between; }
     .pgm-nav::-webkit-scrollbar { display: none; }
-    .pgm-nav-btn { background: none; border: none; color: var(--nav); font-family: 'Nunito', sans-serif; font-size: 12.5px; font-weight: 900; padding: 0.8rem 0.7rem; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; white-space: nowrap; flex-shrink: 0; }
+    .pgm-nav-btn { background: none; border: none; color: var(--nav); font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 900; padding: 0.75rem 0; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; white-space: nowrap; flex: 1; text-align: center; }
     .pgm-nav-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
     .pgm-nav-btn:hover:not(.active) { color: var(--cream); }
 
@@ -200,6 +200,16 @@
       .pgm-player-row { grid-template-columns: 1fr 60px 60px 60px auto; gap: 4px; }
       .pgm-money { font-size: 11px; }
     }
+
+    .pgm-nav.admin-mode .pgm-nav-btn { font-size: 10px; }
+    @media (max-width: 480px) {
+      .pgm-nav-btn { font-size: 10.5px; padding: 0.65rem 0.4rem; }
+      .pgm-header { padding: 0.6rem 0.75rem; }
+      .pgm-logo-text { font-size: 14px; }
+      .pgm-logo-sub { font-size: 9px; }
+      main { padding: 0.75rem; }
+      .pgm-card { padding: 0.75rem; }
+    }
   </style>
 </head>
 <body>
@@ -238,7 +248,7 @@
 
   <nav class="pgm-nav">
     <button class="pgm-nav-btn active" onclick="showTab('sessao')">Sessão</button>
-    <button class="pgm-nav-btn" onclick="showTab('ranking')">Ranking</button>
+    <button class="pgm-nav-btn" onclick="showTab('ranking')">Ranking da Temporada</button>
     <button class="pgm-nav-btn" onclick="showTab('jogadores')">Jogadores</button>
     <button class="pgm-nav-btn" onclick="showTab('historico')">Histórico</button>
     <button class="pgm-nav-btn" onclick="showTab('curiosidades')">Curiosidades</button>
@@ -272,6 +282,10 @@
               <button class="pgm-toggle-opt active" onclick="setSessionType('oficial')">🏆 Oficial</button>
               <button class="pgm-toggle-opt" onclick="setSessionType('casual')">🥃 Casual</button>
             </div>
+          </div>
+          <div class="pgm-field" id="casual-name-field" style="display:none">
+            <label class="pgm-input-label">Nome da sessão (opcional)</label>
+            <input type="text" id="new-session-label" class="pgm-input" placeholder="Ex: Sexta especial, Aniversário...">
           </div>
           <div class="pgm-field">
             <label class="pgm-input-label">Data</label>
@@ -415,17 +429,27 @@ const S = {
 function save() {
   try { localStorage.setItem('pgm_v4', JSON.stringify(S)); } catch(e){}
   if(window._fbSave) {
-    // Não salvar activeSession no Firebase (pode causar conflito durante sessão)
-    const toSave = JSON.parse(JSON.stringify(S));
-    window._fbSave(toSave);
+    window._fbSave(JSON.parse(JSON.stringify(S)));
   }
 }
+function sanitizeData() {
+  // Garantir que rebuys existe em todos os jogadores de todas as sessões
+  function fixPlayers(players) {
+    if(!players) return;
+    players.forEach(function(p){ if(!p.rebuys) p.rebuys = []; });
+  }
+  if(S.activeSession) fixPlayers(S.activeSession.players);
+  S.sessions.forEach(function(s){ fixPlayers(s.players); });
+  S.pastSeasons.forEach(function(ps){ ps.sessions.forEach(function(s){ fixPlayers(s.players); }); });
+}
+
 function load() {
   // Carregar localStorage como fallback imediato
   try {
     const d = localStorage.getItem('pgm_v4');
     if(d) { const parsed = JSON.parse(d); Object.keys(parsed).forEach(k=>{ S[k]=parsed[k]; }); }
   } catch(e) {}
+  sanitizeData();
 }
 
 function initFirebaseSync() {
@@ -434,10 +458,11 @@ function initFirebaseSync() {
     // Mesclar dados do Firebase com o estado local
     const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession'];
     keys.forEach(k=>{ if(data[k]!==undefined) S[k]=data[k]; });
-    // Só atualizar activeSession do Firebase se não houver uma local
-    if(data.activeSession && !S.activeSession) S.activeSession = data.activeSession;
-    // Se tiver sessão ativa local, não sobrescrever com dado do servidor
-    if(S.activeSession && data.activeSession) S.activeSession = data.activeSession;
+    // NUNCA sobrescrever activeSession local com null do Firebase
+    // Só atualizar se o Firebase tiver uma sessão E o local não tiver
+    if(!S.activeSession && data.activeSession) S.activeSession = data.activeSession;
+    // Sanitizar dados
+    sanitizeData();
     // Atualizar localStorage
     try { localStorage.setItem('pgm_v4', JSON.stringify(S)); } catch(e){}
     // Refresh da UI
@@ -513,22 +538,60 @@ function doRemovePlayer(idx) {
 }
 
 function renderJogadores() {
-  const el = document.getElementById('jogadores-list');
-  if(!S.players.length) { el.innerHTML='<div class="pgm-empty-state"><div class="suit">♟</div>Nenhum jogador cadastrado ainda</div>'; return; }
-  const stats = getAllPlayerStats();
-  el.innerHTML = S.players.map((p,i)=>{
-    const st = stats.find(s=>s.name===p.name);
-    const curios = S.curiosidades.filter(c=>c.playerName===p.name).length;
-    const sub = st ? `${st.totalSessions} sessão(ões) · ${st.totalProfit>=0?'+':''}R$ ${st.totalProfit.toFixed(2).replace('.',',')}${curios?' · ✨ '+curios+' curiosidade(s)':''}` : 'Nunca jogou ainda';
-    return `<div class="player-card">
-      <div class="player-card-avatar">♟</div>
-      <div class="player-card-info">
-        <div class="player-card-name">${p.name}</div>
-        <div class="player-card-sub">${sub}</div>
-      </div>
-      <button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="removeRegisteredPlayer(${i})" style="padding:3px 8px;font-size:11px">✕</button>
-    </div>`;
+  var el = document.getElementById('jogadores-list');
+  if(!S.players.length) {
+    el.innerHTML = '<div class="pgm-empty-state"><div class="suit">♟</div>Nenhum jogador cadastrado ainda</div>';
+    return;
+  }
+  var stats = getAllPlayerStats();
+  el.innerHTML = S.players.map(function(p, i) {
+    var st = stats.find(function(s){ return s.name===p.name; });
+    var playerCurios = S.curiosidades.filter(function(cu){ return cu.playerName===p.name; });
+    var curios = playerCurios.length;
+    var sub = st
+      ? st.totalSessions + ' sessão(ões)' + (curios?' · ✨ '+curios+' curiosidade(s)':'')
+      : 'Nunca jogou ainda';
+    return '<div class="player-card">' +
+      '<div class="player-card-avatar">♟</div>' +
+      '<div class="player-card-info" style="flex:1">' +
+        '<div class="player-card-name">' + p.name + '</div>' +
+        '<div class="player-card-sub">' + sub + '</div>' +
+      '</div>' +
+      '<button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="removeRegisteredPlayer('+i+')" style="padding:3px 8px;font-size:11px">✕</button>' +
+    '</div>';
   }).join('');
+  // Adicionar eventos via JS para evitar problema de aspas
+  document.querySelectorAll('.pgm-curio-player-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      showPlayerCurios(this.dataset.playername);
+    });
+  });
+}
+
+function showPlayerCurios(name) {
+  var playerCurios = S.curiosidades.filter(function(cu){ return cu.playerName===name; });
+  // Adicionar também curiosidades de temporadas passadas
+  S.pastSeasons.forEach(function(ps) {
+    if(ps.curiosidades) ps.curiosidades.filter(function(cu){ return cu.playerName===name; }).forEach(function(cu){ playerCurios.push(cu); });
+  });
+
+  if(!playerCurios.length) { showAlert('Nenhuma curiosidade registrada para ' + name); return; }
+
+  var html = '<div class="pgm-modal-title">✨ ' + name + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="font-size:11px;color:var(--text-dim);margin-bottom:0.75rem">' + playerCurios.length + ' curiosidade(s)</div>';
+
+  playerCurios.forEach(function(cu) {
+    html += '<div class="curio-card" style="margin-bottom:8px">' +
+      '<div class="curio-player" style="margin-bottom:4px">' +
+        (cu.catIcon||'✨') + ' <span style="font-size:11px;color:var(--text-dim);font-weight:700">' + (cu.sessionLabel||'') + ' · ' + (cu.catLabel||'Outro') + '</span>' +
+      '</div>' +
+      '<div class="curio-text">' + escHtml(cu.text) + '</div>' +
+    '</div>';
+  });
+
+  html += '<div class="pgm-row-btns" style="margin-top:1rem"><button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button></div>';
+  showModal(html);
 }
 
 // ─── CURIOSIDADES ─────────────────────────────────────────────────────────────
@@ -546,18 +609,11 @@ let _selectedCat = 'outro';
 
 function selectCurioCat(id) {
   _selectedCat = id;
-  CURIO_CATS.forEach(cat => {
-    const btn = document.getElementById('cat-btn-' + cat.id);
-    if(!btn) return;
-    if(cat.id === id) {
-      btn.style.background = 'rgba(124,111,194,0.35)';
-      btn.style.borderColor = 'rgba(124,111,194,0.8)';
-      btn.style.color = '#d0c0ff';
-    } else {
-      btn.style.background = 'rgba(255,255,255,0.04)';
-      btn.style.borderColor = 'rgba(201,168,76,0.25)';
-      btn.style.color = 'var(--nav)';
-    }
+  document.querySelectorAll('.curio-cat-btn').forEach(function(btn) {
+    const isSelected = btn.dataset.catid === id;
+    btn.style.background = isSelected ? 'rgba(124,111,194,0.35)' : 'rgba(255,255,255,0.04)';
+    btn.style.borderColor = isSelected ? 'rgba(124,111,194,0.8)' : 'rgba(201,168,76,0.25)';
+    btn.style.color = isSelected ? '#b0a8e8' : 'var(--nav)';
   });
 }
 
@@ -632,38 +688,83 @@ function saveCuriosidade() {
 
 
 function renderCuriosidades() {
-  const noSess = document.getElementById('curio-no-session');
-  const listEl = document.getElementById('curio-list');
-  const emptyEl = document.getElementById('curio-empty');
-  // Junta curiosidades da temporada atual + todas as temporadas passadas
-  const pastCurios = S.pastSeasons.flatMap(ps=>(ps.curiosidades||[]).map(c=>({...c, _season:ps.season})));
-  const all = [...S.curiosidades, ...pastCurios].reverse();
+  var noSess = document.getElementById('curio-no-session');
+  var listEl  = document.getElementById('curio-list');
+  var emptyEl = document.getElementById('curio-empty');
 
-  noSess.style.display = S.activeSession ? 'none' : (all.length ? 'none' : 'block');
-  emptyEl.style.display = !all.length ? 'block' : 'none';
-  if(!all.length) { listEl.innerHTML=''; return; }
+  // Juntar todas as curiosidades (temporada atual + passadas)
+  var pastCurios = S.pastSeasons.flatMap(function(ps){ return (ps.curiosidades||[]).map(function(cu){ return Object.assign({}, cu, {_season: ps.season}); }); });
+  var all = [...S.curiosidades, ...pastCurios];
 
-  // Agrupar por sessão
-  const groups = {};
-  all.forEach(c=>{
-    if(!groups[c.sessionLabel]) groups[c.sessionLabel] = { label: c.sessionLabel, date: c.date, items: [] };
-    groups[c.sessionLabel].items.push(c);
-  });
-
-  listEl.innerHTML = Object.values(groups).map(g=>`
-    <div class="pgm-section-title">${g.label} · ${g.date ? new Date(g.date+'T12:00:00').toLocaleDateString('pt-BR') : ''}</div>
-    ${g.items.map((c,i)=>`
-      <div class="curio-card">
-        <div class="curio-card-header">
-          <span class="curio-player">✨ ${c.playerName}</span>
-          <button onclick="deleteCuriosidade(${c.id})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0">✕</button>
-        </div>
-        <div class="curio-text">${escHtml(c.text)}</div>
-      </div>`).join('')}
-  `).join('');
-
-  emptyEl.style.display = 'none';
   noSess.style.display = 'none';
+  emptyEl.style.display = !all.length ? 'block' : 'none';
+  if(!all.length) { listEl.innerHTML = ''; return; }
+
+  // Pegar lista única de jogadores que têm curiosidades
+  var jogadores = [];
+  all.forEach(function(cu) {
+    if(!jogadores.includes(cu.playerName)) jogadores.push(cu.playerName);
+  });
+  jogadores.sort();
+
+  // Montar seletor de jogadores
+  var html = '<div class="pgm-field" style="margin-bottom:0.75rem">' +
+    '<label class="pgm-input-label">Ver curiosidades de</label>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:0.4rem" id="curio-player-filter">';
+
+  jogadores.forEach(function(nome) {
+    var count = all.filter(function(cu){ return cu.playerName === nome; }).length;
+    html += '<button class="pgm-btn pgm-btn-sm curio-filter-btn" data-player="' + nome + '" ' +
+      'style="font-size:11px;border-color:var(--curio-dim);color:var(--curio-light)">' +
+      nome + ' (' + count + ')' +
+    '</button>';
+  });
+  html += '</div></div>';
+  html += '<div id="curio-player-result"></div>';
+
+  listEl.innerHTML = html;
+  emptyEl.style.display = 'none';
+
+  // Eventos nos botões de filtro
+  document.querySelectorAll('.curio-filter-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      // Destacar botão selecionado
+      document.querySelectorAll('.curio-filter-btn').forEach(function(b) {
+        b.style.background = 'rgba(255,255,255,0.04)';
+        b.style.borderColor = 'var(--curio-dim)';
+        b.style.color = 'var(--curio-light)';
+      });
+      this.style.background = 'rgba(124,111,194,0.3)';
+      this.style.borderColor = 'rgba(124,111,194,0.8)';
+      this.style.color = '#b0a8e8';
+
+      var player = this.dataset.player;
+      var playerCurios = all.filter(function(cu){ return cu.playerName === player; }).reverse();
+
+      var resHTML = '<div class="pgm-section-title" style="margin-bottom:0.5rem">' + player + ' — ' + playerCurios.length + ' curiosidade(s)</div>';
+      playerCurios.forEach(function(cu) {
+        resHTML += '<div class="curio-card" style="margin-bottom:8px">' +
+          '<div class="curio-card-header">' +
+            '<span class="curio-player">' + (cu.catIcon||'✨') + ' ' + (cu.catLabel||'Outro') +
+            ' <span style="font-size:10px;color:var(--text-dim);font-weight:700">· ' + cu.sessionLabel + (cu.date ? ' · ' + new Date(cu.date+'T12:00:00').toLocaleDateString('pt-BR') : '') + '</span></span>' +
+            '<button class="pgm-del-curio" data-curioid="' + cu.id + '" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0">✕</button>' +
+          '</div>' +
+          '<div class="curio-text">' + escHtml(cu.text) + '</div>' +
+        '</div>';
+      });
+
+      var resultEl = document.getElementById('curio-player-result');
+      if(resultEl) {
+        resultEl.innerHTML = resHTML;
+        // Eventos de deletar
+        resultEl.querySelectorAll('.pgm-del-curio').forEach(function(db) {
+          db.addEventListener('click', function() {
+            deleteCuriosidade(parseInt(this.dataset.curioid));
+          });
+        });
+      }
+    });
+  });
 }
 
 function deleteCuriosidade(id) {
@@ -715,17 +816,24 @@ function renderQuickAdd() {
 }
 
 function startSession() {
-  const type = S.newSession.type;
-  const oficialCount = S.sessions.filter(s=>s.type==='oficial').length;
+  var type = S.newSession.type;
+  var oficialCount = S.sessions.filter(function(s){ return s.type==='oficial'; }).length;
   if(type==='oficial' && oficialCount>=6) { showAlert('Temporada já tem 6 sessões oficiais!'); return; }
   if(!S.newSession.players.length) { showAlert('Adicione pelo menos um jogador.'); return; }
-  const buyin = parseFloat(document.getElementById('new-session-buyin').value)||20;
-  const rebuy = parseFloat(document.getElementById('new-session-rebuy').value)||buyin;
-  const date = document.getElementById('new-session-date').value || new Date().toISOString().split('T')[0];
-  const num = type==='oficial' ? oficialCount+1 : null;
-  S.activeSession = { num, type, date, buyin, rebuy, curiosidades:[],
-    players: S.newSession.players.map(p=>({ name:p.name, buyin, rebuys:[], finalStack:null })) };
-  S.newSession = { type:'oficial', players:[] };
+  var buyin = parseFloat(document.getElementById('new-session-buyin').value)||20;
+  var rebuy = parseFloat(document.getElementById('new-session-rebuy').value)||buyin;
+  var date  = document.getElementById('new-session-date').value || new Date().toISOString().split('T')[0];
+  var labelEl = document.getElementById('new-session-label');
+  var label = (labelEl && labelEl.value.trim()) ? labelEl.value.trim() : null;
+  var num   = type==='oficial' ? oficialCount+1 : null;
+  S.activeSession = { num: num, type: type, date: date, buyin: buyin, rebuy: rebuy,
+    label: label, curiosidades: [],
+    players: S.newSession.players.map(function(p){ return { name: p.name, buyin: buyin, rebuys: [], finalStack: null }; }) };
+  S.newSession = { type: 'oficial', players: [] };
+  // Limpar campo nome
+  if(labelEl) labelEl.value = '';
+  var nameField = document.getElementById('casual-name-field');
+  if(nameField) nameField.style.display = 'none';
   document.getElementById('no-session-state').style.display = 'none';
   document.getElementById('active-session-state').style.display = 'block';
   renderActiveSession(); updateOverview(); save();
@@ -743,6 +851,7 @@ function renderActiveSession() {
   const totalIn = s.players.reduce((a,p)=>a+p.buyin+p.rebuys.reduce((r,v)=>r+v,0),0);
   document.getElementById('active-pot').textContent = fmtRaw(totalIn);
   document.getElementById('active-players-rows').innerHTML = s.players.map((p,i)=>{
+    if(!p.rebuys) p.rebuys = [];
     const rt = p.rebuys.reduce((a,r)=>a+r,0);
     return `<div class="pgm-player-row">
       <span class="pgm-player-name">♟ ${p.name}</span>
@@ -817,6 +926,7 @@ function doAddMidSession() {
 
 function openFinishSession() {
   var s = S.activeSession;
+  s.players.forEach(function(p){ if(!p.rebuys) p.rebuys = []; });
   var totalIn = s.players.reduce(function(a,p){ return a + p.buyin + p.rebuys.reduce(function(r,v){ return r+v; }, 0); }, 0);
   var sessionLabel = s.num ? 'Sessão ' + s.num : 'Sessão Casual';
   var rowsHTML = s.players.map(function(p, i) {
@@ -851,7 +961,7 @@ function updateFinishPot() {
 
 function finishSession() {
   const s = S.activeSession;
-  s.players.forEach((p,i)=>{ p.finalStack=parseFloat(document.getElementById('stack-'+i).value)||0; p.profit=p.finalStack-(p.buyin+p.rebuys.reduce((a,r)=>a+r,0)); });
+  s.players.forEach((p,i)=>{ if(!p.rebuys) p.rebuys = []; p.finalStack=parseFloat(document.getElementById('stack-'+i).value)||0; p.profit=p.finalStack-(p.buyin+p.rebuys.reduce((a,r)=>a+r,0)); });
   s.players.forEach(p=>{ if(!S.players.find(r=>r.name.toLowerCase()===p.name.toLowerCase())) S.players.push({name:p.name,createdAt:Date.now()}); });
   S.sessions.push(JSON.parse(JSON.stringify(s)));
   S.activeSession = null;
@@ -993,56 +1103,125 @@ function renderRanking() {
 
 // ─── HISTÓRICO ────────────────────────────────────────────────────────────────
 function renderHistorico() {
-  const el=document.getElementById('historico-list');
-  if(!S.sessions.length&&!S.pastSeasons.length){ el.innerHTML='<div class="pgm-empty-state"><div class="suit">♣</div>Nenhuma sessão encerrada ainda</div>'; return; }
-  const oficiais=[...S.sessions].filter(s=>s.type==='oficial').reverse();
-  const casuais=[...S.sessions].filter(s=>s.type==='casual').reverse();
-  function sessionCard(s,clickId){
-    const date=s.date?new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR'):'—';
-    const pot=s.players.reduce((a,p)=>a+p.buyin+p.rebuys.reduce((r,v)=>r+v,0),0);
-    const winner=s.players.reduce((a,b)=>(a.profit||0)>(b.profit||0)?a:b,s.players[0]);
-    const curios=s.curiosidades&&s.curiosidades.length?` · ✨ ${s.curiosidades.length}`:'';
-    const clickStr = typeof clickId === "string" ? '"'+clickId+'"' : clickId;
-    return `<div class="pgm-history-item" onclick="showSessionDetail(${clickStr})">
-      <div class="pgm-history-header">
-        <div class="pgm-history-title">${s.num?'Sessão '+s.num:'Casual'} <span class="pgm-badge ${s.type==='oficial'?'pgm-badge-gold':'pgm-badge-casual'}" style="font-size:10px">${s.type==='oficial'?'🏆 Oficial':'🥃 Casual'}</span></div>
-        <div class="pgm-history-date">${date}</div>
-      </div>
-      <div class="pgm-history-sub">${s.players.length} jogadores · Pot ${fmtRaw(pot)} · 🏆 ${winner?winner.name:'-'}${curios}</div>
-    </div>`;
+  var el = document.getElementById('historico-list');
+  if(!S.sessions.length && !S.pastSeasons.length) {
+    el.innerHTML = '<div class="pgm-empty-state"><div class="suit">♣</div>Nenhuma sessão encerrada ainda</div>';
+    return;
   }
-  const cur=[
-    ...oficiais.map(s=>sessionCard(s,s.num)),
-    ...(casuais.length?['<div class="pgm-section-title" style="margin-top:0.75rem">Sessões casuais</div>']:[]),
-    ...casuais.map((s)=>sessionCard(s,'c_'+s.date+'_'+(s.players.length)))
-  ].join('');
-  const past=[...S.pastSeasons].reverse().map((ps,i)=>`
-    <div class="pgm-history-item" style="opacity:0.6;border-style:dashed" onclick="showSeasonDetail(${S.pastSeasons.length-1-i})">
-      <div class="pgm-history-header"><div class="pgm-history-title">📦 Temporada ${S.pastSeasons.length-i}</div><div class="pgm-history-date">${ps.sessions.length} sessões</div></div>
-      <div class="pgm-history-sub">Arquivada${ps.curiosidades&&ps.curiosidades.length?' · ✨ '+ps.curiosidades.length+' curiosidade(s)':''}</div>
-    </div>`).join('');
-  el.innerHTML=cur+(past?'<div class="pgm-section-title" style="margin-top:1rem">Temporadas anteriores</div>'+past:'');
+  var oficiais = S.sessions.filter(function(s){ return s.type==='oficial'; }).reverse();
+  var casuais  = S.sessions.filter(function(s){ return s.type==='casual'; }).reverse();
+
+  function sessionCard(s, clickId) {
+    var date = s.date ? new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+    var pot  = s.players.reduce(function(a,p){ return a+p.buyin+(p.rebuys||[]).reduce(function(r,v){return r+v;},0); }, 0);
+    var sorted = [...s.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
+    var winner = sorted[0];
+    var second = sorted[1];
+    var curios = s.curiosidades && s.curiosidades.length ? ' · ✨ '+s.curiosidades.length : '';
+    var clickStr = typeof clickId === 'string' ? '"'+clickId+'"' : clickId;
+    var title = s.label ? s.label : (s.num ? 'Sessão '+s.num : 'Casual');
+    var badge = s.type==='oficial'
+      ? '<span class="pgm-badge pgm-badge-gold" style="font-size:10px">🏆 Oficial</span>'
+      : '<span class="pgm-badge pgm-badge-casual" style="font-size:10px">🥃 Casual</span>';
+    return '<div class="pgm-history-item" onclick="showSessionDetail('+clickStr+')">' +
+      '<div class="pgm-history-header">' +
+        '<div class="pgm-history-title">' + title + ' ' + badge + '</div>' +
+        '<div class="pgm-history-date">' + date + '</div>' +
+      '</div>' +
+      '<div class="pgm-history-sub">' + s.players.length + ' jogadores · Pot '+fmtRaw(pot)+' · 🏆 '+(winner?winner.name:'-')+(second?' · 🥈 '+second.name:'')+curios+'</div>' +
+    '</div>';
+  }
+
+  var html = '';
+
+  // Sessões oficiais da temporada atual
+  if(oficiais.length) {
+    html += '<div class="pgm-section-title">🏆 Sessões Oficiais — Temporada ' + S.season + '</div>';
+    html += oficiais.map(function(s){ return sessionCard(s, s.num); }).join('');
+  }
+
+  // Sessões casuais da temporada atual
+  if(casuais.length) {
+    html += '<div class="pgm-section-title" style="margin-top:0.75rem">🥃 Sessões Casuais</div>';
+    html += casuais.map(function(s){ return sessionCard(s, 'c_'+s.date+'_'+s.players.length); }).join('');
+  }
+
+  // Temporadas anteriores
+  if(S.pastSeasons.length) {
+    html += '<div class="pgm-section-title" style="margin-top:1rem">📦 Temporadas Anteriores</div>';
+    html += [...S.pastSeasons].reverse().map(function(ps, i) {
+      var realIdx = S.pastSeasons.length - 1 - i;
+      return '<div class="pgm-history-item" style="opacity:0.7;border-style:dashed" onclick="showSeasonDetail('+realIdx+')">' +
+        '<div class="pgm-history-header">' +
+          '<div class="pgm-history-title">📦 Temporada ' + ps.season + '</div>' +
+          '<div class="pgm-history-date">' + ps.sessions.length + ' sessões</div>' +
+        '</div>' +
+        '<div class="pgm-history-sub">Arquivada' + (ps.curiosidades&&ps.curiosidades.length?' · ✨ '+ps.curiosidades.length+' curiosidade(s)':'') + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  el.innerHTML = html;
 }
 
 function showSessionDetail(num) {
-  const s=num<0?S.sessions.filter(s=>s.type==='casual')[Math.abs(num)-1]:S.sessions.find(s=>s.num===num);
+  var s;
+  if(typeof num === 'string' && num.startsWith('c_')) {
+    var parts = num.slice(2).split('_');
+    var date = parts[0];
+    var nplayers = parseInt(parts[1]);
+    s = S.sessions.find(function(x){ return x.type==='casual' && x.date===date && x.players.length===nplayers; });
+  } else if(typeof num === 'number' && num < 0) {
+    s = S.sessions.filter(function(x){ return x.type==='casual'; })[Math.abs(num)-1];
+  } else {
+    s = S.sessions.find(function(x){ return x.num===num; });
+  }
   if(!s) return;
-  const date=s.date?new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR'):'—';
-  const sorted=[...s.players].sort((a,b)=>(b.profit||0)-(a.profit||0));
-  const curios=s.curiosidades&&s.curiosidades.length
-    ?`<div style="margin-top:0.75rem"><div class="pgm-section-title" style="color:var(--curio-light)">Curiosidades</div>${s.curiosidades.map(c=>`<div class="curio-card" style="margin-bottom:6px"><div class="curio-player" style="margin-bottom:4px">${c.catIcon||'✨'} ${c.playerName} <span style="font-size:10px;font-weight:700;color:var(--text-dim)">${c.catLabel||''}</span></div><div class="curio-text">${escHtml(c.text)}</div></div>`).join('')}</div>`
-    :'';
-  showModal(`
-    <div class="pgm-modal-title">${s.num?'Sessão '+s.num:'Casual'} — ${date} <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
-    <div class="pgm-badge ${s.type==='oficial'?'pgm-badge-gold':'pgm-badge-casual'}" style="margin-bottom:0.75rem;display:inline-block">${s.type==='oficial'?'🏆 Oficial':'🥃 Casual'}</div>
-    <div class="pgm-final-row header"><div>Jogador</div><div style="text-align:right">Investiu</div><div style="text-align:right">Lucro</div></div>
-    ${sorted.map((p,i)=>{ const c=p.buyin+p.rebuys.reduce((a,r)=>a+r,0); const pr=p.profit||0; const m=i===0?'🥇':i===1?'🥈':'';
-      return `<div class="pgm-final-row"><div class="pgm-player-name" style="font-size:13px">${m} ${p.name}</div><div class="pgm-money neu" style="font-size:12px">${fmtRaw(c)}</div><div class="pgm-money ${pr>=0?'pos':'neg'}" style="font-size:13px">${fmtR(pr)}</div></div>`;
-    }).join('')}
-    ${curios}
-    <div class="pgm-row-btns" style="margin-top:1rem">
-      <button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>
-    </div>`);
+
+  // Sanitizar rebuys
+  s.players.forEach(function(p){ if(!p.rebuys) p.rebuys = []; });
+
+  var date = s.date ? new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+  var sorted = [...s.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
+  var medals = ['🥇','🥈','🥉'];
+
+  var rowsHTML = sorted.map(function(p,i) {
+    var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
+    var pr = p.profit || 0;
+    return '<div class="pgm-final-row">' +
+      '<div class="pgm-player-name" style="font-size:13px">' + (medals[i]||'') + ' ' + p.name + '</div>' +
+      '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
+      '<div class="pgm-money ' + (pr>=0?'pos':'neg') + '" style="font-size:13px">' + fmtR(pr) + '</div>' +
+      '</div>';
+  }).join('');
+
+  var curiosHTML = '';
+  if(s.curiosidades && s.curiosidades.length) {
+    curiosHTML = '<div style="margin-top:0.75rem"><div class="pgm-section-title" style="color:var(--curio-light)">Curiosidades</div>' +
+      s.curiosidades.map(function(cu) {
+        return '<div class="curio-card" style="margin-bottom:6px">' +
+          '<div class="curio-player" style="margin-bottom:4px">' + (cu.catIcon||'✨') + ' ' + cu.playerName +
+          ' <span style="font-size:10px;font-weight:700;color:var(--text-dim)">' + (cu.catLabel||'') + '</span></div>' +
+          '<div class="curio-text">' + escHtml(cu.text) + '</div></div>';
+      }).join('') + '</div>';
+  }
+
+  var sessionLabel = s.num ? 'Sessão ' + s.num : 'Casual';
+  var badgeClass = s.type==='oficial' ? 'pgm-badge-gold' : 'pgm-badge-casual';
+  var badgeText = s.type==='oficial' ? '🏆 Oficial' : '🥃 Casual';
+  var pot = s.players.reduce(function(a,p){ return a + p.buyin + p.rebuys.reduce(function(r,v){ return r+v; }, 0); }, 0);
+
+  showModal(
+    '<div class="pgm-modal-title">' + sessionLabel + ' — ' + date + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem">' +
+    '<span class="pgm-badge ' + badgeClass + '">' + badgeText + '</span>' +
+    '<span style="font-size:12px;font-weight:700;color:var(--text-dim)">Pot: ' + fmtRaw(pot) + ' · ' + s.players.length + ' jogadores</span></div>' +
+    '<div class="pgm-final-row header"><div>Jogador</div><div style="text-align:right">Investiu</div><div style="text-align:right">Lucro</div></div>' +
+    rowsHTML + curiosHTML +
+    '<div class="pgm-row-btns" style="margin-top:1rem">' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
+    '</div>'
+  );
 }
 
 function showSeasonDetail(idx) {
@@ -1116,7 +1295,7 @@ let _adminAuth = false;
 function adminClick() {
   _adminClicks++;
   clearTimeout(_adminTimer);
-  _adminTimer = setTimeout(() => { _adminClicks = 0; }, 1500);
+  _adminTimer = setTimeout(() => { _adminClicks = 0; }, 800);
   // Feedback visual sutil
   const el = document.getElementById('admin-trigger');
   if(el) { el.style.opacity = '0.5'; setTimeout(() => { el.style.opacity = '1'; }, 150); }
@@ -1152,6 +1331,8 @@ function checkAdminSenha() {
     if(dot) dot.style.display = 'block';
     const navAcum = document.getElementById('nav-acumulado');
     if(navAcum) navAcum.style.display = 'block';
+    var nav = document.querySelector('.pgm-nav');
+    if(nav) nav.classList.add('admin-mode');
     closeModal();
     showAdminPanel();
   } else {
@@ -1162,63 +1343,162 @@ function checkAdminSenha() {
   }
 }
 
-function showAdminPanel() {
-  // Calcular ranking geral de todas as temporadas
-  const allSessions = [
-    ...S.sessions,
-    ...S.pastSeasons.flatMap(function(ps){ return ps.sessions; })
-  ];
+function adminSair() {
+  _adminAuth = false;
+  var d = document.getElementById('admin-dot');
+  if(d) d.style.display = 'none';
+  var na = document.getElementById('nav-acumulado');
+  if(na) na.style.display = 'none';
+  var nav = document.querySelector('.pgm-nav');
+  if(nav) nav.classList.remove('admin-mode');
+  var tabAcum = document.getElementById('tab-acumulado');
+  if(tabAcum && tabAcum.classList.contains('active')) showTab('sessao');
+  closeModal();
+}
 
-  const map = {};
+function showAdminPanel() {
+  var allSessions = [...S.sessions, ...S.pastSeasons.flatMap(function(ps){ return ps.sessions; })];
+  var totalTemps = S.pastSeasons.length + 1;
+  var map = {};
   allSessions.forEach(function(sess) {
     if(sess.type !== 'oficial') return;
     sess.players.forEach(function(p) {
       if(!map[p.name]) map[p.name] = { name: p.name, sessions: 0, profit: 0, best: null };
-      const profit = p.profit || 0;
+      var profit = p.profit || 0;
       map[p.name].sessions++;
       map[p.name].profit += profit;
       if(map[p.name].best === null || profit > map[p.name].best) map[p.name].best = profit;
     });
   });
+  var ranked = Object.values(map).sort(function(a,b){ return b.profit - a.profit; });
+  var medals = ['🥇','🥈','🥉'];
 
-  const ranked = Object.values(map).sort(function(a,b){ return b.profit - a.profit; });
-  const medals = ['🥇','🥈','🥉'];
-  const totalTemporadas = S.pastSeasons.length + 1;
+  var rankHTML = ranked.length ? ranked.map(function(p,i) {
+    return '<div style="display:flex;align-items:center;gap:10px;padding:0.5rem 0;border-bottom:1px solid var(--border)">' +
+      '<div style="font-size:15px;min-width:24px">' + (medals[i]||'#'+(i+1)) + '</div>' +
+      '<div style="flex:1;font-size:12px;font-weight:900;color:var(--cream)">' + p.name + '</div>' +
+      '<div style="font-family:DM Mono,monospace;font-size:13px;color:' + (p.profit>=0?'var(--positive)':'var(--negative)') + '">' + fmtR(p.profit) + '</div>' +
+    '</div>';
+  }).join('') : '<div style="color:var(--text-dim);font-size:12px">Sem sessões oficiais ainda</div>';
 
-  const rankHTML = ranked.length ? ranked.map(function(p,i) {
-    return '<div style="display:flex;align-items:center;gap:10px;padding:0.6rem 0;border-bottom:1px solid var(--border)">' +
-      '<div style="font-size:16px;min-width:26px;text-align:center">' + (medals[i]||'#'+(i+1)) + '</div>' +
-      '<div style="flex:1"><div style="font-size:13px;font-weight:900;color:var(--cream)">' + p.name + '</div>' +
-      '<div style="font-size:11px;font-weight:700;color:var(--text-dim)">' + p.sessions + ' sessões oficiais</div></div>' +
-      '<div style="text-align:right">' +
-      '<div style="font-family:DM Mono,monospace;font-size:14px;font-weight:500;color:' + (p.profit>=0?'var(--positive)':'var(--negative)') + '">' + fmtR(p.profit) + '</div>' +
-      '<div style="font-size:10px;font-weight:700;color:var(--text-dim)">média ' + fmtR(p.sessions>0?p.profit/p.sessions:0) + '/sess</div>' +
-      '</div></div>';
-  }).join('') : '<div style="color:var(--text-dim);font-size:13px">Nenhuma sessão oficial ainda</div>';
-
-  // Sessões da temporada atual para apagar
-  const sessionsListHTML = S.sessions.length ? 
-    '<div style="margin-top:1rem"><div class="pgm-section-title" style="margin-bottom:0.5rem">Apagar sessões</div>' +
-    S.sessions.map(function(s) {
-      const date = s.date ? new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR') : '—';
-      const label = s.num ? 'Sessão '+s.num : 'Casual';
+  var sessHTML = '';
+  if(S.sessions.length) {
+    sessHTML = '<div class="pgm-section-title" style="margin-top:1rem">Apagar sessões (T' + S.season + ')</div>';
+    sessHTML += S.sessions.map(function(s) {
+      var label = s.label ? s.label : (s.num ? 'Sessão ' + s.num : 'Casual ' + (s.date||''));
+      var sid = (s.num !== null && s.num !== undefined) ? String(s.num) : ('c_'+s.date+'_'+s.players.length);
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
-        '<span style="font-size:12px;font-weight:800;color:var(--cream-dim)">' + label + ' · ' + date + '</span>' +
-        '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminDeleteSession(' + (s.num !== null ? s.num : "'casual-"+s.date+"'") + ')" style="padding:2px 8px;font-size:11px">Apagar</button>' +
-        '</div>';
-    }).join('') + '</div>'
-    : '';
+        '<span style="font-size:11px;font-weight:800;color:var(--cream-dim)">' + label + '</span>' +
+        '<button class="pgm-btn pgm-btn-danger pgm-btn-sm pgm-del-sess" data-sid="' + sid + '" style="padding:3px 10px;font-size:11px">Apagar</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  var tempHTML = '';
+  if(S.pastSeasons.length) {
+    tempHTML = '<div class="pgm-section-title" style="margin-top:1rem">Apagar temporadas</div>';
+    tempHTML += S.pastSeasons.map(function(ps, i) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
+        '<span style="font-size:11px;font-weight:800;color:var(--cream-dim)">📦 Temporada ' + ps.season + '</span>' +
+        '<button class="pgm-btn pgm-btn-danger pgm-btn-sm pgm-del-temp" data-idx="' + i + '" style="padding:3px 10px;font-size:11px">Apagar</button>' +
+      '</div>';
+    }).join('');
+  }
 
   showModal(
     '<div class="pgm-modal-title">📊 Admin <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.5rem">' + totalTemporadas + ' temporada(s) · só oficiais</div>' +
-    rankHTML +
-    sessionsListHTML +
+    '<div style="font-size:11px;color:var(--text-dim);margin-bottom:0.5rem">' + totalTemps + ' temp. · só oficiais</div>' +
+    rankHTML + sessHTML + tempHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
-    '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="_adminAuth=false;const d=document.getElementById(\'admin-dot\');if(d)d.style.display=\'none\';const na=document.getElementById(\'nav-acumulado\');if(na){na.style.display=\'none\';}if(document.getElementById(\'tab-acumulado\').classList.contains(\'active\'))showTab(\'sessao\');closeModal()">Sair do admin</button>' +
+    '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminResetAll()">Resetar tudo</button>' +
+    '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminSair()">Sair</button>' +
     '</div>'
   );
+
+  // Adicionar eventos via JS — sem onclick inline
+  setTimeout(function() {
+    document.querySelectorAll('.pgm-del-sess').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var sid = this.dataset.sid;
+        var num = parseInt(sid);
+        adminConfirmDelete(isNaN(num) ? sid : num);
+      });
+    });
+    document.querySelectorAll('.pgm-del-temp').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        adminConfirmDeleteSeason(parseInt(this.dataset.idx));
+      });
+    });
+  }, 80);
+}
+
+function adminConfirmDelete(sid) {
+  var label = typeof sid === 'number' ? 'Sessão ' + sid : 'Sessão Casual';
+  showModal(
+    '<div class="pgm-modal-title">Apagar? <button class="pgm-close-btn" onclick="showAdminPanel()">✕</button></div>' +
+    '<div class="pgm-warn">Apagar <strong>' + label + '</strong>? Não pode ser desfeito.</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" id="btn-confirm-del-sess">Sim, apagar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">Cancelar</button>' +
+    '</div>'
+  );
+  setTimeout(function() {
+    var btn = document.getElementById('btn-confirm-del-sess');
+    if(btn) btn.addEventListener('click', function() { doAdminDeleteSession(sid); });
+  }, 80);
+}
+
+function adminConfirmDeleteSeason(idx) {
+  var ps = S.pastSeasons[idx];
+  showModal(
+    '<div class="pgm-modal-title">Apagar temporada? <button class="pgm-close-btn" onclick="showAdminPanel()">✕</button></div>' +
+    '<div class="pgm-warn">Apagar <strong>Temporada ' + ps.season + '</strong> com ' + ps.sessions.length + ' sessões? Não pode ser desfeito.</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" id="btn-confirm-del-temp">Sim, apagar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">Cancelar</button>' +
+    '</div>'
+  );
+  setTimeout(function() {
+    var btn = document.getElementById('btn-confirm-del-temp');
+    if(btn) btn.addEventListener('click', function() { doAdminDeleteSeason(idx); });
+  }, 80);
+}
+
+function doAdminDeleteSession(sid) {
+  if(typeof sid === 'number') {
+    S.sessions = S.sessions.filter(function(s){ return s.num !== sid; });
+    S.curiosidades = S.curiosidades.filter(function(c){ return c.sessionLabel !== 'Sessão ' + sid; });
+  } else {
+    S.sessions = S.sessions.filter(function(s){ return !('c_'+s.date+'_'+s.players.length === sid); });
+  }
+  updateOverview(); renderHistorico(); save();
+  setTimeout(showAdminPanel, 100);
+}
+
+function doAdminDeleteSeason(idx) {
+  S.pastSeasons.splice(idx, 1);
+  updateOverview(); renderHistorico(); save();
+  setTimeout(showAdminPanel, 100);
+}
+
+function adminResetAll() {
+  showModal(
+    '<div class="pgm-modal-title">Resetar tudo? <button class="pgm-close-btn" onclick="showAdminPanel()">✕</button></div>' +
+    '<div class="pgm-warn">Apaga TODAS as sessões, temporadas, curiosidades e jogadores. Não pode ser desfeito!</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doAdminResetAll()">Sim, resetar tudo</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">Cancelar</button>' +
+    '</div>'
+  );
+}
+
+function doAdminResetAll() {
+  S.sessions = []; S.pastSeasons = []; S.curiosidades = []; S.players = [];
+  S.activeSession = null; S.season = 1; S.newSession = { buyin: 20, rebuy: 20, type: 'oficial' };
+  try { localStorage.removeItem('pgm_v4'); } catch(e) {}
+  updateOverview(); renderHistorico(); renderRanking(); save(); closeModal();
+  showTab('sessao');
 }
 
 function adminDeleteSession(numOrId) {
