@@ -274,7 +274,7 @@
         <div class="pgm-section-title" style="margin-top:1.25rem">Nova Sessão</div>
         <div class="pgm-card">
           <div class="pgm-field">
-            <label class="pgm-input-label">Nº da sessão (oficial)</label>
+            <label class="pgm-input-label">Nº da sessão</label>
             <input type="text" id="new-session-num" class="pgm-input" readonly style="opacity:0.6;cursor:default">
           </div>
           <div style="margin-bottom:0.75rem">
@@ -319,7 +319,7 @@
         <div class="pgm-card" style="margin-bottom:0.75rem">
           <div class="pgm-flex-between" style="margin-bottom:0.5rem">
             <div class="pgm-card-title" id="active-session-title">Sessão 1</div>
-            <span id="active-session-badge" class="pgm-badge pgm-badge-gold">Oficial</span>
+            <span id="active-session-badge" class="pgm-badge pgm-badge-gold">🏆 Oficial</span>
           </div>
           <div style="font-size:12px;font-weight:800;color:var(--cream-dim)">
             Buy-in: <span id="active-buyin" style="color:var(--gold-light);font-family:'DM Mono',monospace">R$ 20</span>
@@ -511,6 +511,9 @@ function setSessionType(t) {
   const oficialCount = S.sessions.filter(s=>s.type==='oficial').length;
   const inp = document.getElementById('new-session-num');
   if(inp) inp.value = t==='oficial' ? (oficialCount<6 ? oficialCount+1 : 'Completa') : '— Casual';
+  // Mostrar campo nome só para casual
+  var nameField = document.getElementById('casual-name-field');
+  if(nameField) nameField.style.display = t === 'casual' ? 'block' : 'none';
 }
 
 // ─── JOGADORES ────────────────────────────────────────────────────────────────
@@ -843,7 +846,7 @@ function startSession() {
 function renderActiveSession() {
   if(!S.activeSession) return;
   const s = S.activeSession;
-  document.getElementById('active-session-title').textContent = s.num ? `Sessão ${s.num}` : 'Sessão Casual';
+  document.getElementById('active-session-title').textContent = s.num ? `Sessão ${s.num}` : (s.label || 'Sessão Casual');
   document.getElementById('active-session-badge').className = 'pgm-badge '+(s.type==='oficial'?'pgm-badge-gold':'pgm-badge-casual');
   document.getElementById('active-session-badge').textContent = s.type==='oficial'?'🏆 Oficial':'🥃 Casual';
   document.getElementById('active-buyin').textContent = fmtRaw(s.buyin);
@@ -1291,8 +1294,17 @@ function showSeasonDetail(idx) {
       oficiais.length + ' sessões oficiais · ' + ps.sessions.length + ' total' +
       (curios.length ? ' · ✨ ' + curios.length + ' curiosidade(s)' : '') + '</div>' +
     sessionsHTML + curiosHTML +
-    '<div class="pgm-row-btns" style="margin-top:1rem"><button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button></div>'
+    '<div class="pgm-row-btns" style="margin-top:1rem">' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
+    (_adminAuth ? '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" id="btn-del-season">Apagar temporada</button>' : '') +
+    '</div>'
   );
+  if(_adminAuth) {
+    setTimeout(function() {
+      var btn = document.getElementById('btn-del-season');
+      if(btn) btn.addEventListener('click', function() { adminConfirmDeleteSeason(idx); });
+    }, 80);
+  }
 }
 
 function confirmNewSeason() {
