@@ -1225,20 +1225,16 @@ function showSessionDetail(num) {
     rowsHTML + curiosHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
-    (_adminAuth ? '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" id="btn-del-sess-detail">Apagar sessão</button>' : '') +
+    '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" id="btn-del-sess-detail">Apagar sessão</button>' +
     '</div>'
   );
-
-  // Botão apagar só aparece para admin
-  if(_adminAuth) {
-    setTimeout(function() {
-      var btn = document.getElementById('btn-del-sess-detail');
-      if(btn) btn.addEventListener('click', function() {
-        var sid = typeof num === 'number' ? num : num;
-        adminConfirmDelete(sid);
-      });
-    }, 80);
-  }
+  setTimeout(function() {
+    var btn = document.getElementById('btn-del-sess-detail');
+    if(btn) btn.addEventListener('click', function() {
+      if(!_adminAuth) { showAlert('Entre no modo admin para apagar.'); return; }
+      adminConfirmDelete(num);
+    });
+  }, 80);
 }
 
 function showSeasonDetail(idx) {
@@ -1296,15 +1292,16 @@ function showSeasonDetail(idx) {
     sessionsHTML + curiosHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
-    (_adminAuth ? '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" id="btn-del-season">Apagar temporada</button>' : '') +
+    '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" id="btn-del-season">Apagar temporada</button>' +
     '</div>'
   );
-  if(_adminAuth) {
-    setTimeout(function() {
-      var btn = document.getElementById('btn-del-season');
-      if(btn) btn.addEventListener('click', function() { adminConfirmDeleteSeason(idx); });
-    }, 80);
-  }
+  setTimeout(function() {
+    var btn = document.getElementById('btn-del-season');
+    if(btn) btn.addEventListener('click', function() {
+      if(!_adminAuth) { showAlert('Entre no modo admin para apagar.'); return; }
+      adminConfirmDeleteSeason(idx);
+    });
+  }, 80);
 }
 
 function confirmNewSeason() {
@@ -1460,8 +1457,8 @@ function showAdminPanel() {
     rankHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
-    '<button class="pgm-btn pgm-btn-sm" onclick="adminRedefinirTemporada()">Redefinir T.</button>' +
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminSair()">Sair</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="adminRedefinirTemporada()">Redefinir</button>' +
     '</div>'
   );
 }
