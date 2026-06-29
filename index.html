@@ -816,26 +816,30 @@ function doAddMidSession() {
 }
 
 function openFinishSession() {
-  const s = S.activeSession;
-  const totalIn = s.players.reduce((a,p)=>a+p.buyin+p.rebuys.reduce((r,v)=>r+v,0),0);
-  const sessionLabel = s.num ? `Sessão ${s.num}` : 'Sessão Casual';
-  showModal(`
-    <div class="pgm-modal-title">Encerrar ${sessionLabel} <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
-    <div class="pgm-alert"><span>💰</span> Pot total: <strong>${fmtRaw(totalIn)}</strong></div>
-    <div class="pgm-section-title">Stack final de cada jogador</div>
-    <div class="pgm-final-row header"><div>Jogador</div><div style="text-align:right">Investiu</div><div style="text-align:right">Stack R$</div></div>
-    ${s.players.map((p,i)=>{ const c=p.buyin+p.rebuys.reduce((a,r)=>a+r,0);
-      return `<div class="pgm-final-row">
-        <div class="pgm-player-name" style="font-size:12px">♟ ${p.name}</div>
-        <div class="pgm-money neu" style="font-size:12px">${fmtRaw(c)}</div>
-        <input type="number" id="stack-${i}" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0" step="0.01" oninput="updateFinishPot()">
-      </div>`;}).join('')}
-    <div id="finish-balance" style="font-size:12px;font-weight:700;color:var(--text-dim);margin-top:0.5rem;padding:0.5rem;background:rgba(255,255,255,0.03);border-radius:6px">
-      Soma: R$ 0,00 | Pot: ${fmtRaw(totalIn)}
-    </div>
-    <div class="pgm-row-btns" style="margin-top:0.75rem">
-      <button class="pgm-btn pgm-btn-success" style="flex:1" onclick="finishSession()">Encerrar e salvar</button>
-    </div>`);
+  var s = S.activeSession;
+  var totalIn = s.players.reduce(function(a,p){ return a + p.buyin + p.rebuys.reduce(function(r,v){ return r+v; }, 0); }, 0);
+  var sessionLabel = s.num ? 'Sessão ' + s.num : 'Sessão Casual';
+  var rowsHTML = s.players.map(function(p, i) {
+    var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
+    return '<div class="pgm-final-row">' +
+      '<div class="pgm-player-name" style="font-size:12px">♟ ' + p.name + '</div>' +
+      '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
+      '<input type="number" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0" step="0.01" oninput="updateFinishPot()">' +
+      '</div>';
+  }).join('');
+
+  showModal(
+    '<div class="pgm-modal-title">Encerrar ' + sessionLabel + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-alert"><span>💰</span> Pot total: <strong>' + fmtRaw(totalIn) + '</strong></div>' +
+    '<div class="pgm-section-title">Stack final de cada jogador</div>' +
+    '<div class="pgm-final-row header"><div>Jogador</div><div style="text-align:right">Investiu</div><div style="text-align:right">Stack R$</div></div>' +
+    rowsHTML +
+    '<div id="finish-balance" style="font-size:12px;font-weight:700;color:var(--text-dim);margin-top:0.5rem;padding:0.5rem;background:rgba(255,255,255,0.03);border-radius:6px">' +
+    'Soma: R$ 0,00 | Pot: ' + fmtRaw(totalIn) + '</div>' +
+    '<div class="pgm-row-btns" style="margin-top:0.75rem">' +
+    '<button class="pgm-btn pgm-btn-success" style="flex:1" onclick="finishSession()">Encerrar e salvar</button>' +
+    '</div>'
+  );
 }
 
 function updateFinishPot() {
