@@ -382,12 +382,15 @@
 
     <!-- TAB: Acumulado (admin only) -->
     <div id="tab-acumulado" class="pgm-tab-content">
-      <div class="pgm-section-title" style="color:#e8c97a">Ranking Acumulado ★</div>
-      <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:1rem" id="acumulado-sub">Todas as temporadas · sessões oficiais</div>
-      <div id="acumulado-list"></div>
-      <div class="pgm-suit-divider">♦ ♣ ♥ ♠</div>
-      <div class="pgm-section-title" style="opacity:0.5">Menos de 3 sessões no total</div>
-      <div id="acumulado-out-list"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem" id="acumulado-sub">Todas as temporadas · sessões oficiais</div>
+
+      <div class="pgm-section-title" style="color:#e8c97a;font-size:12px">🏆 Ranking de Pontos</div>
+      <div id="acumulado-list" style="font-size:11px"></div>
+      <div class="pgm-suit-divider" style="font-size:10px;margin:0.75rem 0">♦ ♣ ♥ ♠</div>
+
+      <div class="pgm-section-title" style="color:#e8c97a;font-size:12px">💰 Ranking de Lucro</div>
+      <div id="acumulado-lucro-list" style="font-size:11px"></div>
+
     </div>
 
     <!-- TAB: Curiosidades -->
@@ -1038,84 +1041,153 @@ function renderAcumulado() {
   const allSessions = [
     ...S.sessions,
     ...S.pastSeasons.flatMap(function(ps){ return ps.sessions; })
-  ];
-  const totalTemps = S.pastSeasons.length + 1;
+  ].filter(function(s){ return s.type === 'oficial'; });
 
+  const totalTemps = S.pastSeasons.length + 1;
   const map = {};
+
   allSessions.forEach(function(sess) {
-    if(sess.type !== 'oficial') return;
-    sess.players.forEach(function(p) {
-      if(!map[p.name]) map[p.name] = { name: p.name, sessions: 0, profit: 0, best: null };
-      const profit = p.profit || 0;
+    if(!sess.players || !sess.players.length) return;
+    var sorted = [...sess.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
+    sorted.forEach(function(p, i) {
+      var pos = i + 1;
+      var pts = getPontosPosicao(pos);
+      if(!map[p.name]) map[p.name] = { name: p.name, sessions: 0, points: 0, profit: 0, wins: 0, podios: 0, best: null };
       map[p.name].sessions++;
-      map[p.name].profit += profit;
-      if(map[p.name].best === null || profit > map[p.name].best) map[p.name].best = profit;
+      map[p.name].points += pts;
+      map[p.name].profit += (p.profit||0);
+      if(pos === 1) map[p.name].wins++;
+      if(pos <= 3) map[p.name].podios++;
+      if(map[p.name].best === null || (p.profit||0) > map[p.name].best) map[p.name].best = (p.profit||0);
     });
   });
 
   const all = Object.values(map).map(function(p) {
-    return Object.assign({}, p, { avg: p.sessions > 0 ? p.profit / p.sessions : 0 });
+    return Object.assign({}, p, { avg: p.sessions > 0 ? p.points / p.sessions : 0 });
   });
-
-  const ranked = all.filter(function(p){ return p.sessions >= 3; }).sort(function(a,b){ return b.avg - a.avg; });
-  const out    = all.filter(function(p){ return p.sessions < 3; }).sort(function(a,b){ return b.profit - a.profit; });
-  const medals = ['🥇','🥈','🥉'];
 
   const sub = document.getElementById('acumulado-sub');
   if(sub) sub.textContent = totalTemps + ' temporada(s) · só sessões oficiais';
 
-  document.getElementById('acumulado-list').innerHTML = ranked.length
-    ? ranked.map(function(p,i) {
-        return '<div class="pgm-ranking-row" style="border-color:rgba(232,201,122,0.2)">' +
-          '<div class="pgm-rank-pos ' + (i<3?'pgm-rank-'+(i+1):'') + '">' + (medals[i]||'#'+(i+1)) + '</div>' +
+  const medals = ['🥇','🥈','🥉'];
+
+  // ─── RANKING DE PONTOS ───────────────────────────────────────────────────────
+  const rankedPts = all.sort(function(a,b){
+    if(b.avg !== a.avg) return b.avg - a.avg;
+    if(b.wins !== a.wins) return b.wins - a.wins;
+    return b.profit - a.profit;
+  });
+
+
+  document.getElementById('acumulado-list').innerHTML = rankedPts.length
+    ? rankedPts.map(function(p,i) {
+        return '<div class="pgm-ranking-row" style="border-color:rgba(232,201,122,0.2);padding:0.4rem 0">' +
+          '<div class="pgm-rank-pos ' + (i<3?'pgm-rank-'+(i+1):'') + '" style="font-size:13px">' + (medals[i]||'#'+(i+1)) + '</div>' +
           '<div class="pgm-rank-name-block">' +
-            '<div class="pgm-rank-name">' + p.name + '</div>' +
-            '<div class="pgm-rank-sessions">' + p.sessions + ' sessões oficiais</div>' +
+            '<div class="pgm-rank-name" style="font-size:12px">' + p.name + '</div>' +
+            '<div class="pgm-rank-sessions" style="font-size:10px">' + p.sessions + ' sess. · 🥇' + p.wins + ' · 🏆' + p.podios + '</div>' +
           '</div>' +
           '<div class="pgm-rank-stats">' +
-            '<div class="pgm-rank-avg" style="color:' + (p.avg>=0?'var(--positive)':'var(--negative)') + '">' + fmtR(p.avg) + '<span style="font-size:11px;color:var(--text-dim);font-weight:700">/sess</span></div>' +
-            '<div class="pgm-rank-detail">Total ' + (p.profit>=0?'+':'') + 'R$ ' + p.profit.toFixed(2).replace('.',',') + ' <span class="pgm-best-badge">melhor ' + fmtR(p.best) + '</span></div>' +
+            '<div style="font-size:12px;font-weight:900;color:var(--gold-light)">' + p.avg.toFixed(1) + '<span style="font-size:10px;color:var(--text-dim)"> pts/sess</span></div>' +
+            '<div style="font-size:10px;color:var(--text-dim)">' + p.points + ' pts total</div>' +
           '</div>' +
         '</div>';
       }).join('')
-    : '<div class="pgm-empty-state"><div class="suit">♠</div>Nenhuma sessão encerrada ainda</div>';
+    : '<div style="font-size:11px;color:var(--text-dim);padding:0.5rem 0">Nenhuma sessão oficial ainda</div>';
 
-  document.getElementById('acumulado-out-list').innerHTML = out.map(function(p) {
+
+
+  // ─── RANKING DE LUCRO ────────────────────────────────────────────────────────
+  const rankedLucro = all.sort(function(a,b){
+    if(b.profit !== a.profit) return b.profit - a.profit;
+    return b.sessions - a.sessions;
+  });
+
+
+  document.getElementById('acumulado-lucro-list').innerHTML = rankedLucro.length
+    ? rankedLucro.map(function(p,i) {
+        return '<div class="pgm-ranking-row" style="border-color:rgba(232,201,122,0.2);padding:0.4rem 0">' +
+          '<div class="pgm-rank-pos ' + (i<3?'pgm-rank-'+(i+1):'') + '" style="font-size:13px">' + (medals[i]||'#'+(i+1)) + '</div>' +
+          '<div class="pgm-rank-name-block">' +
+            '<div class="pgm-rank-name" style="font-size:12px">' + p.name + '</div>' +
+            '<div class="pgm-rank-sessions" style="font-size:10px">' + p.sessions + ' sess. · melhor ' + fmtR(p.best||0) + '</div>' +
+          '</div>' +
+          '<div class="pgm-rank-stats">' +
+            '<div style="font-size:12px;font-weight:900;color:' + (p.profit>=0?'var(--positive)':'var(--negative)') + '">' + fmtR(p.profit) + '</div>' +
+            '<div style="font-size:10px;color:var(--text-dim)">média ' + fmtR(p.sessions>0?p.profit/p.sessions:0) + '/sess</div>' +
+          '</div>' +
+        '</div>';
+      }).join('')
+    : '<div style="font-size:11px;color:var(--text-dim);padding:0.5rem 0">Nenhuma sessão oficial ainda</div>';
+
+
+}
+
+
+function getPontosPosicao(pos) {
+  if(pos === 1) return 5;
+  if(pos === 2) return 3;
+  if(pos === 3) return 2;
+  if(pos === 4) return 1;
+  return 0;
+}
+function renderRanking() {
+  const oficiais = S.sessions.filter(function(s){ return s.type==='oficial'; });
+  const map = {};
+
+  oficiais.forEach(function(sess) {
+    if(!sess.players || !sess.players.length) return;
+    // Ordenar por lucro para determinar posição
+    var sorted = [...sess.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
+    sorted.forEach(function(p, i) {
+      var pos = i + 1;
+      var pts = getPontosPosicao(pos);
+      if(!map[p.name]) map[p.name] = { name: p.name, sessions: 0, points: 0, profit: 0, best: null, wins: 0 };
+      map[p.name].sessions++;
+      map[p.name].points += pts;
+      map[p.name].profit += (p.profit||0);
+      if(pos === 1) map[p.name].wins++;
+      if(map[p.name].best === null || (p.profit||0) > map[p.name].best) map[p.name].best = (p.profit||0);
+    });
+  });
+
+  const all = Object.values(map).map(function(p) {
+    return Object.assign({}, p, { avg: p.sessions > 0 ? p.points / p.sessions : 0 });
+  });
+
+  const ranked = all.filter(function(p){ return p.sessions >= 3; }).sort(function(a,b){
+    if(b.avg !== a.avg) return b.avg - a.avg;
+    return b.wins - a.wins; // desempate por vitórias
+  });
+  const out = all.filter(function(p){ return p.sessions < 3; }).sort(function(a,b){ return b.avg - a.avg; });
+  const medals = ['🥇','🥈','🥉'];
+
+  document.getElementById('ranking-season-num').textContent = S.season;
+
+  document.getElementById('ranking-list').innerHTML = ranked.length
+    ? ranked.map(function(p,i) {
+        return '<div class="pgm-ranking-row">' +
+          '<div class="pgm-rank-pos ' + (i<3?'pgm-rank-'+(i+1):'') + '">' + (medals[i]||'#'+(i+1)) + '</div>' +
+          '<div class="pgm-rank-name-block">' +
+            '<div class="pgm-rank-name">' + p.name + '</div>' +
+            '<div class="pgm-rank-sessions">' + p.sessions + ' sessões · ' + p.wins + ' vitória(s)</div>' +
+          '</div>' +
+          '<div class="pgm-rank-stats">' +
+            '<div class="pgm-rank-avg" style="color:var(--gold-light)">' + p.avg.toFixed(1) + '<span style="font-size:11px;color:var(--text-dim);font-weight:700"> pts/sess</span></div>' +
+            '<div class="pgm-rank-detail">Total ' + p.points + ' pts · ' + (p.profit>=0?'+':'') + 'R$ ' + p.profit.toFixed(2).replace('.',',') + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('')
+    : '<div class="pgm-empty-state"><div class="suit">♠</div>Mínimo 3 sessões para entrar no ranking</div>';
+
+  document.getElementById('ranking-out-list').innerHTML = out.map(function(p) {
     return '<div class="pgm-ranking-row greyed">' +
       '<div class="pgm-rank-pos">—</div>' +
       '<div class="pgm-rank-name-block"><div class="pgm-rank-name" style="color:var(--text-dim)">' + p.name + '</div>' +
-      '<div class="pgm-rank-sessions">' + p.sessions + ' sessões oficiais</div></div>' +
-      '<div class="pgm-rank-stats"><div style="font-size:12px;color:var(--text-dim)">R$ ' + p.profit.toFixed(2).replace('.',',') + '</div></div>' +
+      '<div class="pgm-rank-sessions">' + p.sessions + ' sessão(ões)</div></div>' +
+      '<div class="pgm-rank-stats"><div style="font-size:12px;color:var(--text-dim)">' + p.points + ' pts</div></div>' +
     '</div>';
   }).join('');
-}
-
-function renderRanking() {
-  const stats=getAllPlayerStats();
-  const ranked=stats.filter(p=>p.officialSessions>=3).sort((a,b)=>b.avg-a.avg);
-  const out=stats.filter(p=>p.officialSessions<3).sort((a,b)=>b.totalProfit-a.totalProfit);
-  document.getElementById('ranking-season-num').textContent=S.season;
-  const medals=['🥇','🥈','🥉'];
-  document.getElementById('ranking-list').innerHTML=ranked.length
-    ?ranked.map((p,i)=>`
-      <div class="pgm-ranking-row">
-        <div class="pgm-rank-pos ${i<3?'pgm-rank-'+(i+1):''}">${medals[i]||'#'+(i+1)}</div>
-        <div class="pgm-rank-name-block">
-          <div class="pgm-rank-name">${p.name}</div>
-          <div class="pgm-rank-sessions">${p.officialSessions} sessões oficiais · ${p.totalSessions} total</div>
-        </div>
-        <div class="pgm-rank-stats">
-          <div class="pgm-rank-avg" style="color:${p.avg>=0?'var(--positive)':'var(--negative)'}">${fmtR(p.avg)}<span style="font-size:11px;color:var(--text-dim);font-weight:700">/sess</span></div>
-          <div class="pgm-rank-detail">Total ${p.totalProfit>=0?'+':''}R$ ${p.totalProfit.toFixed(2).replace('.',',')} <span class="pgm-best-badge">melhor ${fmtR(p.bestSession)}</span></div>
-        </div>
-      </div>`).join('')
-    :'<div class="pgm-empty-state"><div class="suit">♠</div>Nenhum jogador com 3+ sessões oficiais ainda</div>';
-  document.getElementById('ranking-out-list').innerHTML=out.map(p=>`
-    <div class="pgm-ranking-row greyed">
-      <div class="pgm-rank-pos">—</div>
-      <div class="pgm-rank-name-block"><div class="pgm-rank-name" style="color:var(--text-dim)">${p.name}</div><div class="pgm-rank-sessions">${p.officialSessions} sessões oficiais</div></div>
-      <div class="pgm-rank-stats"><div style="font-size:12px;color:var(--text-dim)">R$ ${p.totalProfit.toFixed(2).replace('.',',')}</div></div>
-    </div>`).join('');
 }
 
 // ─── HISTÓRICO ────────────────────────────────────────────────────────────────
