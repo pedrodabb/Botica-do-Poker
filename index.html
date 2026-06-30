@@ -1264,23 +1264,19 @@ function renderHistorico() {
     el.innerHTML = '<div class="pgm-empty-state"><div class="suit">♣</div>Nenhuma sessão encerrada ainda</div>';
     return;
   }
-  var oficiais = S.sessions.filter(function(s){ return s.type==='oficial'; }).reverse();
-  var casuais  = S.sessions.filter(function(s){ return s.type==='casual'; }).reverse();
 
-  function sessionCard(s, clickId) {
+  function sessionCard(s, sessionIndex) {
     var date = s.date ? new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR') : '—';
     var pot  = s.players.reduce(function(a,p){ return a+p.buyin+(p.rebuys||[]).reduce(function(r,v){return r+v;},0); }, 0);
     var sorted = [...s.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
     var winner = sorted[0];
     var second = sorted[1];
     var curios = s.curiosidades && s.curiosidades.length ? ' · ✨ '+s.curiosidades.length : '';
-    var clickStr = typeof clickId === 'string' ? '"'+clickId+'"' : clickId;
     var title = s.label ? s.label : (s.num ? 'Sessão '+s.num : 'Casual');
     var badge = s.type==='oficial'
       ? '<span class="pgm-badge pgm-badge-gold" style="font-size:10px">🏆 Oficial</span>'
       : '<span class="pgm-badge pgm-badge-casual" style="font-size:10px">🥃 Casual</span>';
-    var dataAttr = typeof clickId === 'string' ? 'data-sessid="' + clickId + '"' : 'data-sessnum="' + clickId + '"';
-    return '<div class="pgm-history-item" ' + dataAttr + ' style="cursor:pointer">' +
+    return '<div class="pgm-history-item" data-sessidx="' + sessionIndex + '" style="cursor:pointer">' +
       '<div class="pgm-history-header">' +
         '<div class="pgm-history-title">' + title + ' ' + badge + '</div>' +
         '<div class="pgm-history-date">' + date + '</div>' +
@@ -1290,25 +1286,31 @@ function renderHistorico() {
   }
 
   var html = '';
+  var oficiaisIdx = [];
+  var casuaisIdx = [];
 
-  // Sessões oficiais da temporada atual
-  if(oficiais.length) {
+  S.sessions.forEach(function(s, i) {
+    if(s.type === 'oficial') oficiaisIdx.push(i);
+    else casuaisIdx.push(i);
+  });
+  oficiaisIdx.reverse();
+  casuaisIdx.reverse();
+
+  if(oficiaisIdx.length) {
     html += '<div class="pgm-section-title">🏆 Sessões Oficiais — Temporada ' + S.season + '</div>';
-    html += oficiais.map(function(s){ return sessionCard(s, s.num); }).join('');
+    html += oficiaisIdx.map(function(i){ return sessionCard(S.sessions[i], i); }).join('');
   }
 
-  // Sessões casuais da temporada atual
-  if(casuais.length) {
+  if(casuaisIdx.length) {
     html += '<div class="pgm-section-title" style="margin-top:0.75rem">🥃 Sessões Casuais</div>';
-    html += casuais.map(function(s){ return sessionCard(s, 'c_'+s.date+'_'+s.players.length); }).join('');
+    html += casuaisIdx.map(function(i){ return sessionCard(S.sessions[i], i); }).join('');
   }
 
-  // Temporadas anteriores
   if(S.pastSeasons.length) {
     html += '<div class="pgm-section-title" style="margin-top:1rem">📦 Temporadas Anteriores</div>';
     html += [...S.pastSeasons].reverse().map(function(ps, i) {
       var realIdx = S.pastSeasons.length - 1 - i;
-      return '<div class="pgm-history-item" style="opacity:0.7;border-style:dashed" onclick="showSeasonDetail('+realIdx+')">' +
+      return '<div class="pgm-history-item" style="opacity:0.7;border-style:dashed" data-seasonidx="' + realIdx + '">' +
         '<div class="pgm-history-header">' +
           '<div class="pgm-history-title">📦 Temporada ' + ps.season + '</div>' +
           '<div class="pgm-history-date">' + ps.sessions.length + ' sessões</div>' +
@@ -1320,30 +1322,21 @@ function renderHistorico() {
 
   el.innerHTML = html;
 
-  // Event delegation para cards do histórico
-  el.querySelectorAll('.pgm-history-item').forEach(function(card) {
+  // Event delegation
+  el.querySelectorAll('[data-sessidx]').forEach(function(card) {
     card.addEventListener('click', function() {
-      if(this.dataset.sessid) {
-        showSessionDetail(this.dataset.sessid);
-      } else if(this.dataset.sessnum) {
-        showSessionDetail(parseInt(this.dataset.sessnum));
-      }
+      showSessionDetail(parseInt(this.dataset.sessidx));
+    });
+  });
+  el.querySelectorAll('[data-seasonidx]').forEach(function(card) {
+    card.addEventListener('click', function() {
+      showSeasonDetail(parseInt(this.dataset.seasonidx));
     });
   });
 }
 
-function showSessionDetail(num) {
-  var s;
-  if(typeof num === 'string' && num.startsWith('c_')) {
-    var parts = num.slice(2).split('_');
-    var date = parts[0];
-    var nplayers = parseInt(parts[1]);
-    s = S.sessions.find(function(x){ return x.type==='casual' && x.date===date && x.players.length===nplayers; });
-  } else if(typeof num === 'number' && num < 0) {
-    s = S.sessions.filter(function(x){ return x.type==='casual'; })[Math.abs(num)-1];
-  } else {
-    s = S.sessions.find(function(x){ return x.num===num; });
-  }
+function showSessionDetail(sessionIndex) {
+  var s = S.sessions[sessionIndex];
   if(!s) return;
 
   // Sanitizar rebuys
@@ -1396,7 +1389,7 @@ function showSessionDetail(num) {
     var btn = document.getElementById('btn-del-sess-detail');
     if(btn) btn.addEventListener('click', function() {
       if(!_adminAuth) { showAlert('Entre no modo admin para apagar.'); return; }
-      adminConfirmDelete(num);
+      adminConfirmDelete(sessionIndex);
     });
     var btnS = document.getElementById('btn-share-hist');
     if(btnS) btnS.addEventListener('click', function(){ compartilharResultado(s); });
@@ -1629,8 +1622,10 @@ function showAdminPanel() {
   );
 }
 
-function adminConfirmDelete(sid) {
-  var label = typeof sid === 'number' ? 'Sessão ' + sid : 'Sessão Casual';
+function adminConfirmDelete(sessionIndex) {
+  var s = S.sessions[sessionIndex];
+  if(!s) return;
+  var label = s.label ? s.label : (s.num ? 'Sessão ' + s.num : 'Sessão Casual');
   showModal(
     '<div class="pgm-modal-title">Apagar? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div class="pgm-warn">Apagar <strong>' + label + '</strong>? Não pode ser desfeito.</div>' +
@@ -1641,7 +1636,7 @@ function adminConfirmDelete(sid) {
   );
   setTimeout(function() {
     var btn = document.getElementById('btn-confirm-del-sess');
-    if(btn) btn.addEventListener('click', function() { doAdminDeleteSession(sid); });
+    if(btn) btn.addEventListener('click', function() { doAdminDeleteSession(sessionIndex); });
   }, 80);
 }
 
@@ -1661,21 +1656,14 @@ function adminConfirmDeleteSeason(idx) {
   }, 80);
 }
 
-function doAdminDeleteSession(sid) {
-  if(typeof sid === 'number') {
-    S.sessions = S.sessions.filter(function(s){ return s.num !== sid; });
-    S.curiosidades = S.curiosidades.filter(function(c){ return c.sessionLabel !== 'Sessão ' + sid; });
-  } else {
-    // Casual: sid = c_YYYY-MM-DD_N — comparar de formas diferentes para garantir
-    S.sessions = S.sessions.filter(function(s){
-      if(s.type !== 'casual') return true;
-      var match = ('c_'+s.date+'_'+s.players.length) === sid;
-      var matchDate = s.date === sid.replace(/^c_/,'').split('_')[0];
-      return !match && !matchDate;
-    });
+function doAdminDeleteSession(sessionIndex) {
+  var s = S.sessions[sessionIndex];
+  if(!s) { closeModal(); return; }
+  if(s.num) {
+    S.curiosidades = S.curiosidades.filter(function(c){ return c.sessionLabel !== 'Sessão ' + s.num; });
   }
-  updateOverview(); renderHistorico(); save();
-  renderHistorico();
+  S.sessions.splice(sessionIndex, 1);
+  updateOverview(); renderHistorico(); save(); closeModal();
 }
 
 function doAdminDeleteSeason(idx) {
