@@ -280,17 +280,7 @@
     <!-- TAB: Sessão -->
     <div id="tab-sessao" class="pgm-tab-content active">
       <div id="no-session-state">
-        <div class="pgm-section-title">Visão Geral da Temporada</div>
-        <div class="pgm-card">
-          <div class="pgm-card-header">
-            <div class="pgm-card-title">Progresso</div>
-            <span class="pgm-badge pgm-badge-gold">Em andamento</span>
-          </div>
-          <div class="pgm-pot-bar"><div id="progress-bar" class="pgm-pot-fill" style="width:0%"></div></div>
-          <div id="sessions-circles" class="sessions-done-row"></div>
-        </div>
-
-        <div class="pgm-section-title" style="margin-top:1.25rem">Nova Sessão</div>
+        <div class="pgm-section-title">Nova Sessão</div>
         <div class="pgm-card">
           <div class="pgm-field">
             <label class="pgm-input-label">Nº da sessão</label>
@@ -416,7 +406,16 @@
 
     <!-- TAB: Ranking -->
     <div id="tab-ranking" class="pgm-tab-content">
-      <div class="pgm-section-title">Ranking — Temporada <span id="ranking-season-num">1</span></div>
+      <div class="pgm-section-title">Visão Geral — Temporada <span id="ranking-season-num">1</span></div>
+      <div class="pgm-card" style="margin-bottom:1rem">
+        <div class="pgm-card-header">
+          <div class="pgm-card-title">Progresso</div>
+          <span class="pgm-badge pgm-badge-gold">Em andamento</span>
+        </div>
+        <div class="pgm-pot-bar"><div id="progress-bar" class="pgm-pot-fill" style="width:0%"></div></div>
+        <div id="sessions-circles" class="sessions-done-row"></div>
+      </div>
+      <div class="pgm-section-title">Ranking da Temporada</div>
       <div id="ranking-list"></div>
       <div class="pgm-suit-divider">♦ ♣ ♥ ♠</div>
       <div class="pgm-section-title" style="opacity:0.5">Fora do ranking (menos de 3 sessões)</div>
@@ -990,11 +989,37 @@ function finishSession() {
   const s = S.activeSession;
   s.players.forEach((p,i)=>{ if(!p.rebuys) p.rebuys = []; p.finalStack=parseFloat(document.getElementById('stack-'+i).value)||0; p.profit=p.finalStack-(p.buyin+p.rebuys.reduce((a,r)=>a+r,0)); });
   s.players.forEach(p=>{ if(!S.players.find(r=>r.name.toLowerCase()===p.name.toLowerCase())) S.players.push({name:p.name,createdAt:Date.now()}); });
-  S.sessions.push(JSON.parse(JSON.stringify(s)));
+  const sessaoFinalizada = JSON.parse(JSON.stringify(s));
+  S.sessions.push(sessaoFinalizada);
   S.activeSession = null;
   document.getElementById('no-session-state').style.display = 'block';
   document.getElementById('active-session-state').style.display = 'none';
-  resetNewSessionForm(); updateOverview(); closeModal(); save();
+  resetNewSessionForm(); updateOverview(); save();
+  
+  // Modal de resultado com opção de compartilhar
+  const sorted = [...sessaoFinalizada.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
+  const medals = ['🥇','🥈','🥉'];
+  const date = sessaoFinalizada.date ? new Date(sessaoFinalizada.date+'T12:00:00').toLocaleDateString('pt-BR') : '';
+  const rowsHTML = sorted.map(function(p,i){
+    const pr = p.profit||0;
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
+      '<span style="font-size:14px">' + (medals[i]||'#'+(i+1)) + ' <strong style="color:var(--cream)">' + p.name + '</strong></span>' +
+      '<span style="font-family:DM Mono,monospace;font-size:14px;color:' + (pr>=0?'var(--positive)':'var(--negative)') + '">' + (pr>=0?'+':'') + 'R$ ' + Math.abs(pr).toFixed(2).replace('.',',') + '</span>' +
+    '</div>';
+  }).join('');
+  
+  showModal(
+    '<div class="pgm-modal-title">🏆 Resultado · ' + date + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    rowsHTML +
+    '<div class="pgm-row-btns" style="margin-top:1rem">' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
+    '<button class="pgm-btn" style="flex:1;background:rgba(37,211,102,0.15);border-color:rgba(37,211,102,0.5);color:#25d366" id="btn-share-result">📤 Compartilhar</button>' +
+    '</div>'
+  );
+  setTimeout(function(){
+    var btn = document.getElementById('btn-share-result');
+    if(btn) btn.addEventListener('click', function(){ compartilharResultado(sessaoFinalizada); });
+  }, 80);
 }
 
 function resetNewSessionForm() {
@@ -1055,17 +1080,15 @@ function renderAcumulado() {
 
   allSessions.forEach(function(sess) {
     if(!sess.players || !sess.players.length) return;
-    var sorted = [...sess.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
-    sorted.forEach(function(p, i) {
-      var pos = i + 1;
-      var pts = getPontosPosicao(pos);
-      if(!map[p.name]) map[p.name] = { name: p.name, sessions: 0, points: 0, profit: 0, wins: 0, podios: 0, best: null };
-      map[p.name].sessions++;
-      map[p.name].points += pts;
-      map[p.name].profit += (p.profit||0);
-      if(pos === 1) map[p.name].wins++;
-      if(pos <= 3) map[p.name].podios++;
-      if(map[p.name].best === null || (p.profit||0) > map[p.name].best) map[p.name].best = (p.profit||0);
+    var resultado = calcularPontosComEmpate(sess.players);
+    resultado.forEach(function(r) {
+      if(!map[r.name]) map[r.name] = { name: r.name, sessions: 0, points: 0, profit: 0, wins: 0, podios: 0, best: null };
+      map[r.name].sessions++;
+      map[r.name].points += r.pts;
+      map[r.name].profit += r.profit;
+      if(r.pos === 1) map[r.name].wins++;
+      if(r.pos <= 3) map[r.name].podios++;
+      if(map[r.name].best === null || r.profit > map[r.name].best) map[r.name].best = r.profit;
     });
   });
 
@@ -1138,23 +1161,41 @@ function getPontosPosicao(pos) {
   if(pos === 4) return 1;
   return 0;
 }
+
+function calcularPontosComEmpate(players) {
+  // Ordenar por lucro decrescente
+  var sorted = [...players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
+  var resultado = [];
+  var i = 0;
+  while(i < sorted.length) {
+    var lucroAtual = sorted[i].profit || 0;
+    var j = i;
+    // Contar quantos têm o mesmo lucro
+    while(j < sorted.length && (sorted[j].profit||0) === lucroAtual) j++;
+    // Todos de i até j-1 ficam na posição i+1
+    var pos = i + 1;
+    var pts = getPontosPosicao(pos);
+    for(var k = i; k < j; k++) {
+      resultado.push({ name: sorted[k].name, profit: sorted[k].profit||0, pos: pos, pts: pts });
+    }
+    i = j;
+  }
+  return resultado;
+}
 function renderRanking() {
   const oficiais = S.sessions.filter(function(s){ return s.type==='oficial'; });
   const map = {};
 
   oficiais.forEach(function(sess) {
     if(!sess.players || !sess.players.length) return;
-    // Ordenar por lucro para determinar posição
-    var sorted = [...sess.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
-    sorted.forEach(function(p, i) {
-      var pos = i + 1;
-      var pts = getPontosPosicao(pos);
-      if(!map[p.name]) map[p.name] = { name: p.name, sessions: 0, points: 0, profit: 0, best: null, wins: 0 };
-      map[p.name].sessions++;
-      map[p.name].points += pts;
-      map[p.name].profit += (p.profit||0);
-      if(pos === 1) map[p.name].wins++;
-      if(map[p.name].best === null || (p.profit||0) > map[p.name].best) map[p.name].best = (p.profit||0);
+    var resultado = calcularPontosComEmpate(sess.players);
+    resultado.forEach(function(r) {
+      if(!map[r.name]) map[r.name] = { name: r.name, sessions: 0, points: 0, profit: 0, best: null, wins: 0 };
+      map[r.name].sessions++;
+      map[r.name].points += r.pts;
+      map[r.name].profit += r.profit;
+      if(r.pos === 1) map[r.name].wins++;
+      if(map[r.name].best === null || r.profit > map[r.name].best) map[r.name].best = r.profit;
     });
   });
 
@@ -1219,7 +1260,8 @@ function renderHistorico() {
     var badge = s.type==='oficial'
       ? '<span class="pgm-badge pgm-badge-gold" style="font-size:10px">🏆 Oficial</span>'
       : '<span class="pgm-badge pgm-badge-casual" style="font-size:10px">🥃 Casual</span>';
-    return '<div class="pgm-history-item" onclick="showSessionDetail('+clickStr+')">' +
+    var dataAttr = typeof clickId === 'string' ? 'data-sessid="' + clickId + '"' : 'data-sessnum="' + clickId + '"';
+    return '<div class="pgm-history-item" ' + dataAttr + ' style="cursor:pointer">' +
       '<div class="pgm-history-header">' +
         '<div class="pgm-history-title">' + title + ' ' + badge + '</div>' +
         '<div class="pgm-history-date">' + date + '</div>' +
@@ -1258,6 +1300,17 @@ function renderHistorico() {
   }
 
   el.innerHTML = html;
+
+  // Event delegation para cards do histórico
+  el.querySelectorAll('.pgm-history-item').forEach(function(card) {
+    card.addEventListener('click', function() {
+      if(this.dataset.sessid) {
+        showSessionDetail(this.dataset.sessid);
+      } else if(this.dataset.sessnum) {
+        showSessionDetail(parseInt(this.dataset.sessnum));
+      }
+    });
+  });
 }
 
 function showSessionDetail(num) {
@@ -1316,7 +1369,8 @@ function showSessionDetail(num) {
     rowsHTML + curiosHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
-    '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" id="btn-del-sess-detail">Apagar sessão</button>' +
+    '<button class="pgm-btn" style="background:rgba(37,211,102,0.15);border-color:rgba(37,211,102,0.5);color:#25d366" id="btn-share-hist">📤 Compartilhar</button>' +
+    '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" id="btn-del-sess-detail">Apagar</button>' +
     '</div>'
   );
   setTimeout(function() {
@@ -1325,6 +1379,8 @@ function showSessionDetail(num) {
       if(!_adminAuth) { showAlert('Entre no modo admin para apagar.'); return; }
       adminConfirmDelete(num);
     });
+    var btnS = document.getElementById('btn-share-hist');
+    if(btnS) btnS.addEventListener('click', function(){ compartilharResultado(s); });
   }, 80);
 }
 
@@ -1642,6 +1698,99 @@ document.addEventListener('click', e=>{ const b=e.target.closest('.pgm-modal-bac
 
 
 
+
+
+// ─── COMPARTILHAR RESULTADO ───────────────────────────────────────────────────
+function compartilharResultado(sessao) {
+  // Criar canvas com o resultado
+  const canvas = document.createElement('canvas');
+  const W = 600, H = 100 + (sessao.players.length * 70) + 80;
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // Fundo verde escuro
+  ctx.fillStyle = '#0d2218';
+  ctx.fillRect(0, 0, W, H);
+
+  // Borda dourada
+  ctx.strokeStyle = '#c9a84c';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(6, 6, W-12, H-12);
+
+  // Título
+  ctx.fillStyle = '#c9a84c';
+  ctx.font = 'bold 22px Georgia, serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('♠ Botica do Poker', W/2, 42);
+
+  // Data e tipo
+  const date = sessao.date ? new Date(sessao.date+'T12:00:00').toLocaleDateString('pt-BR') : '';
+  const tipo = sessao.type === 'oficial' ? '🏆 Oficial' : '🥃 Casual';
+  ctx.fillStyle = '#8a9080';
+  ctx.font = '14px Arial, sans-serif';
+  ctx.fillText(date + '  ·  ' + tipo, W/2, 68);
+
+  // Linha separadora
+  ctx.strokeStyle = '#c9a84c';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(30, 82);
+  ctx.lineTo(W-30, 82);
+  ctx.stroke();
+
+  // Jogadores ordenados por lucro
+  const sorted = [...sessao.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
+  const medals = ['🥇','🥈','🥉'];
+
+  sorted.forEach(function(p, i) {
+    const y = 82 + (i+1)*65;
+    const profit = p.profit || 0;
+
+    // Medalha/posição
+    ctx.font = '26px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(medals[i] || (i+1)+'º', 24, y+8);
+
+    // Nome
+    ctx.fillStyle = '#f5f5f2';
+    ctx.font = 'bold 18px Arial, sans-serif';
+    ctx.fillText(p.name, 70, y+8);
+
+    // Lucro
+    ctx.fillStyle = profit >= 0 ? '#2ecc71' : '#e74c3c';
+    ctx.font = 'bold 18px "Courier New", monospace';
+    ctx.textAlign = 'right';
+    const prefix = profit >= 0 ? '+' : '';
+    ctx.fillText(prefix + 'R$ ' + Math.abs(profit).toFixed(2).replace('.', ','), W-24, y+8);
+
+    // Linha divisória leve
+    if(i < sorted.length - 1) {
+      ctx.strokeStyle = 'rgba(201,168,76,0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(30, y+22);
+      ctx.lineTo(W-30, y+22);
+      ctx.stroke();
+    }
+  });
+
+  // Rodapé
+  ctx.fillStyle = '#4a5a4a';
+  ctx.font = '11px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('boticadopoker.com.br', W/2, H-16);
+
+  // Converter para imagem e abrir/download
+  canvas.toBlob(function(blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'botica-resultado-' + (sessao.date||'sessao') + '.png';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+}
 
 document.addEventListener('DOMContentLoaded', ()=>{
   // ─── SENHA ────────────────────────────────────────────────────────────────
