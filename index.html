@@ -1711,13 +1711,13 @@ function checkAdminSenha() {
 
 function adminRedefinirTemporada() {
   showModal(
-    '<div class="pgm-modal-title">Redefinir temporada <button class="pgm-close-btn" onclick="showAdminPanel()">✕</button></div>' +
+    '<div class="pgm-modal-title">Redefinir temporada <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Número da temporada</label>' +
     '<input type="number" id="input-nova-temp" class="pgm-input" value="' + S.season + '" min="1" style="text-align:center"></div>' +
     '<div style="font-size:11px;color:var(--text-dim);margin-bottom:0.75rem">Sessões e dados atuais não são apagados.</div>' +
     '<div class="pgm-row-btns">' +
     '<button class="pgm-btn pgm-btn-success" style="flex:1" id="btn-confirmar-temp">Confirmar</button>' +
-    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">Cancelar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
     '</div>'
   );
   setTimeout(function() {
@@ -1729,7 +1729,6 @@ function adminRedefinirTemporada() {
         save();
         updateOverview();
         closeModal();
-        showAlert('Temporada redefinida para T' + val);
       }
     });
   }, 80);
