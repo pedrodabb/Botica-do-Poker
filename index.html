@@ -16,7 +16,7 @@
   <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+    import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyACviy1MMQadWQb0FQNzRReuaSvXALYzC0",
@@ -45,6 +45,17 @@
         const data = snapshot.val();
         if(data) callback(data);
       });
+    };
+
+    // Leitura única do código temporário — usada na tela de senha, antes do app (e do sync completo) carregar
+    window._fbGetTempCode = async function() {
+      try {
+        const snap = await get(ref(db, DB_REF + '/tempCode'));
+        return snap.val();
+      } catch(e) {
+        console.error('Erro ao ler código temporário:', e);
+        return null;
+      }
     };
 
     // Monitor de conexão real
@@ -226,6 +237,12 @@
     .pgm-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
     .pgm-modal { background: #16271b; border: 1px solid var(--border-strong); border-radius: 12px; padding: 1.25rem; width: 100%; max-width: 360px; max-height: 85vh; overflow-y: auto; }
     .pgm-modal-title { font-size: 15px; font-weight: 900; color: var(--cream); margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; }
+    .pgm-modal-backdrop.pgm-sheet-mode { align-items: flex-end; padding: 0; }
+    .pgm-sheet { background: #16271b; border: 1px solid var(--border-strong); border-bottom: none; border-radius: 16px 16px 0 0; padding: 1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom)); width: 100%; max-width: 480px; max-height: 80vh; overflow-y: auto; animation: pgmSheetUp 0.25s ease-out; }
+    @keyframes pgmSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .pgm-rules-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 800; color: var(--cream-dim); }
+    .pgm-rules-row:last-child { border-bottom: none; }
+    .pgm-rules-link { background: none; border: none; color: var(--gold-light); font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; margin: -0.25rem 0 0.75rem; }
     .pgm-close-btn { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
     .pgm-close-btn:hover { color: var(--cream); }
 
@@ -341,6 +358,7 @@
               <button class="pgm-toggle-opt" onclick="setSessionType('casual')">🥃 Casual</button>
             </div>
           </div>
+          <button class="pgm-rules-link" type="button" onclick="showRulesGuide()">ℹ️ Ver regras de pontuação</button>
           <div class="pgm-field" id="casual-name-field" style="display:none">
             <label class="pgm-input-label">Nome da sessão (opcional)</label>
             <input type="text" id="new-session-label" class="pgm-input" placeholder="Ex: Sexta especial, Aniversário...">
@@ -465,11 +483,8 @@
         <div class="pgm-pot-bar"><div id="progress-bar" class="pgm-pot-fill" style="width:0%"></div></div>
         <div id="sessions-circles" class="sessions-done-row"></div>
       </div>
-      <div class="pgm-section-title">Ranking da Temporada</div>
+      <div class="pgm-section-title">Ranking da Temporada Atual</div>
       <div id="ranking-list"></div>
-      <div class="pgm-suit-divider">♦ ♣ ♥ ♠</div>
-      <div class="pgm-section-title" style="opacity:0.5">Fora do ranking (menos de 3 sessões)</div>
-      <div id="ranking-out-list"></div>
       <div id="apagar-temp-atual-wrapper" style="display:none;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)">
         <button class="pgm-btn pgm-btn-danger" onclick="confirmApagarTemporadaAtual()" style="width:100%">Reset</button>
       </div>
@@ -478,12 +493,7 @@
 
     <!-- TAB: Histórico -->
     <div id="tab-historico" class="pgm-tab-content">
-      <div class="pgm-section-title">Histórico de Sessões</div>
       <div id="historico-list"></div>
-      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
-        <div class="pgm-section-title">Temporadas</div>
-        
-      </div>
     </div>
 
   </main>
@@ -541,7 +551,7 @@ function initFirebaseSync() {
     if(remoteTime < localTime) return; // dado do servidor é mais antigo, ignora
 
     // Mesclar dados do Firebase com o estado local
-    const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession','_lastUpdate'];
+    const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession','tempCode','_lastUpdate'];
     keys.forEach(k=>{ if(data[k]!==undefined) S[k]=data[k]; });
     // activeSession: sempre confia no servidor quando ele é mais recente ou igual
     S.activeSession = data.activeSession || null;
@@ -1398,11 +1408,10 @@ function renderRanking() {
     return Object.assign({}, p, { avg: p.sessions > 0 ? p.points / p.sessions : 0 });
   });
 
-  const ranked = all.filter(function(p){ return p.sessions >= 3; }).sort(function(a,b){
+  const ranked = all.sort(function(a,b){
     if(b.avg !== a.avg) return b.avg - a.avg;
     return b.wins - a.wins; // desempate por vitórias
   });
-  const out = all.filter(function(p){ return p.sessions < 3; }).sort(function(a,b){ return b.avg - a.avg; });
   const medals = ['🥇','🥈','🥉'];
 
   document.getElementById('ranking-season-num').textContent = S.season;
@@ -1421,16 +1430,7 @@ function renderRanking() {
           '</div>' +
         '</div>';
       }).join('')
-    : '<div class="pgm-empty-state"><div class="suit">♠</div>Mínimo 3 sessões para entrar no ranking</div>';
-
-  document.getElementById('ranking-out-list').innerHTML = out.map(function(p) {
-    return '<div class="pgm-ranking-row greyed">' +
-      '<div class="pgm-rank-pos">—</div>' +
-      '<div class="pgm-rank-name-block"><div class="pgm-rank-name" style="color:var(--text-dim)">' + p.name + '</div>' +
-      '<div class="pgm-rank-sessions">' + p.sessions + ' sessão(ões)</div></div>' +
-      '<div class="pgm-rank-stats"><div style="font-size:12px;color:var(--text-dim)">' + p.points + ' pts</div></div>' +
-    '</div>';
-  }).join('');
+    : '<div class="pgm-empty-state"><div class="suit">♠</div>Nenhuma sessão de Liga registrada ainda</div>';
 }
 
 // ─── HISTÓRICO ────────────────────────────────────────────────────────────────
@@ -1463,12 +1463,29 @@ function renderHistorico() {
     '</div>';
   }
 
-  var html = '<div class="pgm-hist-cat-grid">';
-  html += catCard('🏆', 'Sessões de Liga — Temporada ' + S.season, oficiaisIdx.length, 'liga', 'gold');
-  html += catCard('🥃', 'Sessões Casuais', casuaisIdx.length, 'casual', 'casual');
-  html += catCard('🥊', 'Torneios', torneiosIdx.length, 'torneio', 'torneio');
-  html += catCard('📦', 'Temporadas Anteriores', S.pastSeasons.length, 'temporadas', 'dim');
-  html += '</div>';
+  function emptyNote(text) {
+    return '<div style="font-size:12px;font-weight:700;color:var(--text-dim);padding:0.5rem 0.25rem 0.25rem">' + text + '</div>';
+  }
+
+  var html = '';
+
+  // Tópico 1: Sessões
+  html += '<div class="pgm-section-title">Sessões</div>';
+  var sessoesCards = catCard('🏆', 'Sessões de Liga — Temporada ' + S.season, oficiaisIdx.length, 'liga', 'gold') +
+                      catCard('🥃', 'Sessões Casuais', casuaisIdx.length, 'casual', 'casual');
+  html += sessoesCards ? '<div class="pgm-hist-cat-grid">' + sessoesCards + '</div>' : emptyNote('Nenhuma sessão ainda.');
+
+  // Tópico 2: Temporadas de Liga
+  html += '<div class="pgm-section-title" style="margin-top:1.25rem">Temporadas de Liga</div>';
+  html += S.pastSeasons.length
+    ? '<div class="pgm-hist-cat-grid">' + catCard('📦', 'Temporadas Anteriores', S.pastSeasons.length, 'temporadas', 'dim') + '</div>'
+    : emptyNote('Nenhuma temporada arquivada ainda.');
+
+  // Tópico 3: Torneios (tópico sempre aparece, mesmo sem nenhum torneio finalizado)
+  html += '<div class="pgm-section-title" style="margin-top:1.25rem">Torneios</div>';
+  html += torneiosIdx.length
+    ? '<div class="pgm-hist-cat-grid">' + catCard('🥊', 'Torneios', torneiosIdx.length, 'torneio', 'torneio') + '</div>'
+    : emptyNote('Nenhum torneio finalizado ainda.');
 
   el.innerHTML = html;
 
@@ -1557,7 +1574,7 @@ function showTemporadasAnteriores() {
   if(!html) html = '<div style="color:var(--text-dim);font-size:13px;padding:1rem 0">Nenhuma temporada arquivada ainda</div>';
 
   showModal(
-    '<div class="pgm-modal-title">📦 Temporadas Anteriores <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-modal-title">📦 Temporadas Anteriores da Liga <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div id="histseason-list">' + html + '</div>' +
     '<div class="pgm-row-btns" style="margin-top:1rem"><button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button></div>'
   );
@@ -1710,6 +1727,30 @@ function showSeasonDetail(idx) {
 // ─── MODAL ────────────────────────────────────────────────────────────────────
 function showModal(html) { const el=document.getElementById('pgm-modal'); el.innerHTML=`<div class="pgm-modal-backdrop"><div class="pgm-modal">${html}</div></div>`; el.style.display='block'; }
 function closeModal() { const el=document.getElementById('pgm-modal'); el.style.display='none'; el.innerHTML=''; }
+
+function showRulesGuide() {
+  function rows(data) {
+    return data.map(function(r) {
+      return '<div class="pgm-rules-row"><span>' + r[0] + '</span><span style="color:var(--gold-light);font-family:\'DM Mono\',monospace">' + r[1] + ' pts</span></div>';
+    }).join('');
+  }
+  var liga = [['🥇 1º lugar','5'],['🥈 2º lugar','3'],['🥉 3º lugar','2'],['4º lugar','1'],['5º lugar em diante','0']];
+  var torneio = [['🥇 1º lugar','15'],['🥈 2º lugar','9'],['🥉 3º lugar','6'],['4º lugar','3'],['5º lugar em diante','0']];
+  var el = document.getElementById('pgm-modal');
+  el.innerHTML = '<div class="pgm-modal-backdrop pgm-sheet-mode"><div class="pgm-sheet">' +
+    '<div class="pgm-modal-title">📋 Regras de Pontuação <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-section-title" style="margin-top:0">🏆 Liga</div>' +
+    rows(liga) +
+    '<div class="pgm-section-title" style="margin-top:1.1rem">🥊 Torneio</div>' +
+    rows(torneio) +
+    '<div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:0.75rem">' +
+    '<div style="font-size:10px;color:var(--gold-light);font-weight:900;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.4rem">Obs:</div>' +
+    '<div style="font-size:12px;color:var(--gold-light);font-weight:700;line-height:1.5">Empate em lucro = mesma posição e mesmos pontos para todos os empatados.</div>' +
+    '<div style="font-size:12px;color:var(--gold-light);margin-top:0.4rem;font-weight:700;line-height:1.5">Partidas casuais não pontuam.</div>' +
+    '</div>' +
+    '</div></div>';
+  el.style.display = 'block';
+}
 function showAlert(msg) { showModal(`<div style="font-size:14px;font-weight:800;color:var(--cream);margin-bottom:1rem">${msg}</div><button class="pgm-btn" onclick="closeModal()">Ok</button>`); }
 
 // ─── ADMIN ────────────────────────────────────────────────────────────────────
@@ -1879,16 +1920,44 @@ function showAdminPanel() {
     '</div>';
   }).join('') : '<div style="color:var(--text-dim);font-size:12px">Sem sessões oficiais ainda</div>';
 
+  var tc = S.tempCode;
+  var tcAtivo = tc && tc.expiresAt && Date.now() < tc.expiresAt;
+  var tcHTML = '<div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:0.75rem">' +
+    '<div style="font-size:10px;color:var(--text-dim);font-weight:900;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.5rem">Código temporário (casuais)</div>' +
+    (tcAtivo
+      ? '<div style="text-align:center;margin-bottom:0.6rem">' +
+          '<div style="font-size:28px;font-weight:900;color:var(--gold-light);font-family:\'DM Mono\',monospace;letter-spacing:0.1em">' + tc.code + '</div>' +
+          '<div style="font-size:11px;color:var(--text-dim);font-weight:700;margin-top:2px">Expira às ' + new Date(tc.expiresAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) + '</div>' +
+        '</div>' +
+        '<div class="pgm-row-btns"><button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="gerarCodigoTemporario()">Gerar novo</button><button class="pgm-btn pgm-btn-danger pgm-btn-sm" style="flex:1" onclick="revogarCodigoTemporario()">Revogar</button></div>'
+      : '<div style="font-size:12px;color:var(--text-dim);font-weight:700;margin-bottom:0.6rem">Nenhum código ativo no momento</div>' +
+        '<button class="pgm-btn pgm-btn-sm" style="width:100%" onclick="gerarCodigoTemporario()">Gerar código (válido 8h)</button>') +
+    '</div>';
+
   showModal(
     '<div class="pgm-modal-title">📊 Admin <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:11px;color:var(--text-dim);margin-bottom:0.75rem">' + totalTemps + ' temporada(s) · só oficiais</div>' +
     rankHTML +
+    tcHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminSair()">Sair</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="adminRedefinirTemporada()">Redefinir</button>' +
     '</div>'
   );
+}
+
+function gerarCodigoTemporario() {
+  var code = String(Math.floor(1000 + Math.random()*9000));
+  S.tempCode = { code: code, expiresAt: Date.now() + 8*60*60*1000 };
+  save();
+  showAdminPanel();
+}
+
+function revogarCodigoTemporario() {
+  S.tempCode = null;
+  save();
+  showAdminPanel();
 }
 
 window._pendingDeleteUid = null;
@@ -2128,17 +2197,26 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   senhaInput.addEventListener('keydown', e=>{ if(e.key==='Enter') checkSenha(); });
 
-  window.checkSenha = function() {
-    if(senhaInput.value === '800') {
+  window.checkSenha = async function() {
+    const val = senhaInput.value.trim();
+    if(val === '800') {
       sessionStorage.setItem('pgm_auth', '1');
       mostrarApp();
-    } else {
-      const err = document.getElementById('senha-erro');
-      err.textContent = 'Senha incorreta';
-      senhaInput.value = '';
-      senhaInput.focus();
-      setTimeout(()=>{ err.textContent=''; }, 2000);
+      return;
     }
+    if(val && window._fbGetTempCode) {
+      const tc = await window._fbGetTempCode();
+      if(tc && tc.code === val && tc.expiresAt && Date.now() < tc.expiresAt) {
+        sessionStorage.setItem('pgm_auth', '1');
+        mostrarApp();
+        return;
+      }
+    }
+    const err = document.getElementById('senha-erro');
+    err.textContent = 'Senha incorreta';
+    senhaInput.value = '';
+    senhaInput.focus();
+    setTimeout(()=>{ err.textContent=''; }, 2000);
   };
 
   // ─── INICIAR APP ──────────────────────────────────────────────────────────
