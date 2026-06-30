@@ -514,9 +514,13 @@ function sanitizeData() {
     if(!players) return;
     players.forEach(function(p){ if(!p.rebuys) p.rebuys = []; });
   }
-  if(S.activeSession) fixPlayers(S.activeSession.players);
-  S.sessions.forEach(function(s){ fixPlayers(s.players); });
-  S.pastSeasons.forEach(function(ps){ ps.sessions.forEach(function(s){ fixPlayers(s.players); }); });
+  // Garantir que toda sessão tem _uid (sem isso, o botão de apagar não acha a sessão e fica "travado")
+  function fixUid(s) {
+    if(s && !s._uid) s._uid = 's'+Date.now()+Math.random().toString(36).slice(2,8);
+  }
+  if(S.activeSession) { fixPlayers(S.activeSession.players); fixUid(S.activeSession); }
+  S.sessions.forEach(function(s){ fixPlayers(s.players); fixUid(s); });
+  S.pastSeasons.forEach(function(ps){ ps.sessions.forEach(function(s){ fixPlayers(s.players); fixUid(s); }); });
 }
 
 function load() {
