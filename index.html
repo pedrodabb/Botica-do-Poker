@@ -109,6 +109,18 @@
     .pgm-badge-gold { background: rgba(201,168,76,0.15); color: var(--gold-light); border: 1px solid var(--gold-dim); }
     .pgm-badge-casual { background: rgba(138,138,122,0.15); color: var(--neutral); border: 1px solid rgba(138,138,122,0.3); }
     .pgm-badge-torneio { background: rgba(231,76,60,0.15); color: #e76c5a; border: 1px solid rgba(231,76,60,0.35); }
+    .pgm-hist-cat-grid { display: flex; flex-direction: column; gap: 10px; }
+    .pgm-hist-cat-card { display: flex; align-items: center; gap: 12px; padding: 1rem; border-radius: 12px; cursor: pointer; transition: transform 0.15s, background 0.15s; border: 1px solid var(--border); background: rgba(255,255,255,0.03); }
+    .pgm-hist-cat-card:active { transform: scale(0.98); }
+    .pgm-hist-cat-card.gold { border-color: rgba(201,168,76,0.35); background: rgba(201,168,76,0.06); }
+    .pgm-hist-cat-card.casual { border-color: rgba(138,138,122,0.3); }
+    .pgm-hist-cat-card.torneio { border-color: rgba(231,76,60,0.3); background: rgba(231,76,60,0.04); }
+    .pgm-hist-cat-card.dim { opacity: 0.75; border-style: dashed; }
+    .pgm-hist-cat-icon { font-size: 28px; line-height: 1; flex-shrink: 0; }
+    .pgm-hist-cat-info { flex: 1; }
+    .pgm-hist-cat-title { font-size: 14px; font-weight: 900; color: var(--cream); }
+    .pgm-hist-cat-count { font-size: 12px; font-weight: 700; color: var(--text-dim); margin-top: 2px; }
+    .pgm-hist-cat-arrow { font-size: 22px; color: var(--text-dim); font-weight: 900; }
 
     .pgm-pot-bar { background: var(--border); border-radius: 4px; height: 6px; margin: 0.5rem 0 1rem; overflow: hidden; }
     .pgm-pot-fill { height: 100%; background: linear-gradient(to right, var(--gold-dim), var(--gold)); border-radius: 4px; transition: width 0.4s; }
@@ -297,7 +309,7 @@
 
   <nav class="pgm-nav">
     <button class="pgm-nav-btn active" onclick="showTab('sessao')">Sessão</button>
-    <button class="pgm-nav-btn" onclick="showTab('ranking')">Temporada</button>
+    <button class="pgm-nav-btn" onclick="showTab('ranking')">Ligas</button>
     <button class="pgm-nav-btn" onclick="showTab('jogadores')">Jogadores</button>
     <button class="pgm-nav-btn" onclick="showTab('historico')">Histórico</button>
     <button class="pgm-nav-btn" onclick="showTab('curiosidades')">Curiosidades</button>
@@ -458,6 +470,9 @@
       <div class="pgm-suit-divider">♦ ♣ ♥ ♠</div>
       <div class="pgm-section-title" style="opacity:0.5">Fora do ranking (menos de 3 sessões)</div>
       <div id="ranking-out-list"></div>
+      <div id="apagar-temp-atual-wrapper" style="display:none;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <button class="pgm-btn pgm-btn-danger" onclick="confirmApagarTemporadaAtual()" style="width:100%">Apagar temporada atual</button>
+      </div>
     </div>
 
 
@@ -467,7 +482,7 @@
       <div id="historico-list"></div>
       <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
         <div class="pgm-section-title">Temporadas</div>
-        <button class="pgm-btn pgm-btn-danger" onclick="confirmNewSeason()" style="width:100%">Encerrar temporada e iniciar nova</button>
+        
       </div>
     </div>
 
@@ -1420,28 +1435,6 @@ function renderHistorico() {
     return;
   }
 
-  function sessionCard(s, sessionIndex) {
-    var date = s.date ? new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR') : '—';
-    var pot  = s.players.reduce(function(a,p){ return a+p.buyin+(p.rebuys||[]).reduce(function(r,v){return r+v;},0); }, 0);
-    var sorted = [...s.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
-    var winner = sorted[0];
-    var second = sorted[1];
-    var curios = s.curiosidades && s.curiosidades.length ? ' · ✨ '+s.curiosidades.length : '';
-    var title = s.label ? s.label : (s.num ? 'Sessão '+s.num : 'Casual');
-    var badge;
-    if(s.type === 'oficial') badge = '<span class="pgm-badge pgm-badge-gold" style="font-size:10px">🏆 Liga</span>';
-    else if(s.type === 'torneio') badge = '<span class="pgm-badge pgm-badge-torneio" style="font-size:10px">🥊 Torneio</span>';
-    else badge = '<span class="pgm-badge pgm-badge-casual" style="font-size:10px">🥃 Casual</span>';
-    return '<div class="pgm-history-item" data-sessidx="' + sessionIndex + '" style="cursor:pointer">' +
-      '<div class="pgm-history-header">' +
-        '<div class="pgm-history-title">' + title + ' ' + badge + '</div>' +
-        '<div class="pgm-history-date">' + date + '</div>' +
-      '</div>' +
-      '<div class="pgm-history-sub">' + s.players.length + ' jogadores · Pot '+fmtRaw(pot)+(s.duration?' · ⏱️ '+formatDuration(s.duration):'')+' · 🏆 '+(winner?winner.name:'-')+(second?' · 🥈 '+second.name:'')+curios+'</div>' +
-    '</div>';
-  }
-
-  var html = '';
   var oficiaisIdx = [];
   var casuaisIdx = [];
   var torneiosIdx = [];
@@ -1451,47 +1444,120 @@ function renderHistorico() {
     else if(s.type === 'torneio') torneiosIdx.push(i);
     else casuaisIdx.push(i);
   });
-  oficiaisIdx.reverse();
-  casuaisIdx.reverse();
-  torneiosIdx.reverse();
 
-  if(oficiaisIdx.length) {
-    html += '<div class="pgm-section-title">🏆 Sessões Liga — Temporada ' + S.season + '</div>';
-    html += oficiaisIdx.map(function(i){ return sessionCard(S.sessions[i], i); }).join('');
+  function catCard(icon, title, count, catKey, colorClass) {
+    if(!count) return '';
+    return '<div class="pgm-hist-cat-card ' + colorClass + '" data-histcat="' + catKey + '">' +
+      '<div class="pgm-hist-cat-icon">' + icon + '</div>' +
+      '<div class="pgm-hist-cat-info">' +
+        '<div class="pgm-hist-cat-title">' + title + '</div>' +
+        '<div class="pgm-hist-cat-count">' + count + ' sessão(ões)</div>' +
+      '</div>' +
+      '<div class="pgm-hist-cat-arrow">›</div>' +
+    '</div>';
   }
 
-  if(casuaisIdx.length) {
-    html += '<div class="pgm-section-title" style="margin-top:0.75rem">🥃 Sessões Casuais</div>';
-    html += casuaisIdx.map(function(i){ return sessionCard(S.sessions[i], i); }).join('');
-  }
-
-  if(torneiosIdx.length) {
-    html += '<div class="pgm-section-title" style="margin-top:0.75rem">🥊 Torneios</div>';
-    html += torneiosIdx.map(function(i){ return sessionCard(S.sessions[i], i); }).join('');
-  }
-
-  if(S.pastSeasons.length) {
-    html += '<div class="pgm-section-title" style="margin-top:1rem">📦 Temporadas Anteriores</div>';
-    html += [...S.pastSeasons].reverse().map(function(ps, i) {
-      var realIdx = S.pastSeasons.length - 1 - i;
-      return '<div class="pgm-history-item" style="opacity:0.7;border-style:dashed" data-seasonidx="' + realIdx + '">' +
-        '<div class="pgm-history-header">' +
-          '<div class="pgm-history-title">📦 Temporada ' + ps.season + '</div>' +
-          '<div class="pgm-history-date">' + ps.sessions.length + ' sessões</div>' +
-        '</div>' +
-        '<div class="pgm-history-sub">Arquivada' + (ps.curiosidades&&ps.curiosidades.length?' · ✨ '+ps.curiosidades.length+' curiosidade(s)':'') + '</div>' +
-      '</div>';
-    }).join('');
-  }
+  var html = '<div class="pgm-hist-cat-grid">';
+  html += catCard('🏆', 'Sessões de Liga — Temporada ' + S.season, oficiaisIdx.length, 'liga', 'gold');
+  html += catCard('🥃', 'Sessões Casuais', casuaisIdx.length, 'casual', 'casual');
+  html += catCard('🥊', 'Torneios', torneiosIdx.length, 'torneio', 'torneio');
+  html += catCard('📦', 'Temporadas Anteriores', S.pastSeasons.length, 'temporadas', 'dim');
+  html += '</div>';
 
   el.innerHTML = html;
 
-  el.querySelectorAll('[data-sessidx]').forEach(function(card) {
+  el.querySelectorAll('[data-histcat]').forEach(function(card) {
     card.addEventListener('click', function() {
-      showSessionDetail(parseInt(this.dataset.sessidx));
+      var cat = this.dataset.histcat;
+      if(cat === 'liga') showHistoricoCategoria('🏆 Sessões de Liga — Temporada ' + S.season, oficiaisIdx);
+      else if(cat === 'casual') showHistoricoCategoria('🥃 Sessões Casuais', casuaisIdx);
+      else if(cat === 'torneio') showHistoricoCategoria('🥊 Torneios', torneiosIdx);
+      else if(cat === 'temporadas') showTemporadasAnteriores();
     });
   });
-  el.querySelectorAll('[data-seasonidx]').forEach(function(card) {
+}
+
+function sessionCardHTML(s, sessionIndex) {
+  var date = s.date ? new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+  var pot  = s.players.reduce(function(a,p){ return a+p.buyin+(p.rebuys||[]).reduce(function(r,v){return r+v;},0); }, 0);
+  var sorted = [...s.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
+  var winner = sorted[0];
+  var second = sorted[1];
+  var curios = s.curiosidades && s.curiosidades.length ? ' · ✨ '+s.curiosidades.length : '';
+  var title = s.label ? s.label : (s.num ? 'Sessão '+s.num : 'Casual');
+  var delBtn = _adminAuth ? '<button class="pgm-del-sess-list" data-sessidx="' + sessionIndex + '" style="background:none;border:none;color:var(--negative);cursor:pointer;font-size:13px;padding:2px 6px;flex-shrink:0">✕</button>' : '';
+  return '<div class="pgm-history-item" style="display:flex;align-items:center;gap:6px">' +
+    '<div data-sessidx-open="' + sessionIndex + '" style="flex:1;cursor:pointer">' +
+      '<div class="pgm-history-header">' +
+        '<div class="pgm-history-title">' + title + '</div>' +
+        '<div class="pgm-history-date">' + date + '</div>' +
+      '</div>' +
+      '<div class="pgm-history-sub">' + s.players.length + ' jogadores · Pot '+fmtRaw(pot)+(s.duration?' · ⏱️ '+formatDuration(s.duration):'')+' · 🏆 '+(winner?winner.name:'-')+(second?' · 🥈 '+second.name:'')+curios+'</div>' +
+    '</div>' +
+    delBtn +
+  '</div>';
+}
+
+var _lastHistCatTitulo = null;
+var _lastHistCatIndices = null;
+
+function showHistoricoCategoria(titulo, indices) {
+  _lastHistCatTitulo = titulo;
+  _lastHistCatIndices = indices;
+  var sortedIdx = [...indices].reverse();
+  var html = sortedIdx.map(function(i){ return sessionCardHTML(S.sessions[i], i); }).join('');
+  if(!html) html = '<div style="color:var(--text-dim);font-size:13px;padding:1rem 0">Nenhuma sessão ainda</div>';
+
+  showModal(
+    '<div class="pgm-modal-title">' + titulo + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div id="histcat-list">' + html + '</div>' +
+    '<div class="pgm-row-btns" style="margin-top:1rem"><button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button></div>'
+  );
+
+  var listEl = document.getElementById('histcat-list');
+  listEl.querySelectorAll('[data-sessidx-open]').forEach(function(el) {
+    el.addEventListener('click', function() {
+      showSessionDetail(parseInt(this.dataset.sessidxOpen));
+    });
+  });
+  listEl.querySelectorAll('.pgm-del-sess-list').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      adminConfirmDelete(parseInt(this.dataset.sessidx));
+    });
+  });
+}
+
+function refreshHistoricoCategoria() {
+  if(_lastHistCatTitulo !== null && _lastHistCatIndices !== null) {
+    // Recalcular indices validos (alguns podem ter mudado apos delete)
+    var stillValid = _lastHistCatIndices.filter(function(i){ return S.sessions[i]; });
+    showHistoricoCategoria(_lastHistCatTitulo, stillValid);
+  } else {
+    closeModal();
+  }
+}
+
+function showTemporadasAnteriores() {
+  var html = [...S.pastSeasons].reverse().map(function(ps, i) {
+    var realIdx = S.pastSeasons.length - 1 - i;
+    return '<div class="pgm-history-item" style="opacity:0.8" data-seasonidx="' + realIdx + '">' +
+      '<div class="pgm-history-header">' +
+        '<div class="pgm-history-title">📦 Temporada ' + ps.season + '</div>' +
+        '<div class="pgm-history-date">' + ps.sessions.length + ' sessões</div>' +
+      '</div>' +
+      '<div class="pgm-history-sub">Arquivada' + (ps.curiosidades&&ps.curiosidades.length?' · ✨ '+ps.curiosidades.length+' curiosidade(s)':'') + '</div>' +
+    '</div>';
+  }).join('');
+  if(!html) html = '<div style="color:var(--text-dim);font-size:13px;padding:1rem 0">Nenhuma temporada arquivada ainda</div>';
+
+  showModal(
+    '<div class="pgm-modal-title">📦 Temporadas Anteriores <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div id="histseason-list">' + html + '</div>' +
+    '<div class="pgm-row-btns" style="margin-top:1rem"><button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button></div>'
+  );
+
+  document.getElementById('histseason-list').querySelectorAll('[data-seasonidx]').forEach(function(card) {
     card.addEventListener('click', function() {
       showSeasonDetail(parseInt(this.dataset.seasonidx));
     });
@@ -1626,28 +1692,9 @@ function showSeasonDetail(idx) {
   }, 80);
 }
 
-function confirmNewSeason() {
-  if(!S.sessions.length){ showAlert('Sem sessões para encerrar.'); return; }
-  showModal(`
-    <div class="pgm-modal-title">Encerrar Temporada ${S.season}? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
-    <div class="pgm-warn">Vai arquivar as sessões atuais e iniciar a Temporada ${S.season+1}. Jogadores e curiosidades são mantidos.</div>
-    <div style="font-size:13px;font-weight:700;color:var(--text-dim);margin-bottom:1rem">${S.sessions.length} sessões serão arquivadas.</div>
-    <div class="pgm-row-btns">
-      <button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doNewSeason()">Sim, encerrar</button>
-      <button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>
-    </div>`);
-}
 
-function doNewSeason() {
-  // Arquiva sessões E curiosidades da temporada
-  S.pastSeasons.push({
-    season: S.season,
-    sessions: JSON.parse(JSON.stringify(S.sessions)),
-    curiosidades: JSON.parse(JSON.stringify(S.curiosidades))
-  });
-  S.season++; S.sessions=[]; S.activeSession=null; S.curiosidades=[];
-  closeModal(); resetNewSessionForm(); updateOverview(); renderHistorico(); showTab('sessao'); save();
-}
+
+
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
 function showModal(html) { const el=document.getElementById('pgm-modal'); el.innerHTML=`<div class="pgm-modal-backdrop"><div class="pgm-modal">${html}</div></div>`; el.style.display='block'; }
@@ -1700,6 +1747,8 @@ function checkAdminSenha() {
     if(navAcum) navAcum.style.display = 'block';
     var nav = document.querySelector('.pgm-nav');
     if(nav) nav.classList.add('admin-mode');
+    var apagarWrapper = document.getElementById('apagar-temp-atual-wrapper');
+    if(apagarWrapper) apagarWrapper.style.display = 'block';
     closeModal();
   } else {
     const err = document.getElementById('admin-erro');
@@ -1734,6 +1783,35 @@ function adminRedefinirTemporada() {
   }, 80);
 }
 
+function confirmApagarTemporadaAtual() {
+  if(!_adminAuth) { showAlert('Entre no modo admin para apagar.'); return; }
+  var totalSess = S.sessions.length;
+  showModal(
+    '<div class="pgm-modal-title">Apagar temporada atual? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-warn">Vai apagar TODAS as ' + totalSess + ' sessões (Liga, Casuais e Torneios) da Temporada ' + S.season + ' — sem arquivar. Não pode ser desfeito!</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" id="btn-confirm-apagar-temp-atual">Sim, apagar tudo</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
+    '</div>'
+  );
+  setTimeout(function() {
+    var btn = document.getElementById('btn-confirm-apagar-temp-atual');
+    if(btn) btn.addEventListener('click', doApagarTemporadaAtual);
+  }, 80);
+}
+
+function doApagarTemporadaAtual() {
+  S.sessions = [];
+  S.curiosidades = [];
+  S.activeSession = null;
+  updateOverview();
+  renderHistorico();
+  renderRanking();
+  save();
+  closeModal();
+  showTab('sessao');
+}
+
 function adminSair() {
   _adminAuth = false;
   var d = document.getElementById('admin-dot');
@@ -1742,6 +1820,8 @@ function adminSair() {
   if(na) na.style.display = 'none';
   var nav = document.querySelector('.pgm-nav');
   if(nav) nav.classList.remove('admin-mode');
+  var apagarWrapper = document.getElementById('apagar-temp-atual-wrapper');
+  if(apagarWrapper) apagarWrapper.style.display = 'none';
   var tabAcum = document.getElementById('tab-acumulado');
   if(tabAcum && tabAcum.classList.contains('active')) showTab('sessao');
   closeModal();
@@ -1825,7 +1905,14 @@ function doAdminDeleteSession(sessionIndex) {
     S.curiosidades = S.curiosidades.filter(function(c){ return c.sessionLabel !== 'Sessão ' + s.num; });
   }
   S.sessions.splice(sessionIndex, 1);
-  updateOverview(); renderHistorico(); save(); closeModal();
+  // Ajustar indices da categoria atual (tudo que era > sessionIndex desce 1)
+  if(_lastHistCatIndices) {
+    _lastHistCatIndices = _lastHistCatIndices
+      .filter(function(i){ return i !== sessionIndex; })
+      .map(function(i){ return i > sessionIndex ? i - 1 : i; });
+  }
+  updateOverview(); save();
+  refreshHistoricoCategoria();
 }
 
 function doAdminDeleteSeason(idx) {
