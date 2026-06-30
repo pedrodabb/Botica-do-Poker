@@ -587,7 +587,7 @@ function renderJogadores() {
         '<div class="player-card-name">' + p.name + '</div>' +
         '<div class="player-card-sub">' + sub + '</div>' +
       '</div>' +
-      '<button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="removeRegisteredPlayer('+i+')" style="padding:3px 8px;font-size:11px">✕</button>' +
+      (_adminAuth ? '<button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="removeRegisteredPlayer('+i+')" style="padding:3px 8px;font-size:11px">✕</button>' : '') +
     '</div>';
   }).join('');
   // Adicionar eventos via JS para evitar problema de aspas
@@ -798,10 +798,24 @@ function renderCuriosidades() {
 }
 
 function deleteCuriosidade(id) {
+  showModal(
+    '<div class="pgm-modal-title">Apagar curiosidade? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-warn">Esta ação não pode ser desfeita.</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" id="btn-confirm-del-curio">Sim, apagar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
+    '</div>'
+  );
+  setTimeout(function() {
+    var btn = document.getElementById('btn-confirm-del-curio');
+    if(btn) btn.addEventListener('click', function() { doDeleteCuriosidade(id); });
+  }, 80);
+}
+
+function doDeleteCuriosidade(id) {
   S.curiosidades = S.curiosidades.filter(c=>c.id!==id);
-  // remover da sessão ativa também se ainda estiver lá
   if(S.activeSession && S.activeSession.curiosidades) S.activeSession.curiosidades = S.activeSession.curiosidades.filter(c=>c.id!==id);
-  save(); renderCuriosidades();
+  save(); closeModal(); renderCuriosidades();
 }
 
 function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
@@ -1618,11 +1632,11 @@ function showAdminPanel() {
 function adminConfirmDelete(sid) {
   var label = typeof sid === 'number' ? 'Sessão ' + sid : 'Sessão Casual';
   showModal(
-    '<div class="pgm-modal-title">Apagar? <button class="pgm-close-btn" onclick="showAdminPanel()">✕</button></div>' +
+    '<div class="pgm-modal-title">Apagar? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div class="pgm-warn">Apagar <strong>' + label + '</strong>? Não pode ser desfeito.</div>' +
     '<div class="pgm-row-btns">' +
     '<button class="pgm-btn pgm-btn-danger" style="flex:1" id="btn-confirm-del-sess">Sim, apagar</button>' +
-    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">Cancelar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
     '</div>'
   );
   setTimeout(function() {
@@ -1634,11 +1648,11 @@ function adminConfirmDelete(sid) {
 function adminConfirmDeleteSeason(idx) {
   var ps = S.pastSeasons[idx];
   showModal(
-    '<div class="pgm-modal-title">Apagar temporada? <button class="pgm-close-btn" onclick="showAdminPanel()">✕</button></div>' +
+    '<div class="pgm-modal-title">Apagar temporada? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div class="pgm-warn">Apagar <strong>Temporada ' + ps.season + '</strong> com ' + ps.sessions.length + ' sessões? Não pode ser desfeito.</div>' +
     '<div class="pgm-row-btns">' +
     '<button class="pgm-btn pgm-btn-danger" style="flex:1" id="btn-confirm-del-temp">Sim, apagar</button>' +
-    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">Cancelar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
     '</div>'
   );
   setTimeout(function() {
@@ -1667,7 +1681,7 @@ function doAdminDeleteSession(sid) {
 function doAdminDeleteSeason(idx) {
   S.pastSeasons.splice(idx, 1);
   updateOverview(); renderHistorico(); save();
-  setTimeout(showAdminPanel, 100);
+  closeModal();
 }
 
 
@@ -1694,7 +1708,6 @@ function doAdminDeleteSession(numOrId) {
   renderHistorico();
   save();
   closeModal();
-  setTimeout(showAdminPanel, 100);
 }
 
 document.addEventListener('click', e=>{ const b=e.target.closest('.pgm-modal-backdrop'); if(b&&e.target===b) closeModal(); });
