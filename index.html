@@ -449,6 +449,7 @@ const S = {
 };
 
 function save() {
+  S._lastUpdate = Date.now();
   try { localStorage.setItem('pgm_v4', JSON.stringify(S)); } catch(e){}
   if(window._fbSave) {
     window._fbSave(JSON.parse(JSON.stringify(S)));
@@ -477,12 +478,16 @@ function load() {
 function initFirebaseSync() {
   if(!window._fbListen) return;
   window._fbListen(function(data) {
+    // Ignorar dados mais antigos que o que já temos localmente
+    const remoteTime = data._lastUpdate || 0;
+    const localTime = S._lastUpdate || 0;
+    if(remoteTime < localTime) return; // dado do servidor é mais antigo, ignora
+
     // Mesclar dados do Firebase com o estado local
-    const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession'];
+    const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession','_lastUpdate'];
     keys.forEach(k=>{ if(data[k]!==undefined) S[k]=data[k]; });
-    // NUNCA sobrescrever activeSession local com null do Firebase
-    // Só atualizar se o Firebase tiver uma sessão E o local não tiver
-    if(!S.activeSession && data.activeSession) S.activeSession = data.activeSession;
+    // activeSession: sempre confia no servidor quando ele é mais recente ou igual
+    S.activeSession = data.activeSession || null;
     // Sanitizar dados
     sanitizeData();
     // Atualizar localStorage
@@ -772,7 +777,7 @@ function renderCuriosidades() {
           '<div class="curio-card-header">' +
             '<span class="curio-player">' + (cu.catIcon||'✨') + ' ' + (cu.catLabel||'Outro') +
             ' <span style="font-size:10px;color:var(--text-dim);font-weight:700">· ' + cu.sessionLabel + (cu.date ? ' · ' + new Date(cu.date+'T12:00:00').toLocaleDateString('pt-BR') : '') + '</span></span>' +
-            '<button class="pgm-del-curio" data-curioid="' + cu.id + '" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0">✕</button>' +
+            (_adminAuth ? '<button class="pgm-del-curio" data-curioid="' + cu.id + '" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0">✕</button>' : '') +
           '</div>' +
           '<div class="curio-text">' + escHtml(cu.text) + '</div>' +
         '</div>';
