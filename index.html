@@ -471,7 +471,7 @@
       <div class="pgm-section-title" style="opacity:0.5">Fora do ranking (menos de 3 sessões)</div>
       <div id="ranking-out-list"></div>
       <div id="apagar-temp-atual-wrapper" style="display:none;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)">
-        <button class="pgm-btn pgm-btn-danger" onclick="confirmApagarTemporadaAtual()" style="width:100%">Apagar temporada atual</button>
+        <button class="pgm-btn pgm-btn-danger" onclick="confirmApagarTemporadaAtual()" style="width:100%">Reset</button>
       </div>
     </div>
 
@@ -541,8 +541,10 @@ function initFirebaseSync() {
     keys.forEach(k=>{ if(data[k]!==undefined) S[k]=data[k]; });
     // activeSession: sempre confia no servidor quando ele é mais recente ou igual
     S.activeSession = data.activeSession || null;
-    // Sanitizar dados
+    // Sanitizar dados (e detectar se algo mudou para forçar salvar de volta)
+    var hadMissingUid = S.sessions.some(function(s){ return !s._uid; });
     sanitizeData();
+    if(hadMissingUid) { setTimeout(save, 500); }
     // Atualizar localStorage
     try { localStorage.setItem('pgm_v4', JSON.stringify(S)); } catch(e){}
     // Refresh da UI
@@ -991,7 +993,7 @@ function startSession() {
   var labelEl = document.getElementById('new-session-label');
   var label = (labelEl && labelEl.value.trim()) ? labelEl.value.trim() : (type==='torneio' ? 'Torneio' : null);
   var num   = type==='oficial' ? oficialCount+1 : null;
-  S.activeSession = { num: num, type: type, date: date, buyin: buyin, rebuy: rebuy,
+  S.activeSession = { _uid: 's'+Date.now()+Math.random().toString(36).slice(2,8), num: num, type: type, date: date, buyin: buyin, rebuy: rebuy,
     label: label, curiosidades: [], startedAt: Date.now(), pausedAt: null, totalPaused: 0,
     players: S.newSession.players.map(function(p){ return { name: p.name, buyin: buyin, rebuys: [], finalStack: null }; }) };
   S.newSession = { type: 'oficial', players: [] };
@@ -1451,7 +1453,7 @@ function renderHistorico() {
       '<div class="pgm-hist-cat-icon">' + icon + '</div>' +
       '<div class="pgm-hist-cat-info">' +
         '<div class="pgm-hist-cat-title">' + title + '</div>' +
-        '<div class="pgm-hist-cat-count">' + count + ' sessão(ões)</div>' +
+        '<div class="pgm-hist-cat-count">' + count + ' sessões</div>' +
       '</div>' +
       '<div class="pgm-hist-cat-arrow">›</div>' +
     '</div>';
@@ -1469,9 +1471,9 @@ function renderHistorico() {
   el.querySelectorAll('[data-histcat]').forEach(function(card) {
     card.addEventListener('click', function() {
       var cat = this.dataset.histcat;
-      if(cat === 'liga') showHistoricoCategoria('🏆 Sessões de Liga — Temporada ' + S.season, oficiaisIdx);
-      else if(cat === 'casual') showHistoricoCategoria('🥃 Sessões Casuais', casuaisIdx);
-      else if(cat === 'torneio') showHistoricoCategoria('🥊 Torneios', torneiosIdx);
+      if(cat === 'liga') showHistoricoCategoria('🏆 Sessões de Liga — Temporada ' + S.season, 'oficial');
+      else if(cat === 'casual') showHistoricoCategoria('🥃 Sessões Casuais', 'casual');
+      else if(cat === 'torneio') showHistoricoCategoria('🥊 Torneios', 'torneio');
       else if(cat === 'temporadas') showTemporadasAnteriores();
     });
   });
@@ -1485,9 +1487,9 @@ function sessionCardHTML(s, sessionIndex) {
   var second = sorted[1];
   var curios = s.curiosidades && s.curiosidades.length ? ' · ✨ '+s.curiosidades.length : '';
   var title = s.label ? s.label : (s.num ? 'Sessão '+s.num : 'Casual');
-  var delBtn = _adminAuth ? '<button class="pgm-del-sess-list" data-sessidx="' + sessionIndex + '" style="background:none;border:none;color:var(--negative);cursor:pointer;font-size:13px;padding:2px 6px;flex-shrink:0">✕</button>' : '';
+  var delBtn = _adminAuth ? '<button class="pgm-del-sess-list" data-uid="' + s._uid + '" style="background:none;border:none;color:var(--negative);cursor:pointer;font-size:13px;padding:2px 6px;flex-shrink:0">✕</button>' : '';
   return '<div class="pgm-history-item" style="display:flex;align-items:center;gap:6px">' +
-    '<div data-sessidx-open="' + sessionIndex + '" style="flex:1;cursor:pointer">' +
+    '<div data-uid-open="' + s._uid + '" style="flex:1;cursor:pointer">' +
       '<div class="pgm-history-header">' +
         '<div class="pgm-history-title">' + title + '</div>' +
         '<div class="pgm-history-date">' + date + '</div>' +
@@ -1499,13 +1501,14 @@ function sessionCardHTML(s, sessionIndex) {
 }
 
 var _lastHistCatTitulo = null;
-var _lastHistCatIndices = null;
+var _lastHistCatType = null;
 
-function showHistoricoCategoria(titulo, indices) {
+function showHistoricoCategoria(titulo, tipoFiltro) {
   _lastHistCatTitulo = titulo;
-  _lastHistCatIndices = indices;
-  var sortedIdx = [...indices].reverse();
-  var html = sortedIdx.map(function(i){ return sessionCardHTML(S.sessions[i], i); }).join('');
+  _lastHistCatType = tipoFiltro;
+  var filtered = S.sessions.filter(function(s){ return s.type === tipoFiltro; });
+  filtered.reverse();
+  var html = filtered.map(function(s){ return sessionCardHTML(s); }).join('');
   if(!html) html = '<div style="color:var(--text-dim);font-size:13px;padding:1rem 0">Nenhuma sessão ainda</div>';
 
   showModal(
@@ -1515,24 +1518,22 @@ function showHistoricoCategoria(titulo, indices) {
   );
 
   var listEl = document.getElementById('histcat-list');
-  listEl.querySelectorAll('[data-sessidx-open]').forEach(function(el) {
+  listEl.querySelectorAll('[data-uid-open]').forEach(function(el) {
     el.addEventListener('click', function() {
-      showSessionDetail(parseInt(this.dataset.sessidxOpen));
+      showSessionDetailByUid(this.dataset.uidOpen);
     });
   });
   listEl.querySelectorAll('.pgm-del-sess-list').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
       e.stopPropagation();
-      adminConfirmDelete(parseInt(this.dataset.sessidx));
+      adminConfirmDeleteByUid(this.dataset.uid);
     });
   });
 }
 
 function refreshHistoricoCategoria() {
-  if(_lastHistCatTitulo !== null && _lastHistCatIndices !== null) {
-    // Recalcular indices validos (alguns podem ter mudado apos delete)
-    var stillValid = _lastHistCatIndices.filter(function(i){ return S.sessions[i]; });
-    showHistoricoCategoria(_lastHistCatTitulo, stillValid);
+  if(_lastHistCatTitulo !== null && _lastHistCatType !== null) {
+    showHistoricoCategoria(_lastHistCatTitulo, _lastHistCatType);
   } else {
     closeModal();
   }
@@ -1562,6 +1563,12 @@ function showTemporadasAnteriores() {
       showSeasonDetail(parseInt(this.dataset.seasonidx));
     });
   });
+}
+
+function showSessionDetailByUid(uid) {
+  var idx = S.sessions.findIndex(function(x){ return x._uid === uid; });
+  if(idx === -1) return;
+  showSessionDetail(idx);
 }
 
 function showSessionDetail(sessionIndex) {
@@ -1709,7 +1716,7 @@ let _adminAuth = false;
 function adminClick() {
   _adminClicks++;
   clearTimeout(_adminTimer);
-  _adminTimer = setTimeout(() => { _adminClicks = 0; }, 800);
+  _adminTimer = setTimeout(() => { _adminClicks = 0; }, 1200);
   // Feedback visual sutil
   const el = document.getElementById('admin-trigger');
   if(el) { el.style.opacity = '0.5'; setTimeout(() => { el.style.opacity = '1'; }, 150); }
@@ -1787,15 +1794,31 @@ function confirmApagarTemporadaAtual() {
   if(!_adminAuth) { showAlert('Entre no modo admin para apagar.'); return; }
   var totalSess = S.sessions.length;
   showModal(
-    '<div class="pgm-modal-title">Apagar temporada atual? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div class="pgm-warn">Vai apagar TODAS as ' + totalSess + ' sessões (Liga, Casuais e Torneios) da Temporada ' + S.season + ' — sem arquivar. Não pode ser desfeito!</div>' +
+    '<div class="pgm-modal-title">Reset da temporada? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-warn">Vai apagar TODAS as ' + totalSess + ' sessões (Liga, Casuais e Torneios) da Temporada ' + S.season + ' — sem arquivar. <strong>Não pode ser desfeito!</strong></div>' +
+    '<div class="pgm-field"><label class="pgm-input-label">Digite CONFIRMAR para liberar</label>' +
+    '<input type="text" id="input-confirma-reset" class="pgm-input" style="text-align:center;text-transform:uppercase" autocomplete="off"></div>' +
     '<div class="pgm-row-btns">' +
-    '<button class="pgm-btn pgm-btn-danger" style="flex:1" id="btn-confirm-apagar-temp-atual">Sim, apagar tudo</button>' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1;opacity:0.4;pointer-events:none" id="btn-confirm-apagar-temp-atual">Sim, apagar tudo</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
     '</div>'
   );
   setTimeout(function() {
+    var input = document.getElementById('input-confirma-reset');
     var btn = document.getElementById('btn-confirm-apagar-temp-atual');
+    if(input) {
+      input.focus();
+      input.addEventListener('input', function() {
+        var val = this.value.trim().toUpperCase();
+        if(val === 'CONFIRMAR') {
+          btn.style.opacity = '1';
+          btn.style.pointerEvents = 'auto';
+        } else {
+          btn.style.opacity = '0.4';
+          btn.style.pointerEvents = 'none';
+        }
+      });
+    }
     if(btn) btn.addEventListener('click', doApagarTemporadaAtual);
   }, 80);
 }
@@ -1864,22 +1887,58 @@ function showAdminPanel() {
   );
 }
 
-function adminConfirmDelete(sessionIndex) {
-  var s = S.sessions[sessionIndex];
+window._pendingDeleteUid = null;
+window._pendingDeleteIsFromList = false;
+
+function adminConfirmDeleteByUid(uid) {
+  var s = S.sessions.find(function(x){ return x._uid === uid; });
   if(!s) return;
+  window._pendingDeleteUid = uid;
+  window._pendingDeleteIsFromList = true;
   var label = s.label ? s.label : (s.num ? 'Sessão ' + s.num : 'Sessão Casual');
   showModal(
     '<div class="pgm-modal-title">Apagar? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div class="pgm-warn">Apagar <strong>' + label + '</strong>? Não pode ser desfeito.</div>' +
     '<div class="pgm-row-btns">' +
-    '<button class="pgm-btn pgm-btn-danger" style="flex:1" id="btn-confirm-del-sess">Sim, apagar</button>' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doAdminDeleteByUid()">Sim, apagar</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
     '</div>'
   );
-  setTimeout(function() {
-    var btn = document.getElementById('btn-confirm-del-sess');
-    if(btn) btn.addEventListener('click', function() { doAdminDeleteSession(sessionIndex); });
-  }, 80);
+}
+
+function adminConfirmDelete(sessionIndex) {
+  var s = S.sessions[sessionIndex];
+  if(!s) return;
+  window._pendingDeleteUid = s._uid;
+  window._pendingDeleteIsFromList = false;
+  var label = s.label ? s.label : (s.num ? 'Sessão ' + s.num : 'Sessão Casual');
+  showModal(
+    '<div class="pgm-modal-title">Apagar? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-warn">Apagar <strong>' + label + '</strong>? Não pode ser desfeito.</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doAdminDeleteByUid()">Sim, apagar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
+    '</div>'
+  );
+}
+
+function doAdminDeleteByUid() {
+  var uid = window._pendingDeleteUid;
+  var fromList = window._pendingDeleteIsFromList;
+  var idx = S.sessions.findIndex(function(x){ return x._uid === uid; });
+  if(idx === -1) { closeModal(); return; }
+  var s = S.sessions[idx];
+  if(s.num) {
+    S.curiosidades = S.curiosidades.filter(function(c){ return c.sessionLabel !== 'Sessão ' + s.num; });
+  }
+  S.sessions.splice(idx, 1);
+  updateOverview(); save();
+  if(fromList) {
+    refreshHistoricoCategoria();
+  } else {
+    closeModal();
+    renderHistorico();
+  }
 }
 
 function adminConfirmDeleteSeason(idx) {
