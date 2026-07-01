@@ -16,7 +16,7 @@
   <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+    import { getDatabase, ref, set, onValue, get, update, remove } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyACviy1MMQadWQb0FQNzRReuaSvXALYzC0",
@@ -34,9 +34,23 @@
 
     // Expor funções para o código principal
     window._fbSave = function(data) {
-      window._fbIgnoreNext = true; // ignorar o próximo sync (é o nosso próprio save)
+      window._fbIgnoreNext = true;
       setTimeout(function(){ window._fbIgnoreNext = false; }, 3000);
       set(ref(db, DB_REF), data).catch(e => console.error('Firebase save error:', e));
+    };
+
+    // Atualiza só campos específicos sem tocar no resto (evita conflito entre dispositivos)
+    window._fbPatch = function(fields) {
+      window._fbIgnoreNext = true;
+      setTimeout(function(){ window._fbIgnoreNext = false; }, 3000);
+      update(ref(db, DB_REF), fields).catch(e => console.error('Firebase patch error:', e));
+    };
+
+    // Remove só um caminho específico (ex: uma sessão, o código temporário)
+    window._fbRemovePath = function(path) {
+      window._fbIgnoreNext = true;
+      setTimeout(function(){ window._fbIgnoreNext = false; }, 3000);
+      remove(ref(db, DB_REF + '/' + path)).catch(e => console.error('Firebase remove error:', e));
     };
 
     window._fbListen = function(callback) {
@@ -518,6 +532,19 @@ function save() {
     window._fbSave(JSON.parse(JSON.stringify(S)));
   }
 }
+
+// Salva só os campos que realmente mudaram — evita conflito entre dispositivos
+function savePatch(fields) {
+  S._lastUpdate = Date.now();
+  try { localStorage.setItem('pgm_v4', JSON.stringify(S)); } catch(e){}
+  if(window._fbPatch) {
+    var patch = JSON.parse(JSON.stringify(fields));
+    patch._lastUpdate = S._lastUpdate;
+    window._fbPatch(patch);
+  } else if(window._fbSave) {
+    window._fbSave(JSON.parse(JSON.stringify(S)));
+  }
+}
 function sanitizeData() {
   // Garantir que rebuys existe em todos os jogadores de todas as sessões
   function fixPlayers(players) {
@@ -638,6 +665,7 @@ function registerPlayer() {
 }
 
 function removeRegisteredPlayer(idx) {
+  if(!_adminAuth) return;
   showModal(`
     <div class="pgm-modal-title">Remover jogador? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
     <div style="font-size:13px;font-weight:700;color:var(--cream-dim);margin-bottom:1rem">Remover <strong>${S.players[idx].name}</strong> do cadastro? O histórico não é afetado.</div>
@@ -932,6 +960,7 @@ function renderCuriosidades() {
 }
 
 function deleteCuriosidade(id) {
+  if(!_adminAuth) return;
   showModal(
     '<div class="pgm-modal-title">Apagar curiosidade? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div class="pgm-warn">Esta ação não pode ser desfeita.</div>' +
@@ -1186,7 +1215,8 @@ function finishSession() {
   S.activeSession = null;
   document.getElementById('no-session-state').style.display = 'block';
   document.getElementById('active-session-state').style.display = 'none';
-  resetNewSessionForm(); updateOverview(); save();
+  resetNewSessionForm(); updateOverview();
+  savePatch({ sessions: S.sessions, activeSession: null, players: S.players });
   
   // Modal de resultado com opção de compartilhar
   const sorted = [...sessaoFinalizada.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
@@ -1947,13 +1977,13 @@ function showAdminPanel() {
 function gerarCodigoTemporario() {
   var code = String(Math.floor(1000 + Math.random()*9000));
   S.tempCode = { code: code, expiresAt: Date.now() + 8*60*60*1000 };
-  save();
+  savePatch({ tempCode: S.tempCode });
   showAdminPanel();
 }
 
 function revogarCodigoTemporario() {
   S.tempCode = null;
-  save();
+  savePatch({ tempCode: null });
   showAdminPanel();
 }
 
@@ -1993,6 +2023,7 @@ function adminConfirmDelete(sessionIndex) {
 }
 
 function doAdminDeleteByUid() {
+  if(!_adminAuth) return;
   var uid = window._pendingDeleteUid;
   var fromList = window._pendingDeleteIsFromList;
   var idx = S.sessions.findIndex(function(x){ return x._uid === uid; });
@@ -2002,7 +2033,8 @@ function doAdminDeleteByUid() {
     S.curiosidades = S.curiosidades.filter(function(c){ return c.sessionLabel !== 'Sessão ' + s.num; });
   }
   S.sessions.splice(idx, 1);
-  updateOverview(); save();
+  updateOverview();
+  savePatch({ sessions: S.sessions, curiosidades: S.curiosidades });
   if(fromList) {
     refreshHistoricoCategoria();
   } else {
@@ -2028,53 +2060,30 @@ function adminConfirmDeleteSeason(idx) {
 }
 
 function doAdminDeleteSession(sessionIndex) {
+  if(!_adminAuth) return;
   var s = S.sessions[sessionIndex];
   if(!s) { closeModal(); return; }
   if(s.num) {
     S.curiosidades = S.curiosidades.filter(function(c){ return c.sessionLabel !== 'Sessão ' + s.num; });
   }
   S.sessions.splice(sessionIndex, 1);
-  // Ajustar indices da categoria atual (tudo que era > sessionIndex desce 1)
   if(_lastHistCatIndices) {
     _lastHistCatIndices = _lastHistCatIndices
       .filter(function(i){ return i !== sessionIndex; })
       .map(function(i){ return i > sessionIndex ? i - 1 : i; });
   }
-  updateOverview(); save();
+  updateOverview();
+  savePatch({ sessions: S.sessions, curiosidades: S.curiosidades });
   refreshHistoricoCategoria();
 }
 
 function doAdminDeleteSeason(idx) {
+  if(!_adminAuth) return;
   S.pastSeasons.splice(idx, 1);
   updateOverview(); renderHistorico(); save();
   closeModal();
 }
 
-
-
-
-
-
-
-function doAdminDeleteSession(numOrId) {
-  if(typeof numOrId === 'number') {
-    // Sessão oficial — remover pelo num e reordenar
-    S.sessions = S.sessions.filter(function(s){ return s.num !== numOrId; });
-    // Remover curiosidades dessa sessão
-    const sessionLabel = 'Sessão ' + numOrId;
-    S.curiosidades = S.curiosidades.filter(function(c){ return c.sessionLabel !== sessionLabel; });
-  } else {
-    // Sessão casual — remover pelo sessionId
-    S.sessions = S.sessions.filter(function(s){
-      return ('casual-'+s.date) !== numOrId;
-    });
-    S.curiosidades = S.curiosidades.filter(function(c){ return c.sessionId !== numOrId; });
-  }
-  updateOverview();
-  renderHistorico();
-  save();
-  closeModal();
-}
 
 document.addEventListener('click', e=>{ const b=e.target.closest('.pgm-modal-backdrop'); if(b&&e.target===b) closeModal(); });
 
