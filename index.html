@@ -450,6 +450,7 @@
           <button class="pgm-btn pgm-btn-purple" onclick="openAddCuriosidade()" style="flex:1">✨ Curiosidade</button>
         </div>
         <div class="pgm-row-btns" style="margin-top:0">
+          <button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="confirmCancelarSessao()" style="flex:0 0 auto">Cancelar</button>
           <button class="pgm-btn pgm-btn-success" onclick="openFinishSession()" style="flex:1">Encerrar sessão</button>
         </div>
       </div>
@@ -1177,6 +1178,32 @@ function doAddMidSession() {
   renderActiveSession(); closeModal(); savePatch({ activeSession: S.activeSession });
 }
 
+function confirmCancelarSessao() {
+  showModal(
+    '<div class="pgm-modal-title">Cancelar sessão? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-warn">A sessão será descartada e não entrará no histórico. Não pode ser desfeito.</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" id="btn-confirm-cancel-sess">Sim, cancelar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Voltar</button>' +
+    '</div>'
+  );
+  setTimeout(function() {
+    var btn = document.getElementById('btn-confirm-cancel-sess');
+    if(btn) btn.addEventListener('click', doCancelarSessao);
+  }, 80);
+}
+
+function doCancelarSessao() {
+  stopSessionTimer();
+  S.activeSession = null;
+  document.getElementById('no-session-state').style.display = 'block';
+  document.getElementById('active-session-state').style.display = 'none';
+  resetNewSessionForm();
+  updateOverview();
+  savePatch({ activeSession: null });
+  closeModal();
+}
+
 function openFinishSession() {
   var s = S.activeSession;
   s.players.forEach(function(p){ if(!p.rebuys) p.rebuys = []; });
@@ -1242,8 +1269,11 @@ function finishSession() {
     '</div>';
   }).join('');
   
+  var durStr = sessaoFinalizada.duration ? '⏱️ ' + formatDuration(sessaoFinalizada.duration) : '';
+
   showModal(
     '<div class="pgm-modal-title">🏆 Resultado · ' + date + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    (durStr ? '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">' + durStr + '</div>' : '') +
     rowsHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
