@@ -1676,7 +1676,7 @@ function showSessionDetail(sessionIndex) {
     var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
     var pr = p.profit || 0;
     return '<div class="pgm-final-row">' +
-      '<div class="pgm-player-name" style="font-size:13px">' + (medals[i]||'') + ' ' + p.name + '</div>' +
+      '<div class="pgm-player-name" style="font-size:13px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[i]||'') + ' ' + p.name + '</div>' +
       '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
       '<div class="pgm-money ' + (pr>=0?'pos':'neg') + '" style="font-size:13px">' + fmtR(pr) + '</div>' +
       '</div>';
@@ -1744,7 +1744,7 @@ function showSeasonDetail(idx) {
       var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
       var pr = p.profit || 0;
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px">' +
-        '<span style="font-weight:800;color:var(--cream)">' + (medals[i]||'') + ' ' + p.name + '</span>' +
+        '<span style="font-weight:800;color:var(--cream);display:flex;align-items:center;gap:5px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[i]||'') + ' ' + p.name + '</span>' +
         '<span style="font-family:DM Mono,monospace;color:' + (pr>=0?'var(--positive)':'var(--negative)') + '">' + fmtR(pr) + '</span>' +
       '</div>';
     }).join('');
