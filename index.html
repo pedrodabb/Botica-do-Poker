@@ -1216,7 +1216,7 @@ function openFinishSession() {
       ? '<input type="number" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px;opacity:0.6" value="' + (p.finalStack||0) + '" readonly oninput="updateFinishPot()">'
       : '<input type="number" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0" step="0.01" oninput="updateFinishPot()">';
     return '<div class="pgm-final-row">' +
-      '<div class="pgm-player-name" style="font-size:12px;' + (jaSaiu?'opacity:0.6':'') + '">♟ ' + p.name + (jaSaiu?' <span style="font-size:9px;color:var(--text-dim)">(saiu)</span>':'') + '</div>' +
+      '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px;' + (jaSaiu?'opacity:0.6':'') + '">' + avatarHTML(p.name,'pgm-player-avatar','♟') + p.name + (jaSaiu?' <span style="font-size:9px;color:var(--text-dim)">(saiu)</span>':'') + '</div>' +
       '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
       inputHTML +
       '</div>';
@@ -1264,7 +1264,7 @@ function finishSession() {
   const rowsHTML = sorted.map(function(p,i){
     const pr = p.profit||0;
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid var(--border)">' +
-      '<span style="font-size:14px">' + (medals[i]||'#'+(i+1)) + ' <strong style="color:var(--cream)">' + p.name + '</strong></span>' +
+      '<span style="font-size:14px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[i]||'#'+(i+1)) + ' <strong style="color:var(--cream)">' + p.name + '</strong></span>' +
       '<span style="font-family:DM Mono,monospace;font-size:14px;color:' + (pr>=0?'var(--positive)':'var(--negative)') + '">' + (pr>=0?'+':'') + 'R$ ' + Math.abs(pr).toFixed(2).replace('.',',') + '</span>' +
     '</div>';
   }).join('');
