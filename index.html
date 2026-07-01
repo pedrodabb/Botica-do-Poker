@@ -202,7 +202,12 @@
 
     /* Jogadores */
     .player-card { display: flex; align-items: center; gap: 12px; padding: 0.75rem; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; background: var(--panel); }
-    .player-card-avatar { width: 38px; height: 38px; border-radius: 50%; background: rgba(201,168,76,0.12); border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .player-card-avatar { width: 38px; height: 38px; border-radius: 50%; background: rgba(201,168,76,0.12); border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; overflow:hidden; cursor:pointer; transition:border-color 0.15s; }
+    .player-card-avatar:hover { border-color:var(--gold-light); }
+    .player-card-avatar img { width:100%;height:100%;object-fit:cover; }
+    .pgm-player-avatar { width:28px;height:28px;border-radius:50%;background:rgba(201,168,76,0.12);border:1.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;overflow:hidden;cursor:pointer;vertical-align:middle; }
+    .pgm-player-avatar:hover { border-color:var(--gold-light); }
+    .pgm-player-avatar img { width:100%;height:100%;object-fit:cover; }
     .player-card-info { flex: 1; min-width: 0; }
     .player-card-name { font-size: 14px; font-weight: 900; color: var(--cream); }
     .player-card-sub { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-top: 2px; }
@@ -257,7 +262,12 @@
     .pgm-rules-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 800; color: var(--cream-dim); }
     .pgm-rules-row:last-child { border-bottom: none; }
     .pgm-rules-link { background: none; border: none; color: var(--gold-light); font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; cursor: pointer; padding: 0; text-decoration: none; margin: -0.25rem 0 0.75rem; }
-    .pgm-close-btn { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
+    .pgm-offline-pill { display:none; align-items:center; gap:5px; background:rgba(231,76,60,0.18); border:1px solid rgba(231,76,60,0.4); border-radius:20px; padding:3px 10px; font-size:11px; font-weight:800; color:#e74c3c; font-family:'Nunito',sans-serif; }
+    .pgm-offline-pill.visible { display:flex; }
+    .pgm-offline-dot { width:7px; height:7px; border-radius:50%; background:#e74c3c; animation:pgmBlink 1.2s ease-in-out infinite; }
+    @keyframes pgmBlink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .pgm-save-toast { position:fixed; bottom:calc(1rem + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%) translateY(20px); background:rgba(231,76,60,0.92); color:#fff; font-family:'Nunito',sans-serif; font-size:12px; font-weight:800; padding:8px 16px; border-radius:20px; z-index:9999; opacity:0; pointer-events:none; transition:opacity 0.2s, transform 0.2s; white-space:nowrap; }
+    .pgm-save-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
     .pgm-close-btn:hover { color: var(--cream); }
 
     @media (max-width: 400px) {
@@ -326,6 +336,7 @@
 </div>
 
 <div id="app" style="display:none">
+<div class="pgm-save-toast" id="save-toast">⚠️ Sem internet — salvo localmente</div>
 
   <header class="pgm-header">
     <div class="pgm-logo">
@@ -336,6 +347,7 @@
       <strong id="season-label">Temporada 1</strong>
       <span id="sessions-counter">0 / 6 oficiais</span>
     </div>
+    <div class="pgm-offline-pill" id="offline-pill"><div class="pgm-offline-dot"></div>offline</div>
   </header>
 
   <nav class="pgm-nav">
@@ -694,7 +706,7 @@ function renderJogadores() {
       ? st.totalSessions + ' sessão(ões)' + (curios?' · ✨ '+curios+' curiosidade(s)':'')
       : 'Nunca jogou ainda';
     return '<div class="player-card">' +
-      '<div class="player-card-avatar">♟</div>' +
+      avatarHTML(p.name, 'player-card-avatar', '♟') +
       '<div class="player-card-info" style="flex:1">' +
         '<div class="player-card-name">' + p.name + '</div>' +
         '<div class="player-card-sub">' + sub + '</div>' +
@@ -1068,7 +1080,7 @@ function renderActiveSession() {
       : `<button class="pgm-btn pgm-btn-sm" onclick="openRebuyModal(${i})" style="font-size:11px;padding:3px 8px">Rebuy</button>
          <button class="pgm-btn pgm-btn-sm" onclick="openLeftTableModal(${i})" style="font-size:10px;padding:3px 6px;color:var(--text-dim)">Saiu</button>`;
     return `<div class="pgm-player-row" style="${saiu?'opacity:0.7':''}">
-      <span class="pgm-player-name" style="${nameStyle}">♟ ${p.name}</span>
+      <span class="pgm-player-name" style="${nameStyle};display:flex;align-items:center;gap:6px">${avatarHTML(p.name,'pgm-player-avatar','♟')} ${p.name}</span>
       <span class="pgm-money neu">${fmtRaw(p.buyin)}</span>
       <span class="pgm-money ${rt>0?'neg':'neu'}">${rt>0?fmtRaw(rt):'—'}</span>
       <span class="pgm-money neu">${fmtRaw(p.buyin+rt)}</span>
@@ -1235,7 +1247,7 @@ function finishSession() {
     rowsHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
-    '<button class="pgm-btn" style="flex:1;background:rgba(37,211,102,0.15);border-color:rgba(37,211,102,0.5);color:#25d366" id="btn-share-result">📤 Compartilhar</button>' +
+    (navigator.share ? '<button class="pgm-btn" style="flex:1;background:rgba(37,211,102,0.15);border-color:rgba(37,211,102,0.5);color:#25d366" id="btn-share-result">📤 Compartilhar</button>' : '') +
     '</div>'
   );
   setTimeout(function(){
@@ -1665,7 +1677,7 @@ function showSessionDetail(sessionIndex) {
     rowsHTML + curiosHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
-    '<button class="pgm-btn" style="background:rgba(37,211,102,0.15);border-color:rgba(37,211,102,0.5);color:#25d366" id="btn-share-hist">📤 Compartilhar</button>' +
+    (navigator.share ? '<button class="pgm-btn" style="background:rgba(37,211,102,0.15);border-color:rgba(37,211,102,0.5);color:#25d366" id="btn-share-hist">📤 Compartilhar</button>' : '') +
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" id="btn-del-sess-detail">Apagar</button>' +
     '</div>'
   );
@@ -2022,6 +2034,17 @@ function adminConfirmDelete(sessionIndex) {
   );
 }
 
+function apagarCuriosidadesDaSessao(s) {
+  // Remove curiosidades relacionadas a uma sessão pelos identificadores disponíveis
+  S.curiosidades = S.curiosidades.filter(function(c) {
+    if(s._uid && c.sessionUid && c.sessionUid === s._uid) return false;
+    if(s.num && c.sessionId === s.num) return false;
+    if(s.date && c.sessionId === ('casual-' + s.date)) return false;
+    if(s.num && c.sessionLabel === 'Sessão ' + s.num) return false;
+    return true;
+  });
+}
+
 function doAdminDeleteByUid() {
   if(!_adminAuth) return;
   var uid = window._pendingDeleteUid;
@@ -2029,9 +2052,7 @@ function doAdminDeleteByUid() {
   var idx = S.sessions.findIndex(function(x){ return x._uid === uid; });
   if(idx === -1) { closeModal(); return; }
   var s = S.sessions[idx];
-  if(s.num) {
-    S.curiosidades = S.curiosidades.filter(function(c){ return c.sessionLabel !== 'Sessão ' + s.num; });
-  }
+  apagarCuriosidadesDaSessao(s);
   S.sessions.splice(idx, 1);
   updateOverview();
   savePatch({ sessions: S.sessions, curiosidades: S.curiosidades });
@@ -2063,9 +2084,7 @@ function doAdminDeleteSession(sessionIndex) {
   if(!_adminAuth) return;
   var s = S.sessions[sessionIndex];
   if(!s) { closeModal(); return; }
-  if(s.num) {
-    S.curiosidades = S.curiosidades.filter(function(c){ return c.sessionLabel !== 'Sessão ' + s.num; });
-  }
+  apagarCuriosidadesDaSessao(s);
   S.sessions.splice(sessionIndex, 1);
   if(_lastHistCatIndices) {
     _lastHistCatIndices = _lastHistCatIndices
@@ -2079,8 +2098,13 @@ function doAdminDeleteSession(sessionIndex) {
 
 function doAdminDeleteSeason(idx) {
   if(!_adminAuth) return;
+  var ps = S.pastSeasons[idx];
+  if(ps && ps.sessions) {
+    ps.sessions.forEach(function(s){ apagarCuriosidadesDaSessao(s); });
+  }
   S.pastSeasons.splice(idx, 1);
-  updateOverview(); renderHistorico(); save();
+  updateOverview(); renderHistorico();
+  savePatch({ pastSeasons: S.pastSeasons, curiosidades: S.curiosidades });
   closeModal();
 }
 
@@ -2093,38 +2117,144 @@ document.addEventListener('click', e=>{ const b=e.target.closest('.pgm-modal-bac
 
 
 
-// ─── COMPARTILHAR RESULTADO ───────────────────────────────────────────────────
+// ─── CONEXÃO ──────────────────────────────────────────────────────────────────
+function updateConnectionStatus() {
+  var pill = document.getElementById('offline-pill');
+  if(!pill) return;
+  if(navigator.onLine) {
+    pill.classList.remove('visible');
+  } else {
+    pill.classList.add('visible');
+  }
+}
+
+var _toastTimer = null;
+function showOfflineToast() {
+  var toast = document.getElementById('save-toast');
+  if(!toast) return;
+  toast.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function(){ toast.classList.remove('show'); }, 3500);
+}
+
+window.addEventListener('online', updateConnectionStatus);
+window.addEventListener('offline', function() {
+  updateConnectionStatus();
+  showOfflineToast();
+});
+
+// Interceptar save() pra mostrar toast quando offline
+var _originalSave = null;
+function initConnectionMonitor() {
+  updateConnectionStatus();
+}
+
+// ─── FOTOS DE JOGADORES ───────────────────────────────────────────────────────
+function getPlayerPhoto(name) {
+  var p = S.players.find(function(x){ return x.name === name; });
+  return p && p.photo ? p.photo : null;
+}
+
+function avatarHTML(name, cssClass, fallback) {
+  var photo = getPlayerPhoto(name);
+  cssClass = cssClass || 'player-card-avatar';
+  fallback = fallback || '♟';
+  var inner = photo
+    ? '<img src="' + photo + '" alt="' + name + '">'
+    : fallback;
+  return '<div class="' + cssClass + '" onclick="openPhotoModal(\'' + encodeURIComponent(name) + '\')" title="Trocar foto">' + inner + '</div>';
+}
+
+function openPhotoModal(encodedName) {
+  var name = decodeURIComponent(encodedName);
+  var photo = getPlayerPhoto(name);
+  showModal(
+    '<div class="pgm-modal-title">📷 ' + name + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;padding:0.5rem 0">' +
+      '<div style="width:80px;height:80px;border-radius:50%;overflow:hidden;border:2px solid var(--gold-light);background:rgba(201,168,76,0.12);display:flex;align-items:center;justify-content:center;font-size:32px" id="photo-preview">' +
+        (photo ? '<img src="' + photo + '" style="width:100%;height:100%;object-fit:cover">' : '♟') +
+      '</div>' +
+      '<input type="file" id="photo-file-input" accept="image/*" style="display:none">' +
+      '<button class="pgm-btn" style="width:100%" onclick="document.getElementById(\'photo-file-input\').click()">📁 Escolher foto</button>' +
+      (photo ? '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" style="width:100%" onclick="removePlayerPhoto(\'' + encodeURIComponent(name) + '\')">Remover foto</button>' : '') +
+    '</div>'
+  );
+  setTimeout(function() {
+    var input = document.getElementById('photo-file-input');
+    if(input) input.addEventListener('change', function() {
+      if(!this.files || !this.files[0]) return;
+      compressAndSavePhoto(name, this.files[0]);
+    });
+  }, 80);
+}
+
+function compressAndSavePhoto(name, file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var MAX = 200;
+      var ratio = Math.min(MAX / img.width, MAX / img.height);
+      canvas.width = Math.round(img.width * ratio);
+      canvas.height = Math.round(img.height * ratio);
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      var base64 = canvas.toDataURL('image/jpeg', 0.75);
+
+      // Salvar no player
+      var p = S.players.find(function(x){ return x.name === name; });
+      if(p) {
+        p.photo = base64;
+        savePatch({ players: S.players });
+        renderJogadores();
+        renderActiveSession();
+        closeModal();
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePlayerPhoto(encodedName) {
+  var name = decodeURIComponent(encodedName);
+  var p = S.players.find(function(x){ return x.name === name; });
+  if(p) {
+    delete p.photo;
+    savePatch({ players: S.players });
+    renderJogadores();
+    renderActiveSession();
+    closeModal();
+  }
+}
+
+
 function compartilharResultado(sessao) {
-  // Criar canvas com o resultado
   const canvas = document.createElement('canvas');
   const W = 600, H = 100 + (sessao.players.length * 70) + 80;
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // Fundo verde escuro
   ctx.fillStyle = '#0d2218';
   ctx.fillRect(0, 0, W, H);
 
-  // Borda dourada
   ctx.strokeStyle = '#c9a84c';
   ctx.lineWidth = 3;
   ctx.strokeRect(6, 6, W-12, H-12);
 
-  // Título
   ctx.fillStyle = '#c9a84c';
   ctx.font = 'bold 22px Georgia, serif';
   ctx.textAlign = 'center';
   ctx.fillText('♠ Botica do Poker', W/2, 42);
 
-  // Data e tipo
   const date = sessao.date ? new Date(sessao.date+'T12:00:00').toLocaleDateString('pt-BR') : '';
-  const tipo = sessao.type === 'oficial' ? '🏆 Oficial' : '🥃 Casual';
+  const tipo = sessao.type === 'oficial' ? '🏆 Liga' : sessao.type === 'torneio' ? '🥊 Torneio' : '🥃 Casual';
   ctx.fillStyle = '#8a9080';
   ctx.font = '14px Arial, sans-serif';
   ctx.fillText(date + '  ·  ' + tipo, W/2, 68);
 
-  // Linha separadora
   ctx.strokeStyle = '#c9a84c';
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -2132,7 +2262,6 @@ function compartilharResultado(sessao) {
   ctx.lineTo(W-30, 82);
   ctx.stroke();
 
-  // Jogadores ordenados por lucro
   const sorted = [...sessao.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
   const medals = ['🥇','🥈','🥉'];
 
@@ -2140,24 +2269,20 @@ function compartilharResultado(sessao) {
     const y = 82 + (i+1)*65;
     const profit = p.profit || 0;
 
-    // Medalha/posição
     ctx.font = '26px Arial';
     ctx.textAlign = 'left';
     ctx.fillText(medals[i] || (i+1)+'º', 24, y+8);
 
-    // Nome
     ctx.fillStyle = '#f5f5f2';
     ctx.font = 'bold 18px Arial, sans-serif';
     ctx.fillText(p.name, 70, y+8);
 
-    // Lucro
     ctx.fillStyle = profit >= 0 ? '#2ecc71' : '#e74c3c';
     ctx.font = 'bold 18px "Courier New", monospace';
     ctx.textAlign = 'right';
     const prefix = profit >= 0 ? '+' : '';
     ctx.fillText(prefix + 'R$ ' + Math.abs(profit).toFixed(2).replace('.', ','), W-24, y+8);
 
-    // Linha divisória leve
     if(i < sorted.length - 1) {
       ctx.strokeStyle = 'rgba(201,168,76,0.2)';
       ctx.lineWidth = 1;
@@ -2168,20 +2293,36 @@ function compartilharResultado(sessao) {
     }
   });
 
-  // Rodapé
   ctx.fillStyle = '#4a5a4a';
   ctx.font = '11px Arial';
   ctx.textAlign = 'center';
   ctx.fillText('boticadopoker.com.br', W/2, H-16);
 
-  // Converter para imagem e abrir/download
   canvas.toBlob(function(blob) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'botica-resultado-' + (sessao.date||'sessao') + '.png';
-    a.click();
-    URL.revokeObjectURL(url);
+    var fileName = 'botica-resultado-' + (sessao.date||'sessao') + '.png';
+
+    // Web Share API — abre direto o painel de compartilhamento do celular (WhatsApp, etc)
+    if(navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'image/png' })] })) {
+      var file = new File([blob], fileName, { type: 'image/png' });
+      navigator.share({
+        files: [file],
+        title: 'Botica do Poker — Resultado',
+      }).catch(function(e) {
+        // Usuário cancelou ou erro — fallback pra download
+        if(e.name !== 'AbortError') {
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url; a.download = fileName; a.click();
+          URL.revokeObjectURL(url);
+        }
+      });
+    } else {
+      // Navegador sem suporte a Web Share — download normal
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = fileName; a.click();
+      URL.revokeObjectURL(url);
+    }
   }, 'image/png');
 }
 
@@ -2230,7 +2371,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('new-player-name').addEventListener('keydown', e=>{ if(e.key==='Enter') addPlayer(); });
     document.getElementById('reg-player-name').addEventListener('keydown', e=>{ if(e.key==='Enter') registerPlayer(); });
     document.getElementById('new-session-date').value = new Date().toISOString().split('T')[0];
-
+    initConnectionMonitor();
     load(); updateOverview(); resetNewSessionForm();
     if(S.activeSession){
       document.getElementById('no-session-state').style.display='none';
