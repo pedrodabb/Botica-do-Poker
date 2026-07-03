@@ -126,7 +126,7 @@
     .pgm-section-title { font-family: 'Nunito', sans-serif; font-size: 11px; font-weight: 900; color: var(--nav); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px; }
     .pgm-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-    .pgm-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+    .pgm-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 1rem; margin-bottom: 1rem; }
     .pgm-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
     .pgm-card-title { font-size: 15px; font-weight: 900; color: var(--nav); }
 
@@ -135,7 +135,7 @@
     .pgm-badge-casual { background: rgba(138,138,122,0.15); color: var(--neutral); border: 1px solid rgba(138,138,122,0.3); }
     .pgm-badge-torneio { background: rgba(231,76,60,0.15); color: #e76c5a; border: 1px solid rgba(231,76,60,0.35); }
     .pgm-hist-cat-grid { display: flex; flex-direction: column; gap: 10px; }
-    .pgm-hist-cat-card { display: flex; align-items: center; gap: 12px; padding: 1rem; border-radius: 12px; cursor: pointer; transition: transform 0.15s, background 0.15s; border: 1px solid var(--border); background: rgba(255,255,255,0.03); }
+    .pgm-hist-cat-card { display: flex; align-items: center; gap: 12px; padding: 1rem; border-radius: 14px; cursor: pointer; transition: transform 0.15s, background 0.15s; border: 1px solid var(--border); background: rgba(255,255,255,0.03); }
     .pgm-hist-cat-card:active { transform: scale(0.98); }
     .pgm-hist-cat-card.gold { border-color: rgba(201,168,76,0.35); background: rgba(201,168,76,0.06); }
     .pgm-hist-cat-card.casual { border-color: rgba(138,138,122,0.3); }
@@ -155,10 +155,10 @@
     .smc-official { background: rgba(201,168,76,0.1); border-color: var(--gold-dim); color: var(--gold); }
     .smc-empty { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.08); color: var(--text-dim); }
 
-    .pgm-btn { background: rgba(201,168,76,0.12); border: 1px solid var(--border-strong); color: var(--gold); font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; padding: 0.6rem 1.1rem; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+    .pgm-btn { background: rgba(201,168,76,0.12); border: 1px solid var(--border-strong); color: var(--gold); font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; padding: 0.6rem 1.1rem; border-radius: 12px; cursor: pointer; transition: background 0.15s; }
     .pgm-btn:hover { background: rgba(201,168,76,0.2); }
     .pgm-btn:active { transform: scale(0.98); }
-    .pgm-btn-sm { font-size: 12px; padding: 0.4rem 0.8rem; }
+    .pgm-btn-sm { font-size: 12px; padding: 0.4rem 0.8rem; border-radius: 10px; }
     .pgm-btn-danger { background: rgba(192,57,43,0.1); border-color: rgba(192,57,43,0.35); color: #e74c3c; }
     .pgm-btn-danger:hover { background: rgba(192,57,43,0.2); }
     .pgm-btn-success { background: rgba(46,204,113,0.1); border-color: rgba(46,204,113,0.35); color: var(--positive); }
@@ -166,10 +166,10 @@
     .pgm-btn-purple { background: var(--curio-bg); border-color: var(--curio-border); color: var(--curio-light); }
     .pgm-btn-purple:hover { background: rgba(124,111,194,0.18); }
 
-    .pgm-input { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 7px; color: var(--cream); font-family: 'DM Mono', monospace; font-size: 14px; padding: 0.55rem 0.75rem; width: 100%; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
+    .pgm-input { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 10px; color: var(--cream); font-family: 'DM Mono', monospace; font-size: 14px; padding: 0.55rem 0.75rem; width: 100%; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
     .pgm-input:focus { border-color: var(--gold); }
     .pgm-input::placeholder { color: var(--text-dim); }
-    .pgm-textarea { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 7px; color: var(--cream); font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; padding: 0.6rem 0.75rem; width: 100%; outline: none; transition: border-color 0.15s; resize: vertical; min-height: 80px; line-height: 1.5; }
+    .pgm-textarea { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 10px; color: var(--cream); font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; padding: 0.6rem 0.75rem; width: 100%; outline: none; transition: border-color 0.15s; resize: vertical; min-height: 80px; line-height: 1.5; }
     .pgm-textarea:focus { border-color: var(--curio); }
     .pgm-textarea::placeholder { color: var(--text-dim); }
 
@@ -193,7 +193,7 @@
     .pgm-new-player-form .pgm-field { flex: 1; margin: 0; }
 
     /* Curiosidades */
-    .curio-card { background: var(--curio-bg); border: 1px solid var(--curio-border); border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 8px; }
+    .curio-card { background: var(--curio-bg); border: 1px solid var(--curio-border); border-radius: 14px; padding: 0.85rem 1rem; margin-bottom: 8px; }
     .curio-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem; }
     .curio-player { font-size: 13px; font-weight: 900; color: var(--curio-light); }
     .curio-session { font-size: 11px; font-weight: 700; color: var(--text-dim); }
@@ -201,7 +201,7 @@
     .curio-date { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-top: 0.35rem; }
 
     /* Jogadores */
-    .player-card { display: flex; align-items: center; gap: 12px; padding: 0.75rem; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; background: var(--panel); }
+    .player-card { display: flex; align-items: center; gap: 12px; padding: 0.75rem; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 8px; background: var(--panel); }
     .player-card-avatar { width: 38px; height: 38px; border-radius: 50%; background: rgba(201,168,76,0.12); border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; overflow:hidden; cursor:pointer; transition:border-color 0.15s; }
     .player-card-avatar:hover { border-color:var(--gold-light); }
     .player-card-avatar img { width:100%;height:100%;object-fit:cover; }
@@ -213,7 +213,7 @@
     .player-card-sub { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-top: 2px; }
 
     /* Ranking */
-    .pgm-ranking-row { display: flex; align-items: center; gap: 12px; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); margin-bottom: 8px; }
+    .pgm-ranking-row { display: flex; align-items: center; gap: 12px; padding: 0.8rem; border-radius: 14px; border: 1px solid var(--border); background: var(--panel); margin-bottom: 8px; }
     .pgm-ranking-row.greyed { opacity: 0.45; border-color: transparent; background: rgba(255,255,255,0.02); }
     .pgm-rank-pos { font-family: 'Nunito', sans-serif; font-size: 18px; font-weight: 900; color: var(--text-dim); min-width: 28px; text-align: center; }
     .pgm-rank-1 { color: #ffd700; } .pgm-rank-2 { color: #c0c0c0; } .pgm-rank-3 { color: #cd7f32; }
@@ -254,14 +254,14 @@
     .pgm-select option { background: #14301f; color: var(--cream); }
 
     .pgm-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
-    .pgm-modal { background: #16271b; border: 1px solid var(--border-strong); border-radius: 12px; padding: 1.25rem; width: 100%; max-width: 360px; max-height: 85vh; overflow-y: auto; }
+    .pgm-modal { background: #16271b; border: 1px solid var(--border-strong); border-radius: 16px; padding: 1.25rem; width: 100%; max-width: 360px; max-height: 85vh; overflow-y: auto; }
     .pgm-modal-title { font-size: 15px; font-weight: 900; color: var(--cream); margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; }
     .pgm-modal-backdrop.pgm-sheet-mode { align-items: flex-end; padding: 0; }
     .pgm-sheet { background: #16271b; border: 1px solid var(--border-strong); border-bottom: none; border-radius: 16px 16px 0 0; padding: 1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom)); width: 100%; max-width: 480px; max-height: 80vh; overflow-y: auto; animation: pgmSheetUp 0.25s ease-out; }
     @keyframes pgmSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     .pgm-rules-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 800; color: var(--cream-dim); }
     .pgm-rules-row:last-child { border-bottom: none; }
-    .pgm-rules-link { background: none; border: none; color: var(--gold-light); font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; cursor: pointer; padding: 0; text-decoration: none; margin: -0.25rem 0 0.75rem; }
+    .pgm-rules-link { background: none; border: none; color: var(--gold-light); font-family: 'Nunito', sans-serif; font-size: 11px; font-weight: 800; cursor: pointer; padding: 0; text-decoration: none; margin: -0.5rem 0 0.75rem; }
     .pgm-offline-pill { display:none; align-items:center; gap:5px; background:rgba(231,76,60,0.18); border:1px solid rgba(231,76,60,0.4); border-radius:20px; padding:3px 10px; font-size:11px; font-weight:800; color:#e74c3c; font-family:'Nunito',sans-serif; }
     .pgm-offline-pill.visible { display:flex; }
     .pgm-offline-dot { width:7px; height:7px; border-radius:50%; background:#e74c3c; animation:pgmBlink 1.2s ease-in-out infinite; }
@@ -377,7 +377,7 @@
               <button class="pgm-toggle-opt" onclick="setSessionModality('torneio')">🥊 Torneio</button>
             </div>
           </div>
-          <div style="margin-bottom:0.75rem" id="cash-type-wrapper">
+          <div style="margin-bottom:0.25rem" id="cash-type-wrapper">
             <label class="pgm-input-label">Tipo</label>
             <div class="pgm-toggle-group" id="session-type-toggle">
               <button class="pgm-toggle-opt active" onclick="setSessionType('oficial')">🏆 Liga</button>
@@ -395,20 +395,15 @@
           </div>
           <div class="pgm-field">
             <label class="pgm-input-label">Buy-in (R$)</label>
-            <input type="number" id="new-session-buyin" class="pgm-input" placeholder="20–25" min="1" value="20">
-          </div>
-          <div class="pgm-field">
-            <label class="pgm-input-label">Rebuy (R$)</label>
-            <input type="number" id="new-session-rebuy" class="pgm-input" placeholder="Valor padrão de rebuy" min="1" value="20">
+            <input type="number" id="new-session-buyin" class="pgm-input" placeholder="Valor do buy-in" min="1">
           </div>
 
           <div class="pgm-section-title" style="margin-top:0.5rem">Jogadores da sessão</div>
           <div class="pgm-new-player-form">
-            <div class="pgm-field">
-              <label class="pgm-input-label">Adicionar por nome</label>
+            <div class="pgm-field" style="margin-bottom:0">
               <input type="text" id="new-player-name" class="pgm-input" placeholder="Nome..." autocomplete="off">
             </div>
-            <button class="pgm-btn pgm-btn-sm" onclick="addPlayer()" style="flex-shrink:0;height:36px">+ Add</button>
+            <button class="pgm-btn pgm-btn-sm" onclick="addPlayer()" style="flex-shrink:0;height:36px">Adicionar</button>
           </div>
           <div id="players-list-new"></div>
           <div id="known-players-quick" style="margin-bottom:0.75rem"></div>
@@ -420,7 +415,7 @@
         <div class="pgm-card" style="margin-bottom:0.75rem">
           <div class="pgm-flex-between" style="margin-bottom:0.5rem">
             <div class="pgm-card-title" id="active-session-title">Sessão 1</div>
-            <span id="active-session-badge" class="pgm-badge pgm-badge-gold">🏆 Oficial</span>
+            <span id="active-session-badge" class="pgm-badge pgm-badge-gold">🏆 Liga</span>
           </div>
           <div style="font-size:12px;font-weight:800;color:var(--cream-dim)">
             Buy-in: <span id="active-buyin" style="color:var(--gold-light);font-family:'DM Mono',monospace">R$ 20</span>
@@ -465,7 +460,7 @@
             <label class="pgm-input-label">Nome do jogador</label>
             <input type="text" id="reg-player-name" class="pgm-input" placeholder="Nome..." autocomplete="off">
           </div>
-          <button class="pgm-btn pgm-btn-sm" onclick="registerPlayer()" style="flex-shrink:0;height:36px">+ Add</button>
+          <button class="pgm-btn pgm-btn-sm" onclick="registerPlayer()" style="flex-shrink:0;height:36px">Adicionar</button>
         </div>
         <div style="font-size:11px;font-weight:700;color:var(--text-dim)">Jogadores cadastrados aparecem automaticamente ao iniciar uma sessão.</div>
       </div>
@@ -1041,7 +1036,7 @@ function startSession() {
   if(type==='oficial' && oficialCount>=6) { showAlert('Temporada já tem 6 sessões oficiais!'); return; }
   if(!S.newSession.players.length) { showAlert('Adicione pelo menos um jogador.'); return; }
   var buyin = parseFloat(document.getElementById('new-session-buyin').value)||20;
-  var rebuy = parseFloat(document.getElementById('new-session-rebuy').value)||buyin;
+  var rebuy = buyin;
   var date  = document.getElementById('new-session-date').value || new Date().toISOString().split('T')[0];
   var labelEl = document.getElementById('new-session-label');
   var label = (labelEl && labelEl.value.trim()) ? labelEl.value.trim() : (type==='torneio' ? 'Torneio' : null);
@@ -1459,12 +1454,16 @@ function calcularPontosComEmpate(players, isTorneio) {
 function renderRanking() {
   const oficiais = S.sessions.filter(function(s){ return s.type==='oficial'; });
   const map = {};
+  // Mapa de sessões por jogador para calcular qual descartar
+  const sessoesPorJogador = {};
 
   oficiais.forEach(function(sess) {
     if(!sess.players || !sess.players.length) return;
     var resultado = calcularPontosComEmpate(sess.players);
     resultado.forEach(function(r) {
       if(!map[r.name]) map[r.name] = { name: r.name, sessions: 0, points: 0, profit: 0, best: null, wins: 0 };
+      if(!sessoesPorJogador[r.name]) sessoesPorJogador[r.name] = [];
+      sessoesPorJogador[r.name].push({ uid: sess._uid, num: sess.num, pts: r.pts, profit: r.profit, pos: r.pos });
       map[r.name].sessions++;
       map[r.name].points += r.pts;
       map[r.name].profit += r.profit;
@@ -1473,13 +1472,26 @@ function renderRanking() {
     });
   });
 
+  // Descartar a pior sessão (menos pontos) de cada jogador que tem 2+ sessões
+  // Guardar globalmente qual sessão foi descartada por jogador (pra mostrar no histórico)
+  window._sessaoDescartada = {};
+  Object.keys(sessoesPorJogador).forEach(function(nome) {
+    var sessoes = sessoesPorJogador[nome];
+    if(sessoes.length < 6) return; // só descarta na última rodada (temporada completa)
+    var pior = sessoes.reduce(function(min, s) { return s.pts < min.pts ? s : min; }, sessoes[0]);
+    window._sessaoDescartada[nome] = pior.uid;
+    map[nome].points -= pior.pts;
+    map[nome].sessions--; // sessões contadas no ranking excluem a descartada
+    if(pior.pos === 1) map[nome].wins--; // se a descartada foi vitória, remove o win
+  });
+
   const all = Object.values(map).map(function(p) {
     return Object.assign({}, p, { avg: p.sessions > 0 ? p.points / p.sessions : 0 });
   });
 
   const ranked = all.sort(function(a,b){
     if(b.avg !== a.avg) return b.avg - a.avg;
-    return b.wins - a.wins; // desempate por vitórias
+    return b.wins - a.wins;
   });
   const medals = ['🥇','🥈','🥉'];
 
@@ -1487,11 +1499,12 @@ function renderRanking() {
 
   document.getElementById('ranking-list').innerHTML = ranked.length
     ? ranked.map(function(p,i) {
+        var temDescarte = window._sessaoDescartada[p.name];
         return '<div class="pgm-ranking-row">' +
           '<div class="pgm-rank-pos ' + (i<3?'pgm-rank-'+(i+1):'') + '">' + (medals[i]||'#'+(i+1)) + '</div>' +
           '<div class="pgm-rank-name-block">' +
             '<div class="pgm-rank-name">' + p.name + '</div>' +
-            '<div class="pgm-rank-sessions">' + p.sessions + ' sessões · ' + p.wins + ' vitória(s)</div>' +
+            '<div class="pgm-rank-sessions">' + p.sessions + ' sessões · ' + p.wins + ' vitória(s)' + (temDescarte ? ' · <span style="color:var(--negative);font-size:10px">-1 descartada</span>' : '') + '</div>' +
           '</div>' +
           '<div class="pgm-rank-stats">' +
             '<div class="pgm-rank-avg" style="color:var(--gold-light)">' + p.avg.toFixed(1) + '<span style="font-size:11px;color:var(--text-dim);font-weight:700"> pts/sess</span></div>' +
@@ -1675,8 +1688,13 @@ function showSessionDetail(sessionIndex) {
   var rowsHTML = sorted.map(function(p,i) {
     var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
     var pr = p.profit || 0;
-    return '<div class="pgm-final-row">' +
-      '<div class="pgm-player-name" style="font-size:13px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[i]||'') + ' ' + p.name + '</div>' +
+    // Verificar se essa sessão foi descartada pra esse jogador
+    var descartada = window._sessaoDescartada && s._uid && window._sessaoDescartada[p.name] === s._uid;
+    return '<div class="pgm-final-row"' + (descartada ? ' style="opacity:0.55"' : '') + '>' +
+      '<div class="pgm-player-name" style="font-size:13px;display:flex;align-items:center;gap:6px">' +
+        avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[i]||'') + ' ' +
+        (descartada ? '<span style="text-decoration:line-through;color:var(--negative)">' + p.name + '</span> <span style="font-size:9px;font-weight:900;color:var(--negative);background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;padding:1px 4px">descartada</span>' : p.name) +
+      '</div>' +
       '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
       '<div class="pgm-money ' + (pr>=0?'pos':'neg') + '" style="font-size:13px">' + fmtR(pr) + '</div>' +
       '</div>';
@@ -1728,6 +1746,61 @@ function showSeasonDetail(idx) {
   var oficiais = ps.sessions.filter(function(s){ return s.type==='oficial'; });
   var curios = ps.curiosidades || [];
 
+  // ── Calcular ranking final da temporada pra montar o pódio ──
+  var rankMap = {};
+  oficiais.forEach(function(sess) {
+    if(!sess.players || !sess.players.length) return;
+    var resultado = calcularPontosComEmpate(sess.players);
+    resultado.forEach(function(r) {
+      if(!rankMap[r.name]) rankMap[r.name] = { name: r.name, points: 0, profit: 0, sessions: 0, wins: 0 };
+      rankMap[r.name].points += r.pts;
+      rankMap[r.name].profit += r.profit;
+      rankMap[r.name].sessions++;
+      if(r.pos === 1) rankMap[r.name].wins++;
+    });
+  });
+  var rankFinal = Object.values(rankMap).sort(function(a,b){
+    var avgA = a.sessions > 0 ? a.points / a.sessions : 0;
+    var avgB = b.sessions > 0 ? b.points / b.sessions : 0;
+    return avgB !== avgA ? avgB - avgA : b.wins - a.wins;
+  });
+
+  // ── Pódio HTML ──
+  var medalColors = [
+    { border:'rgba(255,215,0,0.5)', bg:'rgba(255,215,0,0.12)', color:'#ffd700' },
+    { border:'rgba(192,192,192,0.4)', bg:'rgba(192,192,192,0.1)', color:'#c0c0c0' },
+    { border:'rgba(205,127,50,0.4)', bg:'rgba(205,127,50,0.1)', color:'#cd7f32' }
+  ];
+  var medals = ['🥇','🥈','🥉'];
+  var podioHTML = '';
+  if(rankFinal.length >= 2) {
+    var top3 = rankFinal.slice(0, Math.min(3, rankFinal.length));
+    // Reordenar: 2º, 1º, 3º (visual de pódio)
+    var ordem = top3.length === 1 ? [0] : top3.length === 2 ? [1, 0] : [1, 0, 2];
+    podioHTML = '<div style="margin-bottom:1rem">' +
+      '<div class="pgm-section-title" style="margin-bottom:8px">Pódio da Temporada</div>' +
+      '<div style="display:grid;grid-template-columns:' + (top3.length === 1 ? '1fr' : top3.length === 2 ? '1fr 1fr' : '1fr 1fr 1fr') + ';gap:6px;margin-bottom:0.75rem">' +
+      ordem.map(function(i) {
+        var p = top3[i];
+        if(!p) return '';
+        var mc = medalColors[i] || medalColors[2];
+        var initials = p.name.slice(0,2).toUpperCase();
+        var photo = getPlayerPhoto(p.name);
+        var avatarInner = photo
+          ? '<img src="' + photo + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">'
+          : initials;
+        var avg = p.sessions > 0 ? (p.points / p.sessions).toFixed(1) : '0.0';
+        return '<div style="background:#14321a;border:1px solid ' + (i===0?'rgba(255,215,0,0.35)':'rgba(201,168,76,0.15)') + ';border-radius:12px;padding:10px 6px;text-align:center">' +
+          '<div style="font-size:16px;margin-bottom:3px">' + medals[i] + '</div>' +
+          '<div style="width:30px;height:30px;border-radius:50%;background:' + mc.bg + ';border:2px solid ' + mc.border + ';color:' + mc.color + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;margin:0 auto 5px;overflow:hidden">' + avatarInner + '</div>' +
+          '<div style="font-size:11px;font-weight:900;color:#f0ede4;margin-bottom:2px">' + p.name + '</div>' +
+          '<div style="font-size:13px;font-weight:900;color:#c9a84c;font-family:DM Mono,monospace">' + avg + '</div>' +
+          '<div style="font-size:9px;font-weight:700;color:#5a7a5a">pts/sess</div>' +
+        '</div>';
+      }).join('') +
+    '</div></div>';
+  }
+
   var sessionsHTML = ps.sessions.map(function(s) {
     if(!s.players) return '';
     s.players.forEach(function(p){ if(!p.rebuys) p.rebuys = []; });
@@ -1737,14 +1810,13 @@ function showSeasonDetail(idx) {
       ? '<span class="pgm-badge pgm-badge-gold" style="font-size:10px">🏆 Oficial</span>'
       : '<span class="pgm-badge pgm-badge-casual" style="font-size:10px">🥃 Casual</span>';
     var sorted = [...s.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
-    var medals = ['🥇','🥈','🥉'];
+    var medals2 = ['🥇','🥈','🥉'];
     var pot = s.players.reduce(function(a,p){ return a + p.buyin + p.rebuys.reduce(function(r,v){ return r+v; }, 0); }, 0);
 
     var rowsHTML = sorted.map(function(p, i) {
-      var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
       var pr = p.profit || 0;
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px">' +
-        '<span style="font-weight:800;color:var(--cream);display:flex;align-items:center;gap:5px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[i]||'') + ' ' + p.name + '</span>' +
+        '<span style="font-weight:800;color:var(--cream);display:flex;align-items:center;gap:5px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals2[i]||'') + ' ' + p.name + '</span>' +
         '<span style="font-family:DM Mono,monospace;color:' + (pr>=0?'var(--positive)':'var(--negative)') + '">' + fmtR(pr) + '</span>' +
       '</div>';
     }).join('');
@@ -1774,6 +1846,8 @@ function showSeasonDetail(idx) {
     '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem">' +
       oficiais.length + ' sessões oficiais · ' + ps.sessions.length + ' total' +
       (curios.length ? ' · ✨ ' + curios.length + ' curiosidade(s)' : '') + '</div>' +
+    podioHTML +
+    '<div class="pgm-section-title" style="margin-bottom:8px">Sessões</div>' +
     sessionsHTML + curiosHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
