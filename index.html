@@ -184,7 +184,8 @@
 
     .pgm-player-row { display: grid; grid-template-columns: 1fr 75px 75px 75px auto; gap: 8px; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
     .pgm-player-row:last-child { border-bottom: none; }
-    .pgm-player-name { font-size: 13px; color: var(--cream); font-weight: 800; }
+    .pgm-player-name { font-size: 13px; color: var(--cream); font-weight: 800; min-width: 0; overflow: hidden; }
+    .pgm-player-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
     .pgm-player-col-label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.06em; text-transform: uppercase; text-align: right; font-weight: 800; }
 
     .pgm-money { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; text-align: right; }
@@ -1156,7 +1157,7 @@ function renderActiveSession() {
          ${isClassico ? '' : `<button class="pgm-btn pgm-btn-sm" onclick="openLeftTableModal(${i})" style="font-size:10px;padding:3px 6px;color:var(--text-dim)">Saiu</button>`}
          <button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="confirmRemoveFromTable(${i})" title="Remover (adicionado por engano)" style="font-size:10px;padding:3px 6px">✕</button>`;
     return `<div class="pgm-player-row" style="${saiu?'opacity:0.7':''}">
-      <span class="pgm-player-name" style="${nameStyle};display:flex;align-items:center;gap:6px">${avatarHTML(p.name,'pgm-player-avatar','♟')} ${p.name}</span>
+      <span class="pgm-player-name" style="${nameStyle};display:flex;align-items:center;gap:6px;min-width:0">${avatarHTML(p.name,'pgm-player-avatar','♟')}<span class="pgm-player-name-text">${p.name}</span></span>
       <span class="pgm-money neu">${fmtRaw(p.buyin)}</span>
       <span class="pgm-money ${rt>0?'neg':'neu'}">${rt>0?fmtRaw(rt):'—'}</span>
       <span class="pgm-money neu">${fmtRaw(p.buyin+rt)}</span>
@@ -1314,7 +1315,7 @@ function openFinishSession() {
   var totalIn = s.players.reduce(function(a,p){ return a + p.buyin + p.rebuys.reduce(function(r,v){ return r+v; }, 0); }, 0);
   var sessionLabel = s.num ? 'Sessão ' + s.num : (s.label || 'Sessão Casual');
 
-  // ── Torneio clássico: pede a colocação final de cada jogador ──
+  // ── Torneio clássico: pede as fichas finais de cada jogador (posição é calculada) ──
   if(s.tourneyMode === 'classico') {
     var payoutInfo = (s.payout||[]).map(function(pct, i){
       return (i+1) + 'º: ' + fmtRaw(totalIn * pct / 100) + ' (' + pct + '%)';
@@ -1324,7 +1325,7 @@ function openFinishSession() {
       return '<div class="pgm-final-row">' +
         '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + p.name + '</div>' +
         '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
-        '<input type="number" id="place-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="1º, 2º..." min="1" max="' + s.players.length + '">' +
+        '<input type="number" id="chips-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0" min="0">' +
         '</div>';
     }).join('');
 
@@ -1332,8 +1333,9 @@ function openFinishSession() {
       '<div class="pgm-modal-title">Encerrar ' + sessionLabel + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
       '<div class="pgm-alert"><span>💰</span> Pot total: <strong>' + fmtRaw(totalIn) + '</strong></div>' +
       '<div style="font-size:11px;font-weight:800;color:var(--gold-light);margin-bottom:0.75rem">🏆 ' + payoutInfo + '</div>' +
-      '<div class="pgm-section-title">Colocação final de cada jogador</div>' +
-      '<div class="pgm-final-row header"><div>Jogador</div><div style="text-align:right">Pagou</div><div style="text-align:right">Posição</div></div>' +
+      '<div class="pgm-section-title">Fichas finais de cada jogador</div>' +
+      '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-4px 0 10px">A posição é calculada automaticamente pelas fichas — quem ficou com mais fichas fica em posição melhor. Deixe 0 (ou em branco) quem foi eliminado.</div>' +
+      '<div class="pgm-final-row header"><div>Jogador</div><div style="text-align:right">Pagou</div><div style="text-align:right">Fichas finais</div></div>' +
       rowsClassico +
       '<div class="pgm-row-btns" style="margin-top:0.75rem">' +
       '<button class="pgm-btn pgm-btn-success" style="flex:1" onclick="finishSessionClassico()">Encerrar e salvar</button>' +
@@ -1379,30 +1381,40 @@ function updateFinishPot() {
 function finishSessionClassico() {
   var s = S.activeSession;
   var n = s.players.length;
-  var places = [];
+  var chips = [];
   for(var i = 0; i < n; i++) {
-    var v = parseInt(document.getElementById('place-' + i).value);
-    if(!v || v < 1 || v > n) { showAlert('Informe a posição de todos os jogadores (1 a ' + n + ').'); return; }
-    places.push(v);
-  }
-  // Validar posições únicas
-  var vistos = {};
-  for(var j = 0; j < places.length; j++) {
-    if(vistos[places[j]]) { showAlert('Duas pessoas na posição ' + places[j] + ' — cada posição só pode ter um jogador.'); return; }
-    vistos[places[j]] = true;
+    var v = parseFloat(document.getElementById('chips-' + i).value);
+    chips.push(isNaN(v) || v < 0 ? 0 : v);
   }
 
   var totalIn = s.players.reduce(function(a,p){ return a + p.buyin + (p.rebuys||[]).reduce(function(r,v){ return r+v; }, 0); }, 0);
   var payout = s.payout || [];
 
-  s.players.forEach(function(p, i) {
-    var place = places[i];
+  // Calcular a posição automaticamente pelas fichas finais (mais fichas = melhor posição)
+  // Empate em fichas = mesma posição, no padrão esportivo já usado no resto do app (1-2-3-3-5)
+  var indices = s.players.map(function(p, i){ return i; });
+  indices.sort(function(a, b){ return chips[b] - chips[a]; });
+
+  var places = new Array(n);
+  var i = 0;
+  while(i < n) {
+    var chipAtual = chips[indices[i]];
+    var j = i;
+    while(j < n && chips[indices[j]] === chipAtual) j++;
+    var pos = i + 1;
+    for(var k = i; k < j; k++) { places[indices[k]] = pos; }
+    i = j;
+  }
+
+  s.players.forEach(function(p, idx) {
+    var place = places[idx];
     var investido = p.buyin + (p.rebuys||[]).reduce(function(a,r){ return a+r; }, 0);
     var premio = (place <= payout.length) ? totalIn * payout[place-1] / 100 : 0;
     p.place = place;
+    p.finalChips = chips[idx];
     p.premio = premio;
     p.finalStack = premio; // pra compatibilidade com telas que usam finalStack
-    p.profit = premio - investido;
+    p.profit = premio - investido; // desconta buy-in + todos os cacifes (rebuys) que a pessoa pegou
   });
 
   s.duration = s.startedAt ? (Date.now() - s.startedAt) : null;
@@ -1629,7 +1641,7 @@ function getPontosTorneio(pos) {
 }
 
 function calcularPontosComEmpate(players, isTorneio) {
-  // Torneio clássico: posições explícitas (place) — sem empate possível
+  // Torneio clássico: posições calculadas pelas fichas finais (podem empatar entre si)
   var temPlace = players.length && players.every(function(p){ return p.place; });
   if(temPlace) {
     return players.map(function(p) {
@@ -1887,21 +1899,33 @@ function showSessionDetail(sessionIndex) {
   s.players.forEach(function(p){ if(!p.rebuys) p.rebuys = []; });
 
   var date = s.date ? new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR') : '—';
-  var sorted = [...s.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
+  var isClassico = s.tourneyMode === 'classico';
+  var sorted = [...s.players].sort(function(a,b){
+    if(isClassico && a.place && b.place) return a.place - b.place;
+    return (b.profit||0)-(a.profit||0);
+  });
   var medals = ['🥇','🥈','🥉'];
+
+  // Colunas base + coluna extra pro botão de remover (só admin)
+  var baseCols = isClassico ? '1fr 65px 65px 75px' : '1fr 90px 90px';
+  var gridCols = baseCols + (_adminAuth ? ' 26px' : '');
 
   var rowsHTML = sorted.map(function(p,i) {
     var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
     var pr = p.profit || 0;
     // Verificar se essa sessão foi descartada pra esse jogador
     var descartada = window._sessaoDescartada && s._uid && window._sessaoDescartada[p.name] === s._uid;
-    return '<div class="pgm-final-row"' + (descartada ? ' style="opacity:0.55"' : '') + '>' +
+    var origIdx = s.players.indexOf(p);
+    var delBtn = _adminAuth ? '<button class="pgm-close-btn" onclick="confirmRemovePlayerFromSession(' + sessionIndex + ',' + origIdx + ')" title="Remover jogador desta sessão" style="color:var(--negative);font-size:14px">✕</button>' : '';
+    return '<div class="pgm-final-row" style="grid-template-columns:' + gridCols + ';' + (descartada ? 'opacity:0.55' : '') + '">' +
       '<div class="pgm-player-name" style="font-size:13px;display:flex;align-items:center;gap:6px">' +
-        avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[i]||'') + ' ' +
+        avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[i]||('#'+(i+1))) + ' ' +
         (descartada ? '<span style="text-decoration:line-through;color:var(--negative)">' + p.name + '</span> <span style="font-size:9px;font-weight:900;color:var(--negative);background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;padding:1px 4px">descartada</span>' : p.name) +
       '</div>' +
       '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
+      (isClassico ? '<div class="pgm-money neu" style="font-size:11px">' + (p.finalChips||0).toLocaleString('pt-BR') + ' 🎫</div>' : '') +
       '<div class="pgm-money ' + (pr>=0?'pos':'neg') + '" style="font-size:13px">' + fmtR(pr) + '</div>' +
+      delBtn +
       '</div>';
   }).join('');
 
@@ -1926,7 +1950,7 @@ function showSessionDetail(sessionIndex) {
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem">' +
     '<span class="pgm-badge ' + badgeClass + '">' + badgeText + '</span>' +
     '<span style="font-size:12px;font-weight:700;color:var(--text-dim)">Pot: ' + fmtRaw(pot) + ' · ' + s.players.length + ' jogadores' + (s.duration?' · ⏱️ '+formatDuration(s.duration):'') + '</span></div>' +
-    '<div class="pgm-final-row header"><div>Jogador</div><div style="text-align:right">Investiu</div><div style="text-align:right">Lucro</div></div>' +
+    '<div class="pgm-final-row header" style="grid-template-columns:' + gridCols + '"><div>Jogador</div><div style="text-align:right">Investiu</div>' + (isClassico ? '<div style="text-align:right">Fichas</div>' : '') + '<div style="text-align:right">Lucro</div>' + (_adminAuth ? '<div></div>' : '') + '</div>' +
     rowsHTML + curiosHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
@@ -1943,6 +1967,41 @@ function showSessionDetail(sessionIndex) {
     var btnS = document.getElementById('btn-share-hist');
     if(btnS) btnS.addEventListener('click', function(){ compartilharResultado(s); });
   }, 80);
+}
+
+function confirmRemovePlayerFromSession(sessionIndex, playerIndex) {
+  if(!_adminAuth) return;
+  var s = S.sessions[sessionIndex];
+  if(!s) return;
+  var p = s.players[playerIndex];
+  if(!p) return;
+  showModal(
+    '<div class="pgm-modal-title">Remover ' + p.name + '? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-warn">' + p.name + ' sai desta sessão como se nunca tivesse jogado. O pot, o ranking e o Total ★ são recalculados automaticamente. Use apenas para corrigir um jogador adicionado por engano.</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doRemovePlayerFromSession(' + sessionIndex + ',' + playerIndex + ')">Sim, remover</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="showSessionDetail(' + sessionIndex + ')">Voltar</button>' +
+    '</div>'
+  );
+}
+
+function doRemovePlayerFromSession(sessionIndex, playerIndex) {
+  if(!_adminAuth) return;
+  var s = S.sessions[sessionIndex];
+  if(!s) return;
+  var p = s.players[playerIndex];
+  if(!p) return;
+  var nome = p.name;
+  s.players.splice(playerIndex, 1);
+  // Remover curiosidades desse jogador especificamente nesta sessão
+  if(s.curiosidades) s.curiosidades = s.curiosidades.filter(function(c){ return c.playerName !== nome; });
+  S.curiosidades = S.curiosidades.filter(function(c){
+    var mesmaSessao = (c.sessionId === s.num) || (c.sessionId === ('casual-'+s.date)) || (c.sessionUid && c.sessionUid === s._uid);
+    return !(mesmaSessao && c.playerName === nome);
+  });
+  updateOverview();
+  savePatch({ sessions: S.sessions, curiosidades: S.curiosidades });
+  showSessionDetail(sessionIndex);
 }
 
 function showSeasonDetail(idx) {
