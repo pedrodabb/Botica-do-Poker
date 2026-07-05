@@ -400,8 +400,8 @@
           <div style="margin-bottom:0.25rem;display:none" id="tourney-mode-wrapper">
             <label class="pgm-input-label">Modo do Torneio</label>
             <div class="pgm-toggle-group" id="tourney-mode-toggle">
-              <button class="pgm-toggle-opt active" onclick="setTourneyMode('cash')">💰 Fichas valem R$</button>
-              <button class="pgm-toggle-opt" onclick="setTourneyMode('classico')">🎫 Clássico</button>
+              <button class="pgm-toggle-opt active" onclick="setTourneyMode('classico')">🎫 Clássico</button>
+              <button class="pgm-toggle-opt" onclick="setTourneyMode('cash')">💰 Fichas valem R$</button>
             </div>
           </div>
           <div id="tourney-classic-fields" style="display:none">
@@ -680,7 +680,7 @@ function setSessionModality(m) {
     S.newSession.type = 'torneio';
     var inp = document.getElementById('new-session-num');
     if(inp) inp.value = 'Torneio';
-    setTourneyMode(S.newSession.tourneyMode || 'cash');
+    setTourneyMode(S.newSession.tourneyMode || 'classico');
   } else {
     var tcf = document.getElementById('tourney-classic-fields');
     if(tcf) tcf.style.display = 'none';
@@ -691,7 +691,7 @@ function setSessionModality(m) {
 function setTourneyMode(tm) {
   S.newSession.tourneyMode = tm;
   document.querySelectorAll('#tourney-mode-toggle .pgm-toggle-opt').forEach(function(b,i){
-    b.classList.toggle('active', (i===0&&tm==='cash')||(i===1&&tm==='classico'));
+    b.classList.toggle('active', (i===0&&tm==='classico')||(i===1&&tm==='cash'));
   });
   var tcf = document.getElementById('tourney-classic-fields');
   if(tcf) tcf.style.display = tm === 'classico' ? 'block' : 'none';
@@ -1093,7 +1093,7 @@ function startSession() {
   // Torneio clássico: validar cacife e premiação
   var tourneyMode = null, startingStack = null, payout = null;
   if(type === 'torneio') {
-    tourneyMode = S.newSession.tourneyMode || 'cash';
+    tourneyMode = S.newSession.tourneyMode || 'classico';
     if(tourneyMode === 'classico') {
       startingStack = parseInt(document.getElementById('new-tourney-stack').value) || 0;
       if(startingStack <= 0) { showAlert('Informe o cacife inicial (fichas).'); return; }
