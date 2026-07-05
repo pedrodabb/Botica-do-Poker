@@ -359,7 +359,7 @@
     </div>
     <div class="pgm-season-info">
       <strong id="season-label">Temporada 1</strong>
-      <span id="sessions-counter">0 / 6 oficiais</span>
+      <span id="sessions-counter">0 / 5 oficiais</span>
     </div>
     <div class="pgm-offline-pill" id="offline-pill"><div class="pgm-offline-dot"></div>offline</div>
   </header>
@@ -703,7 +703,7 @@ function setSessionType(t) {
   document.querySelectorAll('#session-type-toggle .pgm-toggle-opt').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='oficial')||(i===1&&t==='casual')));
   const oficialCount = S.sessions.filter(s=>s.type==='oficial').length;
   const inp = document.getElementById('new-session-num');
-  if(inp) inp.value = t==='oficial' ? (oficialCount<6 ? oficialCount+1 : 'Completa') : 'Casual';
+  if(inp) inp.value = t==='oficial' ? (oficialCount<5 ? oficialCount+1 : 'Completa') : 'Casual';
   // Mostrar campo nome só para casual
   var nameField = document.getElementById('casual-name-field');
   if(nameField) nameField.style.display = t === 'casual' ? 'block' : 'none';
@@ -1082,7 +1082,7 @@ function renderQuickAdd() {
 function startSession() {
   var type = S.newSession.type;
   var oficialCount = S.sessions.filter(function(s){ return s.type==='oficial'; }).length;
-  if(type==='oficial' && oficialCount>=6) { showAlert('Temporada já tem 6 sessões oficiais!'); return; }
+  if(type==='oficial' && oficialCount>=5) { showAlert('Temporada já tem 5 sessões oficiais!'); return; }
   if(!S.newSession.players.length) { showAlert('Adicione pelo menos um jogador.'); return; }
   var buyin = parseFloat(document.getElementById('new-session-buyin').value)||20;
   var rebuy = buyin;
@@ -1490,7 +1490,7 @@ function finishSessionCommon(s) {
 function resetNewSessionForm() {
   const oficialCount = S.sessions.filter(s=>s.type==='oficial').length;
   const inp = document.getElementById('new-session-num');
-  if(inp) inp.value = oficialCount<6 ? oficialCount+1 : 'Completa';
+  if(inp) inp.value = oficialCount<5 ? oficialCount+1 : 'Completa';
   const ni = document.getElementById('new-player-name');
   if(ni) ni.value='';
   document.getElementById('players-list-new').innerHTML='';
@@ -1506,18 +1506,18 @@ function updateOverview() {
   const oficiais = S.sessions.filter(s=>s.type==='oficial');
   const casuais = S.sessions.filter(s=>s.type==='casual');
   const n = oficiais.length;
-  document.getElementById('sessions-counter').textContent = `${n} / 6 oficiais${casuais.length?' · '+casuais.length+' casual':''}`;
-  document.getElementById('progress-bar').style.width = (n/6*100)+'%';
+  document.getElementById('sessions-counter').textContent = `${n} / 5 oficiais${casuais.length?' · '+casuais.length+' casual':''}`;
+  document.getElementById('progress-bar').style.width = (n/5*100)+'%';
   document.getElementById('season-label').textContent = `Temporada ${S.season}`;
   let html='';
-  for(let i=1;i<=6;i++){
+  for(let i=1;i<=5;i++){
     const d = oficiais.find(s=>s.num===i);
     html += d ? `<div class="session-mini-chip smc-official" title="Sessão ${i}">${i}</div>`
                : `<div class="session-mini-chip smc-empty">${i}</div>`;
   }
   document.getElementById('sessions-circles').innerHTML = html;
   const ni = document.getElementById('new-session-num');
-  if(ni) { const t=S.newSession?S.newSession.type:'oficial'; ni.value=t==='oficial'?(n<6?n+1:'Completa'):'— Casual'; }
+  if(ni) { const t=S.newSession?S.newSession.type:'oficial'; ni.value=t==='oficial'?(n<5?n+1:'Completa'):'— Casual'; }
 }
 
 // ─── RANKING ──────────────────────────────────────────────────────────────────
@@ -1694,7 +1694,7 @@ function renderRanking() {
   window._sessaoDescartada = {};
   Object.keys(sessoesPorJogador).forEach(function(nome) {
     var sessoes = sessoesPorJogador[nome];
-    if(sessoes.length < 6) return; // só descarta na última rodada (temporada completa)
+    if(sessoes.length < 5) return; // só descarta na última rodada (temporada completa)
     var pior = sessoes.reduce(function(min, s) { return s.pts < min.pts ? s : min; }, sessoes[0]);
     window._sessaoDescartada[nome] = pior.uid;
     map[nome].points -= pior.pts;
