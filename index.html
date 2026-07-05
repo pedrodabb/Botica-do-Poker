@@ -1633,10 +1633,11 @@ function getPontosPosicao(pos) {
 }
 
 function getPontosTorneio(pos) {
-  if(pos === 1) return 15;
-  if(pos === 2) return 9;
-  if(pos === 3) return 6;
+  if(pos === 1) return 12;
+  if(pos === 2) return 8;
+  if(pos === 3) return 5;
   if(pos === 4) return 3;
+  if(pos === 5) return 1;
   return 0;
 }
 
@@ -2142,7 +2143,7 @@ function showRulesGuide() {
     }).join('');
   }
   var liga = [['🥇 1º lugar','5'],['🥈 2º lugar','3'],['🥉 3º lugar','2'],['4º lugar','1'],['5º lugar em diante','0']];
-  var torneio = [['🥇 1º lugar','15'],['🥈 2º lugar','9'],['🥉 3º lugar','6'],['4º lugar','3'],['5º lugar em diante','0']];
+  var torneio = [['🥇 1º lugar','12'],['🥈 2º lugar','8'],['🥉 3º lugar','5'],['4º lugar','3'],['5º lugar','1'],['6º lugar em diante','0']];
   var el = document.getElementById('pgm-modal');
   el.innerHTML = '<div class="pgm-modal-backdrop pgm-sheet-mode"><div class="pgm-sheet">' +
     '<div class="pgm-modal-title">📋 Regras de Pontuação <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
