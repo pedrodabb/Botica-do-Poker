@@ -117,9 +117,9 @@
     .pgm-season-info { text-align: right; font-size: 12px; font-weight: 700; color: var(--cream-dim); }
     .pgm-season-info strong { color: var(--gold); font-size: 13px; font-weight: 900; display: block; }
 
-    .pgm-nav { display: flex; border-bottom: 1px solid var(--border); background: var(--felt-mid); padding: 0; position: sticky; top: 61px; z-index: 99; overflow-x: auto; scrollbar-width: none; justify-content: space-between; }
+    .pgm-nav { display: flex; border-bottom: 1px solid var(--border); background: var(--felt-mid); padding: 0; position: sticky; top: 61px; z-index: 99; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .pgm-nav::-webkit-scrollbar { display: none; }
-    .pgm-nav-btn { background: none; border: none; color: var(--nav); font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 900; padding: 0.75rem 0; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; white-space: nowrap; flex: 1; text-align: center; min-width: 0; }
+    .pgm-nav-btn { background: none; border: none; color: var(--nav); font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 900; padding: 0.75rem 0.9rem; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; white-space: nowrap; flex: 0 0 auto; text-align: center; }
     .pgm-nav-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
     .pgm-nav-btn:hover:not(.active) { color: var(--cream); }
 
@@ -135,6 +135,16 @@
     .pgm-badge-gold { background: rgba(201,168,76,0.15); color: var(--gold-light); border: 1px solid var(--gold-dim); }
     .pgm-badge-casual { background: rgba(138,138,122,0.15); color: var(--neutral); border: 1px solid rgba(138,138,122,0.3); }
     .pgm-badge-torneio { background: rgba(231,76,60,0.15); color: #e76c5a; border: 1px solid rgba(231,76,60,0.35); }
+    .treino-card-visual { width: 52px; height: 72px; background: #f5f2ea; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(0,0,0,0.35); font-family: 'Nunito', sans-serif; }
+    .treino-card-visual .rank { font-size: 20px; font-weight: 900; line-height: 1; }
+    .treino-card-visual .suit { font-size: 18px; line-height: 1.1; }
+    .treino-card-visual.red .rank, .treino-card-visual.red .suit { color: #d3273e; }
+    .treino-card-visual.black .rank, .treino-card-visual.black .suit { color: #1a1a1a; }
+    .treino-card-visual.small { width: 42px; height: 58px; }
+    .treino-card-visual.small .rank { font-size: 16px; }
+    .treino-card-visual.small .suit { font-size: 14px; }
+    .treino-feedback-correct { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.4); }
+    .treino-feedback-wrong { background: rgba(241,106,106,0.1); border: 1px solid rgba(241,106,106,0.35); }
     .pgm-hist-cat-grid { display: flex; flex-direction: column; gap: 10px; }
     .pgm-hist-cat-card { display: flex; align-items: center; gap: 12px; padding: 1rem; border-radius: 14px; cursor: pointer; transition: transform 0.15s, background 0.15s; border: 1px solid var(--border); background: rgba(255,255,255,0.03); }
     .pgm-hist-cat-card:active { transform: scale(0.98); }
@@ -229,8 +239,8 @@
     .pgm-suit-divider { text-align: center; color: var(--border-strong); font-size: 14px; letter-spacing: 6px; margin: 0.5rem 0 1rem; }
 
     /* Histórico */
-    .pgm-history-item { padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
-    .pgm-history-item:hover { border-color: var(--border-strong); }
+    .pgm-history-item { padding: 0.8rem 0.85rem; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s, background 0.15s; background: rgba(255,255,255,0.02); }
+    .pgm-history-item:hover { border-color: var(--border-strong); background: rgba(255,255,255,0.04); }
     .pgm-history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
     .pgm-history-title { font-size: 13px; font-weight: 900; color: var(--cream); }
     .pgm-history-date { font-size: 11px; font-weight: 700; color: var(--text-dim); }
@@ -291,7 +301,7 @@
 
     .pgm-nav.admin-mode .pgm-nav-btn { font-size: 10px; }
     @media (max-width: 480px) {
-      .pgm-nav-btn { font-size: 10px; padding: 0.6rem 0; }
+      .pgm-nav-btn { font-size: 10px; padding: 0.6rem 0.7rem; }
       .pgm-nav.admin-mode .pgm-nav-btn { font-size: 9px; }
       .pgm-header { padding: 0.6rem 0.75rem; }
       .pgm-logo-text { font-size: 14px; }
@@ -370,6 +380,7 @@
     <button class="pgm-nav-btn" onclick="showTab('jogadores')">Jogadores</button>
     <button class="pgm-nav-btn" onclick="showTab('historico')">Histórico</button>
     <button class="pgm-nav-btn" onclick="showTab('curiosidades')">Curiosidades</button>
+    <button class="pgm-nav-btn" onclick="showTab('treino')">🎓 Praticar</button>
     <button class="pgm-nav-btn" id="nav-acumulado" onclick="showTab('acumulado')" style="display:none;color:#e8c97a">Total ★</button>
   </nav>
 
@@ -528,6 +539,54 @@
       </div>
     </div>
 
+    <!-- TAB: Treino -->
+    <div id="tab-treino" class="pgm-tab-content">
+      <div class="pgm-section-title">🎓 Praticar decisão</div>
+      <div class="pgm-card" style="margin-bottom:0.85rem">
+        <div style="display:flex;justify-content:space-around;text-align:center">
+          <div>
+            <div style="font-size:18px;font-weight:900;color:var(--gold-light)" id="treino-score">0/0</div>
+            <div style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em">Acertos</div>
+          </div>
+          <div>
+            <div style="font-size:18px;font-weight:900;color:var(--positive)" id="treino-streak">0</div>
+            <div style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em">Sequência</div>
+          </div>
+          <div>
+            <div style="font-size:18px;font-weight:900;color:var(--cream)" id="treino-best">0</div>
+            <div style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em">Melhor</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pgm-card" id="treino-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+          <span style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:10px;font-weight:800;color:var(--text-dim)">Sua posição:</span>
+            <span class="pgm-badge pgm-badge-gold" id="treino-pos-badge" onclick="showPosicaoInfo(_treinoAtual.position)" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px">UTG</span>
+          </span>
+          <span style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em" id="treino-street-badge">Pré-flop</span>
+        </div>
+
+        <div id="treino-action-log" style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.6"></div>
+
+        <div style="display:flex;justify-content:center;gap:8px;margin-bottom:0.5rem" id="treino-hand-cards"></div>
+
+        <div id="treino-board-wrap" style="display:none;margin-bottom:0.75rem">
+          <div style="font-size:10px;font-weight:800;color:var(--text-dim);text-align:center;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Flop</div>
+          <div style="display:flex;justify-content:center;gap:8px" id="treino-board-cards"></div>
+        </div>
+
+        <div style="font-size:13px;font-weight:800;color:var(--cream);text-align:center;margin:0.85rem 0;line-height:1.5" id="treino-question"></div>
+
+        <div class="pgm-row-btns" id="treino-actions" style="margin-bottom:0"></div>
+
+        <div id="treino-feedback" style="display:none;margin-top:0.85rem;padding:0.75rem;border-radius:12px"></div>
+
+        <button class="pgm-btn pgm-btn-success" id="treino-next-btn" style="width:100%;margin-top:0.75rem;display:none" onclick="nextTreinoHand()">Próxima mão →</button>
+      </div>
+    </div>
+
     <!-- TAB: Ranking -->
     <div id="tab-ranking" class="pgm-tab-content">
       <div class="pgm-section-title">Visão Geral — Temporada <span id="ranking-season-num">1</span></div>
@@ -660,13 +719,14 @@ function showTab(n) {
   document.querySelectorAll('.pgm-tab-content').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.pgm-nav-btn').forEach(e=>e.classList.remove('active'));
   document.getElementById('tab-'+n).classList.add('active');
-  const m = {sessao:0,ranking:1,jogadores:2,historico:3,curiosidades:4,acumulado:5};
+  const m = {sessao:0,ranking:1,jogadores:2,historico:3,curiosidades:4,treino:5,acumulado:6};
   if(m[n]!==undefined) document.querySelectorAll('.pgm-nav-btn')[m[n]].classList.add('active');
   if(n==='ranking') renderRanking();
   if(n==='historico') renderHistorico();
   if(n==='acumulado') renderAcumulado();
   if(n==='jogadores') renderJogadores();
   if(n==='curiosidades') renderCuriosidades();
+  if(n==='treino' && !_treinoAtual) nextTreinoHand();
 }
 
 function setSessionModality(m) {
@@ -1014,6 +1074,399 @@ function renderCuriosidades() {
       }
     });
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TREINO DE DECISÃO — banco de cenários curados (pré-flop e pós-flop)
+// ═══════════════════════════════════════════════════════════════════════════
+const TREINO_HANDS = [
+  // ── RFI (ninguém agiu antes — decidir se abre) ──
+  { street:'preflop', options:['fold','raise'], position:'UTG', hand:['As','Kh'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'AK é uma das mãos mais fortes do jogo — abre de qualquer posição, incluindo UTG.' },
+  { street:'preflop', options:['fold','raise'], position:'UTG', hand:['9c','8c'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'fold',
+    explanation:'98s é jogável em posições tardias, mas UTG é a posição mais apertada da mesa — ainda tem 5 jogadores pra agir atrás de você.' },
+  { street:'preflop', options:['fold','raise'], position:'UTG', hand:['Qs','Qd'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'QQ é a 3ª melhor mão pré-flop possível — abre de qualquer posição sem pensar duas vezes.' },
+  { street:'preflop', options:['fold','raise'], position:'HJ', hand:['Ah','Jh'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'AJs tem bom valor de blefe/valor e já dá pra abrir a partir do Hijack.' },
+  { street:'preflop', options:['fold','raise'], position:'HJ', hand:['Kd','9c'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'fold',
+    explanation:'K9o é dominado com frequência (KQ, KJ, KA batem em kicker) e ainda tem 4 jogadores atrás — fold é o padrão aqui.' },
+  { street:'preflop', options:['fold','raise'], position:'CO', hand:['As','2s'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'A2s carrega o blocker de Ás (dificulta trinca de Ás do adversário) e joga bem suited — clássica mão de steal no CO.' },
+  { street:'preflop', options:['fold','raise'], position:'CO', hand:['Qd','Tc'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'QTo já entra no range de abertura do Cutoff — só faltam 3 jogadores pra fechar a mesa.' },
+  { street:'preflop', options:['fold','raise'], position:'CO', hand:['6h','3d'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'fold',
+    explanation:'63o não tem força nem conectividade suficiente mesmo no Cutoff — é fold em qualquer posição inicial.' },
+  { street:'preflop', options:['fold','raise'], position:'BTN', hand:['5s','4s'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'No Botão você só tem os 2 blinds atrás — 54s suited connector é clássica mão de steal aqui.' },
+  { street:'preflop', options:['fold','raise'], position:'BTN', hand:['Kc','7d'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'O Botão abre o range mais largo da mesa (agir por último em todas as rodadas pós-flop é uma vantagem enorme) — K7o entra tranquilamente aqui.' },
+  { street:'preflop', options:['fold','raise'], position:'BTN', hand:['3h','2c'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'fold',
+    explanation:'Mesmo no Botão existe um limite — 32o não tem nem força nem conectividade real. Nem toda mão vale roubar.' },
+  { street:'preflop', options:['fold','raise'], position:'SB', hand:['Ad','Tc'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'No SB você só enfrenta o BB — ATo tem valor suficiente pra abrir contra um único oponente.' },
+  { street:'preflop', options:['fold','raise'], position:'SB', hand:['Jc','4h'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'fold',
+    explanation:'J4o não tem força nem contra um oponente só — fold evita jogar fora de posição com mão fraca.' },
+  { street:'preflop', options:['fold','raise'], position:'UTG', hand:['5d','5c'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'fold',
+    explanation:'Par pequeno em UTG tem pouco valor de abertura — só serve bem pra tentar trinca (set-mine), o que pede posição melhor e mais gente atrás pra pagar.' },
+
+  // ── Reagindo a um raise anterior ──
+  { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['Ac','Ah'], board:null, actionsBefore:['UTG deu raise para 3x'],
+    question:'UTG abriu antes de você. O que você faz?', correct:'raise',
+    explanation:'AA é a melhor mão do poker — sempre 3-bet contra qualquer abertura, não importa a posição do vilão.' },
+  { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['7h','6h'], board:null, actionsBefore:['UTG deu raise para 3x'],
+    question:'UTG abriu antes de você. O que você faz?', correct:'fold',
+    explanation:'UTG tem o range mais forte da mesa. 76s é jogável contra aberturas tardias, mas não vale pagar aqui fora de posição.' },
+  { street:'preflop', options:['fold','call','raise'], position:'BTN', hand:['Ad','Qd'], board:null, actionsBefore:['CO deu raise para 2.5x'],
+    question:'CO abriu antes de você. O que você faz?', correct:'raise',
+    explanation:'AQs tem valor claro pra 3-bet contra o range mais largo do Cutoff — isola o pote e ganha iniciativa.' },
+  { street:'preflop', options:['fold','call','raise'], position:'BTN', hand:['Kh','Jc'], board:null, actionsBefore:['CO deu raise para 2.5x'],
+    question:'CO abriu antes de você. O que você faz?', correct:'fold',
+    explanation:'KJo é facilmente dominado pelo range de abertura do CO (AK, AQ, KQ batem em kicker) — fold evita entrar numa mão difícil.' },
+  { street:'preflop', options:['fold','call','raise'], position:'SB', hand:['As','5s'], board:null, actionsBefore:['BTN deu raise para 2.5x (steal)'],
+    question:'O Botão tentou roubar os blinds. O que você faz?', correct:'raise',
+    explanation:'O range de steal do BTN é muito largo. A5s tem blocker de Ás e joga bem — ótima mão pra 3-bet como valor e blefe combinados.' },
+  { street:'preflop', options:['fold','call','raise'], position:'SB', hand:['Kd','8c'], board:null, actionsBefore:['BTN deu raise para 2.5x (steal)'],
+    question:'O Botão tentou roubar os blinds. O que você faz?', correct:'fold',
+    explanation:'K8o não tem força nem blocker relevante — mesmo contra range largo de steal, essa mão perde valor jogando fora de posição.' },
+  { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['Qh','9h'], board:null, actionsBefore:['BTN deu raise para 2.5x (steal)'],
+    question:'O Botão tentou roubar os blinds. O que você faz?', correct:'call',
+    explanation:'Contra um range de steal tão largo, Q9s tem equity de sobra pro preço que você já está pagando — defender o BB aqui é padrão.' },
+  { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['7d','2c'], board:null, actionsBefore:['BTN deu raise para 2.5x (steal)'],
+    question:'O Botão tentou roubar os blinds. O que você faz?', correct:'fold',
+    explanation:'72o é considerada a pior mão do hold\'em — nem defendendo o BB baratinho vale a pena continuar com ela.' },
+  { street:'preflop', options:['fold','call','raise'], position:'CO', hand:['Jc','Jd'], board:null, actionsBefore:['UTG deu raise para 3x'],
+    question:'UTG abriu antes de você. O que você faz?', correct:'call',
+    explanation:'JJ é forte mas fica marginal contra um range de UTG (que carrega bastante QQ+/AK). Pagar em posição pra tentar trinca ou jogar pós-flop com cautela é mais seguro que reabrir a aposta.' },
+  { street:'preflop', options:['fold','call','raise'], position:'CO', hand:['Ac','Jc'], board:null, actionsBefore:['UTG deu raise para 3x'],
+    question:'UTG abriu antes de você. O que você faz?', correct:'fold',
+    explanation:'AJo é dominado com frequência pelo range apertado de UTG (AQ, AK, AA, KK todos batem) — fold evita ficar preso numa mão de kicker ruim.' },
+  { street:'preflop', options:['fold','call','raise'], position:'HJ', hand:['Th','Tc'], board:null, actionsBefore:['UTG deu raise para 3x','CO pagou'],
+    question:'UTG abriu e CO pagou. O que você faz?', correct:'fold',
+    explanation:'Multiway contra um range já mostrado como forte (UTG) mais um caller, TT vira uma mão marginal — fácil de estar dominado ou de virar reverse implied odds.' },
+  { street:'preflop', options:['fold','call','raise'], position:'BTN', hand:['As','Kd'], board:null, actionsBefore:['HJ deu raise para 2.5x','CO deu 3-bet para 8x'],
+    question:'HJ abriu e CO deu 3-bet. O que você faz?', correct:'raise',
+    explanation:'AK é forte o bastante pra 4-bet mesmo contra um 3-bet — extrai valor máximo ou ganha o pote direto contra mãos mais fracas que desistem.' },
+  { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['Kc','5c'], board:null, actionsBefore:['SB deu raise para 3x (limp-raise)'],
+    question:'O SB deu um raise pequeno. O que você faz?', correct:'fold',
+    explanation:'K5s tem algum valor especulativo, mas contra um raise vindo do SB (que geralmente representa força ali) não compensa pagar fora de posição.' },
+
+  // ── Pós-flop (alguém apostou, você decide) ──
+  { street:'postflop', options:['fold','call','raise'], position:'BB', hand:['Th','Tc'], board:['Kd','7c','2h'], actionsBefore:['Você pagou o raise do BTN pré-flop','Oponente apostou metade do pot'],
+    question:'O flop tem um Rei e o oponente apostou. O que você faz?', correct:'fold',
+    explanation:'TT não bate nada nesse flop com carta alta (K) — contra uma aposta, é bluff-catch fraco demais pra continuar.' },
+  { street:'postflop', options:['fold','call','raise'], position:'BB', hand:['Ac','Qc'], board:['As','9h','4d'], actionsBefore:['Você defendeu o BB contra o steal do BTN','Oponente apostou pequeno'],
+    question:'Você acertou o Ás do flop. O que você faz?', correct:'raise',
+    explanation:'Top par com melhor kicker possível (AQ) contra uma aposta pequena — é hora de aumentar e extrair mais valor, não só pagar.' },
+  { street:'postflop', options:['fold','call','raise'], position:'BTN', hand:['9c','8c'], board:['Jh','Tc','2c'], actionsBefore:['Você pagou a abertura do CO','Oponente apostou dois terços do pot'],
+    question:'Você tem projeto de sequência e flush. O que você faz?', correct:'call',
+    explanation:'98s com JT2 de dois naipes seus forma projeto de flush + sequência aberta — equity alta o bastante pra pagar mesmo com aposta grande.' },
+  { street:'postflop', options:['fold','call','raise'], position:'BB', hand:['Kh','Qh'], board:['Kd','Qc','7s'], actionsBefore:['Você defendeu o BB','Oponente apostou grande'],
+    question:'Você formou dois pares fortes. O que você faz?', correct:'raise',
+    explanation:'KQ com flop KQ7 é dois pares no topo — contra uma aposta grande, dar raise protege a mão e extrai o máximo antes de cartas perigosas saírem.' },
+  { street:'postflop', options:['fold','call','raise'], position:'HJ', hand:['5s','5d'], board:['Ac','Kd','3h'], actionsBefore:['Você pagou a abertura do UTG','Oponente apostou'],
+    question:'O flop veio com A e K. O que você faz?', correct:'fold',
+    explanation:'55 não tem equity nenhuma nesse flop de cartas altas contra o range forte de quem abriu em UTG — é fold claro contra a aposta.' },
+  { street:'postflop', options:['fold','call','raise'], position:'CO', hand:['Ad','Jd'], board:['Jc','8h','6s'], actionsBefore:['Você pagou a abertura do HJ','Oponente apostou pequeno'],
+    question:'Você acertou o valete do flop. O que você faz?', correct:'call',
+    explanation:'Top par com kicker decente (AJ) contra uma aposta pequena — pagar é suficiente aqui, sem precisar reabrir o jogo.' },
+  { street:'postflop', options:['fold','call','raise'], position:'BTN', hand:['7h','6h'], board:['9h','8h','5c'], actionsBefore:['Você pagou a abertura do CO','Oponente apostou dois terços do pot'],
+    question:'Você tem projeto duplo forte. O que você faz?', correct:'call',
+    explanation:'76s com 985 formando flush draw + straight draw é uma das mãos com mais equity possível contra uma aposta — call claro, e às vezes até raise como semi-blefe.' },
+  { street:'postflop', options:['fold','call','raise'], position:'BB', hand:['Ac','Ah'], board:['9d','7c','2s'], actionsBefore:['Você defendeu o BB','Oponente apostou pequeno'],
+    question:'Você tem o par mais alto possível. O que você faz?', correct:'raise',
+    explanation:'AA como overpair num flop seco (9-7-2) é uma mão forte demais pra só pagar — dar raise protege contra draws e extrai valor de mãos piores.' },
+  { street:'postflop', options:['fold','call','raise'], position:'CO', hand:['Qs','Js'], board:['Qh','Jc','4d'], actionsBefore:['Você pagou a abertura do UTG','Oponente apostou'],
+    question:'Você formou dois pares. O que você faz?', correct:'raise',
+    explanation:'QJ com flop Q-J-4 é dois pares fortes — contra a aposta do adversário, dar raise constrói o pote enquanto sua mão está na frente.' },
+  { street:'postflop', options:['fold','call','raise'], position:'BTN', hand:['Kd','Tc'], board:['Ah','9s','4c'], actionsBefore:['Você pagou a abertura do CO','Oponente apostou'],
+    question:'O flop tem um Ás e você não tem par. O que você faz?', correct:'fold',
+    explanation:'KTo não conecta nada nesse flop com Ás — contra uma aposta, sem par e sem projeto forte, o correto é soltar a mão.' },
+  { street:'postflop', options:['fold','call','raise'], position:'HJ', hand:['2c','2d'], board:['Kh','Qd','Jc'], actionsBefore:['Você pagou a abertura do UTG','Oponente apostou'],
+    question:'O flop veio com 3 cartas altas. O que você faz?', correct:'fold',
+    explanation:'22 é o menor par possível e o flop tem 3 cartas mais altas que seu par — não há equity suficiente pra continuar contra uma aposta.' },
+  { street:'postflop', options:['fold','call','raise'], position:'BB', hand:['Ac','Ks'], board:['2h','3d','5c'], actionsBefore:['Você defendeu o BB','Oponente (que já tinha pagado pré-flop) apostou pequeno de forma consistente'],
+    question:'O flop não bateu na sua mão (AK sem par). O que você faz?', correct:'fold',
+    explanation:'Sem par e sem projeto forte, mesmo com duas cartas altas na mão, contra uma aposta consistente o correto é soltar — não dá pra continuar só na esperança da carta.' },
+
+  // ── Extras: só situações indiscutíveis (mão monstro, lixo puro, dominância clara, nuts, air total) ──
+  { street:'preflop', options:['fold','raise'], position:'UTG', hand:['Kc','Kh'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'KK é a 2ª melhor mão do poker — abre de qualquer posição sem exceção.' },
+  { street:'preflop', options:['fold','raise'], position:'UTG', hand:['4d','2c'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'fold',
+    explanation:'42o não tem força, não tem conectividade, não tem nada — fold automático em qualquer posição da mesa.' },
+  { street:'preflop', options:['fold','raise'], position:'HJ', hand:['As','Ad'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'AA é a melhor mão possível — abre sempre, em qualquer posição, contra qualquer configuração de mesa.' },
+  { street:'preflop', options:['fold','raise'], position:'HJ', hand:['Jd','3c'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'fold',
+    explanation:'J3o não tem força nem suited — mão claramente fraca demais pra abrir mesmo já com 2 jogadores foldados.' },
+  { street:'preflop', options:['fold','raise'], position:'CO', hand:['Kd','Kc'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'KK abre de qualquer posição — é a segunda melhor mão do jogo, sem exceção possível.' },
+  { street:'preflop', options:['fold','raise'], position:'BTN', hand:['Ah','Ac'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'AA sempre abre, em qualquer posição — não existe cenário onde essa mão não jogue.' },
+  { street:'preflop', options:['fold','raise'], position:'BTN', hand:['Qd','8d'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'Q8s suited no Botão entra tranquilamente no range mais largo da mesa — só tem os 2 blinds pra passar.' },
+  { street:'preflop', options:['fold','raise'], position:'SB', hand:['Ks','Kh'], board:null, actionsBefore:[],
+    question:'Todos foldaram até você. O que você faz?', correct:'raise',
+    explanation:'KK abre contra qualquer oponente único — mão forte demais pra jogar diferente disso.' },
+
+  { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['Kd','Kc'], board:null, actionsBefore:['UTG deu raise para 3x'],
+    question:'UTG abriu antes de você. O que você faz?', correct:'raise',
+    explanation:'KK sempre dá 3-bet contra qualquer abertura — só perde pra AA, e mesmo assim é forte demais pra só pagar.' },
+  { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['9c','3d'], board:null, actionsBefore:['UTG deu raise para 3x'],
+    question:'UTG abriu antes de você. O que você faz?', correct:'fold',
+    explanation:'93o não tem força nenhuma contra o range mais apertado da mesa — fold claro.' },
+  { street:'preflop', options:['fold','call','raise'], position:'BTN', hand:['As','Ah'], board:null, actionsBefore:['CO deu raise para 2.5x'],
+    question:'CO abriu antes de você. O que você faz?', correct:'raise',
+    explanation:'AA sempre 3-bet contra qualquer abertura, independente da posição do vilão.' },
+  { street:'preflop', options:['fold','call','raise'], position:'BTN', hand:['8d','2c'], board:null, actionsBefore:['CO deu raise para 2.5x'],
+    question:'CO abriu antes de você. O que você faz?', correct:'fold',
+    explanation:'82o não tem nenhum valor contra uma abertura — fold automático.' },
+  { street:'preflop', options:['fold','call','raise'], position:'SB', hand:['Ac','Ad'], board:null, actionsBefore:['BTN deu raise para 2.5x (steal)'],
+    question:'O Botão tentou roubar os blinds. O que você faz?', correct:'raise',
+    explanation:'AA sempre 3-bet, mesmo contra o range mais largo possível (steal do BTN) — é a melhor mão do jogo.' },
+  { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['Kh','Qh'], board:null, actionsBefore:['BTN deu raise para 2.5x (steal)'],
+    question:'O Botão tentou roubar os blinds. O que você faz?', correct:'call',
+    explanation:'KQs tem equity de sobra contra o range muito largo de um steal do BTN — defender o BB aqui é claramente correto.' },
+  { street:'preflop', options:['fold','call','raise'], position:'CO', hand:['Ac','Kc'], board:null, actionsBefore:['UTG deu raise para 3x'],
+    question:'UTG abriu antes de você. O que você faz?', correct:'raise',
+    explanation:'AK é forte o bastante pra 3-bet contra qualquer abertura, mesmo vindo do range apertado de UTG.' },
+  { street:'preflop', options:['fold','call','raise'], position:'HJ', hand:['7d','2c'], board:null, actionsBefore:['UTG deu raise para 3x'],
+    question:'UTG abriu antes de você. O que você faz?', correct:'fold',
+    explanation:'72o é considerada a pior mão do hold\'em — fold automático contra qualquer abertura.' },
+  { street:'preflop', options:['fold','call','raise'], position:'SB', hand:['Kd','4c'], board:null, actionsBefore:['CO deu raise para 2.5x'],
+    question:'CO abriu antes de você. O que você faz?', correct:'fold',
+    explanation:'K4o é facilmente dominado por qualquer Kx melhor no range de abertura do CO — fold evita entrar numa mão de kicker fraco.' },
+
+  { street:'postflop', options:['fold','call','raise'], position:'BTN', hand:['9c','8c'], board:['7h','6c','2d'], actionsBefore:['Você pagou a abertura do CO','Oponente apostou'],
+    question:'Você formou sequência feita. O que você faz?', correct:'raise',
+    explanation:'98 com flop 765 forma sequência já pronta (9-8-7-6-5) — mão feita e forte, hora de dar raise e construir o pote.' },
+  { street:'postflop', options:['fold','call','raise'], position:'CO', hand:['7d','7c'], board:['7h','Kc','3d'], actionsBefore:['Você pagou a abertura do UTG','Oponente apostou'],
+    question:'Seu par de bolso virou trinca. O que você faz?', correct:'raise',
+    explanation:'Trinca escondida (77 com um 7 no flop) é uma mão muito forte e bem disfarçada — dar raise extrai valor máximo de quem tem o Rei.' },
+  { street:'postflop', options:['fold','call','raise'], position:'BB', hand:['Ah','5h'], board:['Kh','9h','2h'], actionsBefore:['Você defendeu o BB','Oponente apostou'],
+    question:'Você fechou o flush. O que você faz?', correct:'raise',
+    explanation:'Flush feito (5 cartas de copas) é uma das mãos mais fortes possíveis nesse flop — dar raise extrai o máximo de valor.' },
+  { street:'postflop', options:['fold','call','raise'], position:'HJ', hand:['Kd','Qc'], board:['7h','4c','2s'], actionsBefore:['Você pagou a abertura do UTG','Oponente apostou de forma consistente'],
+    question:'Seu KQ não bateu nada nesse flop baixo. O que você faz?', correct:'fold',
+    explanation:'Sem par e sem projeto, contra uma aposta consistente num flop que não tem nenhuma carta sua — o correto é soltar.' },
+  { street:'postflop', options:['fold','call','raise'], position:'CO', hand:['3s','3d'], board:['Kh','Qc','9d'], actionsBefore:['Você pagou a abertura do UTG','Oponente apostou'],
+    question:'Você tem o menor par possível nesse flop. O que você faz?', correct:'fold',
+    explanation:'33 contra um flop de 3 cartas altas (K-Q-9) tem equity quase nula — fold claro contra a aposta.' },
+  { street:'postflop', options:['fold','call','raise'], position:'BB', hand:['Qc','Qd'], board:['7h','4c','2s'], actionsBefore:['Você defendeu o BB','Oponente apostou pequeno'],
+    question:'Seu par de Damas é o par mais alto possível no flop. O que você faz?', correct:'raise',
+    explanation:'Overpair (QQ) em flop baixo e seco (7-4-2) é uma mão muito forte — dar raise protege contra draws e extrai valor.' },
+  { street:'postflop', options:['fold','call','raise'], position:'BTN', hand:['Kd','9d'], board:['Kh','9c','3s'], actionsBefore:['Você pagou a abertura do CO','Oponente apostou'],
+    question:'Você formou dois pares no topo do flop. O que você faz?', correct:'raise',
+    explanation:'K9 com flop K-9-3 é dois pares nas cartas mais altas do board — mão muito forte, hora de construir o pote com raise.' },
+  { street:'postflop', options:['fold','call','raise'], position:'HJ', hand:['Ac','2c'], board:['9h','5d','2s'], actionsBefore:['Você pagou a abertura do UTG','Oponente apostou de forma consistente'],
+    question:'Você tem só um par mínimo (par de 2, sem kicker relevante). O que você faz?', correct:'fold',
+    explanation:'Par de 2 com kicker de Ás não muda o fato de ser o menor par do board — contra pressão consistente, não há força suficiente pra continuar.' },
+  { street:'postflop', options:['fold','call','raise'], position:'BTN', hand:['Th','9h'], board:['8h','7h','2c'], actionsBefore:['Você pagou a abertura do CO','Oponente apostou dois terços do pot'],
+    question:'Você tem projeto de flush E sequência ao mesmo tempo. O que você faz?', correct:'call',
+    explanation:'T9 suited com flop 872 de dois naipes seus forma flush draw + sequência aberta — a combinação de projetos com mais equity possível contra uma aposta.' },
+  { street:'postflop', options:['fold','call','raise'], position:'CO', hand:['Kc','Qd'], board:['2h','5c','9d'], actionsBefore:['Você pagou a abertura do UTG','Oponente apostou de forma consistente'],
+    question:'Seu KQ não acertou nada nesse flop baixo. O que você faz?', correct:'fold',
+    explanation:'Duas cartas altas sem par nenhum, contra pressão consistente num flop completamente baixo — fold é o padrão aqui.' },
+
+  // ── BB option (pré-flop): ninguém subiu, chegou sua vez de graça ou quase de graça ──
+  { street:'preflop', options:['check','raise'], position:'BB', hand:['As','Ah'], board:null, actionsBefore:['Todos os jogadores antes de você só pagaram (call), ninguém subiu'],
+    question:'Você tem a melhor mão possível e múltiplos jogadores já estão no pote. O que você faz?', correct:'raise',
+    explanation:'Com AA e vários jogadores já dentro do pote, subir agora isola e constrói um pote maior com a melhor mão do poker — sempre correto.' },
+  { street:'preflop', options:['check','raise'], position:'BB', hand:['7d','2c'], board:null, actionsBefore:['Todos os jogadores antes de você só pagaram (call), ninguém subiu'],
+    question:'Ninguém subiu a aposta e chegou sua vez de graça. O que você faz?', correct:'check',
+    explanation:'Com a pior mão do hold\'em e sem nenhum custo extra pra ver o flop, não existe motivo pra apostar — check é automático aqui.' },
+  { street:'preflop', options:['check','raise'], position:'BB', hand:['Kc','Kd'], board:null, actionsBefore:['Um jogador deu limp (só pagou) antes de você'],
+    question:'Um jogador só pagou e chegou sua vez com a segunda melhor mão do poker. O que você faz?', correct:'raise',
+    explanation:'KK contra um único limper é uma oportunidade clara de isolar — subir constrói um pote maior com uma mão que raramente está atrás.' },
+  { street:'preflop', options:['check','raise'], position:'BB', hand:['Jc','4h'], board:null, actionsBefore:['Um jogador deu limp (só pagou) antes de você'],
+    question:'Um jogador só pagou antes de você. O que você faz?', correct:'check',
+    explanation:'J4o não tem força nenhuma pra justificar uma aposta — check e ver o flop de graça junto com o limper é o padrão aqui.' },
+
+  // ── Pós-flop: o oponente checou antes de você — decidir entre check ou apostar ──
+  { street:'postflop', options:['check','raise'], position:'CO', hand:['7h','7c'], board:['9d','7d','2s'], actionsBefore:['Você pagou a abertura do UTG','Oponente deu check'],
+    question:'Você tem trinca escondida e o oponente deu check. O que você faz?', correct:'raise',
+    explanation:'Trinca é uma mão muito forte e bem disfarçada — sempre apostar pra extrair valor quando o oponente abre espaço com um check.' },
+  { street:'postflop', options:['check','raise'], position:'BTN', hand:['Ac','Ks'], board:['2h','3d','5c'], actionsBefore:['Você pagou a abertura do CO','Oponente deu check'],
+    question:'Seu AK não formou par nenhum e o oponente deu check. O que você faz?', correct:'check',
+    explanation:'Sem par e sem projeto, apostar aqui não tem propósito de valor claro — check preserva suas fichas e evita perder pra um call.' },
+  { street:'postflop', options:['check','raise'], position:'HJ', hand:['Qs','Jd'], board:['Qh','Jc','4d'], actionsBefore:['Você pagou a abertura do UTG','Oponente deu check'],
+    question:'Você tem dois pares fortes e o oponente deu check. O que você faz?', correct:'raise',
+    explanation:'Dois pares nas cartas mais altas do flop merecem uma aposta de valor sempre que o oponente abre espaço com um check.' },
+  { street:'postflop', options:['check','raise'], position:'BB', hand:['Ac','Ad'], board:['9d','7c','2s'], actionsBefore:['Você defendeu o BB','Oponente deu check'],
+    question:'Você tem overpair (AA) num flop seco e o oponente deu check. O que você faz?', correct:'raise',
+    explanation:'Overpair num flop seco e baixo deve sempre apostar quando o oponente permite — protege contra cartas futuras e constrói o pote.' },
+];
+
+var _treinoAtual = null;
+
+const POSICAO_INFO = {
+  'UTG': { nome: 'Under the Gun', explicacao: 'Primeiro a falar na mesa. Ninguém agiu ainda, então quem está nessa posição não tem nenhuma informação sobre os outros — por isso costuma entrar só com mãos fortes.' },
+  'HJ':  { nome: 'Hijack', explicacao: 'Posição no meio da mesa. Alguns jogadores já desistiram antes (incluindo o UTG), então dá pra jogar um pouco mais de mãos que quem fala primeiro.' },
+  'CO':  { nome: 'Cutoff', explicacao: 'Penúltima posição antes do Botão. Só faltam 2-3 jogadores pra fechar a rodada — boa posição pra abrir com mais mãos e tentar roubar os blinds.' },
+  'BTN': { nome: 'Botão', explicacao: 'A melhor posição da mesa. Depois do flop, quem está no Botão sempre fala por último — vê o que todo mundo faz antes de decidir. Por isso é a posição que mais joga mãos.' },
+  'SB':  { nome: 'Small Blind (Blind Pequeno)', explicacao: 'Já entrou com uma aposta obrigatória pequena antes de ver as cartas. Depois do flop, fala primeiro — grande desvantagem, por isso costuma jogar com cautela.' },
+  'BB':  { nome: 'Big Blind (Blind Grande)', explicacao: 'Já entrou com uma aposta obrigatória maior antes de ver as cartas. No pré-flop fala por último (vê tudo antes de decidir), mas depois do flop joga fora de posição também.' }
+};
+
+var _posicaoHistorico = [];
+
+function showPosicaoInfo(pos) {
+  pos = pos || (_treinoAtual && _treinoAtual.position);
+  var info = POSICAO_INFO[pos];
+  if(!info) return;
+
+  var el = document.getElementById('pgm-modal');
+  // Se o modal já estava aberto mostrando outra posição, guarda ela no histórico antes de trocar
+  if(el.style.display === 'block' && el.dataset.posicaoAtual && el.dataset.posicaoAtual !== pos) {
+    _posicaoHistorico.push(el.dataset.posicaoAtual);
+  }
+  el.dataset.posicaoAtual = pos;
+
+  var temHistorico = _posicaoHistorico.length > 0;
+  var actionBtn = temHistorico
+    ? '<button onclick="voltarPosicaoInfo()" style="background:none;border:none;color:var(--gold-light);font-size:11px;font-weight:800;cursor:pointer;padding:0">← Voltar</button>'
+    : '<button class="pgm-close-btn" onclick="closePosicaoInfo()" style="font-size:14px">✕</button>';
+
+  el.innerHTML =
+    '<div class="pgm-modal-backdrop" onclick="if(event.target===this) closePosicaoInfo()">' +
+      '<div style="background:#16271b;border:1px solid var(--border-strong);border-radius:14px;padding:0.9rem 1rem;width:100%;max-width:260px;box-shadow:0 12px 40px rgba(0,0,0,0.5)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">' +
+          '<span style="font-size:13px;font-weight:900;color:var(--gold-light)">' + pos + ' — ' + info.nome + '</span>' +
+          actionBtn +
+        '</div>' +
+        '<div style="font-size:12px;font-weight:700;color:var(--cream-dim);line-height:1.5">' + _linkPosicoesNoTexto(info.explicacao) + '</div>' +
+      '</div>' +
+    '</div>';
+  el.style.display = 'block';
+}
+
+function voltarPosicaoInfo() {
+  if(!_posicaoHistorico.length) return;
+  var posAnterior = _posicaoHistorico.pop();
+  var el = document.getElementById('pgm-modal');
+  el.dataset.posicaoAtual = ''; // evita empilhar de novo ao voltar
+  showPosicaoInfo(posAnterior);
+}
+
+function closePosicaoInfo() {
+  _posicaoHistorico = [];
+  closeModal();
+}
+var _treinoRespondido = false;
+var _treinoScore = { correct: 0, total: 0, streak: 0, best: 0 };
+
+function _treinoParseCard(c) {
+  var rank = c.slice(0, -1);
+  var suitChar = c.slice(-1);
+  var suits = { s: {symbol:'♠', color:'black'}, h: {symbol:'♥', color:'red'}, d: {symbol:'♦', color:'red'}, c: {symbol:'♣', color:'black'} };
+  var s = suits[suitChar] || suits.s;
+  return { rank: rank, suit: s.symbol, color: s.color };
+}
+
+function _treinoRenderCard(cardStr, small) {
+  var p = _treinoParseCard(cardStr);
+  return '<div class="treino-card-visual ' + p.color + (small?' small':'') + '"><div class="rank">' + p.rank + '</div><div class="suit">' + p.suit + '</div></div>';
+}
+
+function _linkPosicoesNoTexto(texto) {
+  var nomeParaSigla = { 'Botão': 'BTN', 'botão': 'BTN' };
+  return texto.replace(/\b(UTG|HJ|CO|BTN|SB|BB|Botão|botão)\b/g, function(match) {
+    var pos = nomeParaSigla[match] || match;
+    return '<span onclick="showPosicaoInfo(\'' + pos + '\')" style="text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;color:var(--gold-light);font-weight:900">' + match + '</span>';
+  });
+}
+
+function nextTreinoHand() {
+  var h = TREINO_HANDS[Math.floor(Math.random() * TREINO_HANDS.length)];
+  _treinoAtual = h;
+  _treinoRespondido = false;
+
+  document.getElementById('treino-pos-badge').textContent = h.position;
+  document.getElementById('treino-street-badge').textContent = h.street === 'preflop' ? 'Pré-flop' : 'Pós-flop';
+
+  var logEl = document.getElementById('treino-action-log');
+  logEl.innerHTML = h.actionsBefore.length
+    ? h.actionsBefore.map(function(a){ return '• ' + _linkPosicoesNoTexto(a); }).join('<br>')
+    : '<em>Ninguém agiu antes de você — sua vez de abrir</em>';
+
+  document.getElementById('treino-hand-cards').innerHTML = h.hand.map(function(c){ return _treinoRenderCard(c); }).join('');
+
+  var boardWrap = document.getElementById('treino-board-wrap');
+  if(h.board && h.board.length) {
+    boardWrap.style.display = 'block';
+    document.getElementById('treino-board-cards').innerHTML = h.board.map(function(c){ return _treinoRenderCard(c, true); }).join('');
+  } else {
+    boardWrap.style.display = 'none';
+  }
+
+  document.getElementById('treino-question').textContent = h.question;
+  document.getElementById('treino-feedback').style.display = 'none';
+  document.getElementById('treino-next-btn').style.display = 'none';
+
+  var btnDefs = {
+    fold:  { label: 'Fold',  cls: 'pgm-btn-danger' },
+    check: { label: 'Check', cls: '', style: 'background:rgba(138,138,122,0.15);border-color:rgba(138,138,122,0.4);color:#c8c8b8' },
+    call:  { label: 'Call',  cls: '', style: 'background:rgba(138,138,122,0.15);border-color:rgba(138,138,122,0.4);color:#c8c8b8' },
+    raise: { label: 'Raise', cls: 'pgm-btn-success' }
+  };
+  var opts = h.options || ['fold','call','raise'];
+  document.getElementById('treino-actions').innerHTML = opts.map(function(o) {
+    var d = btnDefs[o];
+    return '<button class="pgm-btn ' + (d.cls||'') + '" style="flex:1;' + (d.style||'') + '" onclick="answerTreino(\'' + o + '\')">' + d.label + '</button>';
+  }).join('');
+  document.getElementById('treino-actions').style.display = 'flex';
+}
+
+function answerTreino(action) {
+  if(_treinoRespondido || !_treinoAtual) return;
+  _treinoRespondido = true;
+
+  var correct = action === _treinoAtual.correct;
+  _treinoScore.total++;
+  if(correct) {
+    _treinoScore.correct++;
+    _treinoScore.streak++;
+    if(_treinoScore.streak > _treinoScore.best) _treinoScore.best = _treinoScore.streak;
+  } else {
+    _treinoScore.streak = 0;
+  }
+
+  document.getElementById('treino-score').textContent = _treinoScore.correct + '/' + _treinoScore.total;
+  document.getElementById('treino-streak').textContent = _treinoScore.streak;
+  document.getElementById('treino-best').textContent = _treinoScore.best;
+
+  var actionLabel = { fold: 'Fold', check: 'Check', call: 'Call', raise: 'Raise' };
+  var fb = document.getElementById('treino-feedback');
+  fb.className = correct ? 'treino-feedback-correct' : 'treino-feedback-wrong';
+  fb.innerHTML =
+    '<div style="font-size:13px;font-weight:900;margin-bottom:4px;color:' + (correct?'var(--positive)':'var(--negative)') + '">' +
+      (correct ? '✓ Certo!' : '✗ Era ' + actionLabel[_treinoAtual.correct]) +
+    '</div>' +
+    '<div style="font-size:12px;font-weight:700;color:var(--cream-dim);line-height:1.5">' + _treinoAtual.explanation + '</div>';
+  fb.style.display = 'block';
+
+  document.getElementById('treino-actions').style.display = 'none';
+  document.getElementById('treino-next-btn').style.display = 'block';
 }
 
 function deleteCuriosidade(id) {
@@ -1446,13 +1899,16 @@ function finishSessionCommon(s) {
     if(sessaoFinalizada.tourneyMode === 'classico' && a.place && b.place) return a.place - b.place;
     return (b.profit||0)-(a.profit||0);
   });
+  const isClassicoResult = sessaoFinalizada.tourneyMode === 'classico';
+  const displayPos = getDisplayPositions(sorted, function(p){ return isClassicoResult ? p.place : (p.profit||0); });
   const medals = ['🥇','🥈','🥉'];
   const date = sessaoFinalizada.date ? new Date(sessaoFinalizada.date+'T12:00:00').toLocaleDateString('pt-BR') : '';
   const rowsHTML = sorted.map(function(p,i){
     const pr = p.profit||0;
-    var isWinner = i === 0 && sorted.length > 1;
+    const pos = displayPos[i];
+    var isWinner = pos === 1 && sorted.length > 1;
     return '<div ' + (isWinner ? 'class="pgm-winner-row" ' : '') + 'style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;' + (isWinner ? '' : 'border-bottom:1px solid var(--border)') + '">' +
-      '<span style="font-size:14px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[i]||'#'+(i+1)) + ' <strong style="color:var(--cream)">' + p.name + '</strong></span>' +
+      '<span style="font-size:14px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[pos-1]||'#'+pos) + ' <strong style="color:var(--cream)">' + p.name + '</strong></span>' +
       '<span style="font-family:DM Mono,monospace;font-size:14px;color:' + (pr>=0?'var(--positive)':'var(--negative)') + '">' + (pr>=0?'+':'') + 'R$ ' + Math.abs(pr).toFixed(2).replace('.',',') + '</span>' +
     '</div>';
   }).join('');
@@ -1580,9 +2036,12 @@ function renderAcumulado() {
 
 
   document.getElementById('acumulado-list').innerHTML = rankedPts.length
-    ? rankedPts.map(function(p,i) {
+    ? (function(){
+        var dp = getDisplayPositions(rankedPts, function(p){ return p.avg.toFixed(3)+'|'+p.wins+'|'+p.profit.toFixed(2); });
+        return rankedPts.map(function(p,i) {
+        var pos = dp[i];
         return '<div class="pgm-ranking-row" style="border-color:rgba(232,201,122,0.2);padding:0.4rem 0">' +
-          '<div class="pgm-rank-pos ' + (i<3?'pgm-rank-'+(i+1):'') + '" style="font-size:13px">' + (medals[i]||'#'+(i+1)) + '</div>' +
+          '<div class="pgm-rank-pos ' + (pos<=3?'pgm-rank-'+pos:'') + '" style="font-size:13px">' + (medals[pos-1]||'#'+pos) + '</div>' +
           '<div class="pgm-rank-name-block">' +
             '<div class="pgm-rank-name" style="font-size:12px">' + p.name + '</div>' +
             '<div class="pgm-rank-sessions" style="font-size:10px">' + p.sessions + ' sess. · 🥇' + p.wins + ' · 🏆' + p.podios + '</div>' +
@@ -1592,7 +2051,8 @@ function renderAcumulado() {
             '<div style="font-size:10px;color:var(--text-dim)">' + p.points + ' pts total</div>' +
           '</div>' +
         '</div>';
-      }).join('')
+      }).join('');
+      })()
     : '<div style="font-size:11px;color:var(--text-dim);padding:0.5rem 0">Nenhuma sessão oficial ainda</div>';
 
 
@@ -1605,9 +2065,12 @@ function renderAcumulado() {
 
 
   document.getElementById('acumulado-lucro-list').innerHTML = rankedLucro.length
-    ? rankedLucro.map(function(p,i) {
+    ? (function(){
+        var dpL = getDisplayPositions(rankedLucro, function(p){ return p.profit.toFixed(2); });
+        return rankedLucro.map(function(p,i) {
+        var pos = dpL[i];
         return '<div class="pgm-ranking-row" style="border-color:rgba(232,201,122,0.2);padding:0.4rem 0">' +
-          '<div class="pgm-rank-pos ' + (i<3?'pgm-rank-'+(i+1):'') + '" style="font-size:13px">' + (medals[i]||'#'+(i+1)) + '</div>' +
+          '<div class="pgm-rank-pos ' + (pos<=3?'pgm-rank-'+pos:'') + '" style="font-size:13px">' + (medals[pos-1]||'#'+pos) + '</div>' +
           '<div class="pgm-rank-name-block">' +
             '<div class="pgm-rank-name" style="font-size:12px">' + p.name + '</div>' +
             '<div class="pgm-rank-sessions" style="font-size:10px">' + p.sessions + ' sess. · melhor ' + fmtR(p.best||0) + '</div>' +
@@ -1617,7 +2080,8 @@ function renderAcumulado() {
             '<div style="font-size:10px;color:var(--text-dim)">média ' + fmtR(p.sessions>0?p.profit/p.sessions:0) + '/sess</div>' +
           '</div>' +
         '</div>';
-      }).join('')
+      }).join('');
+      })()
     : '<div style="font-size:11px;color:var(--text-dim);padding:0.5rem 0">Nenhuma sessão oficial ainda</div>';
 
 
@@ -1639,6 +2103,22 @@ function getPontosTorneio(pos) {
   if(pos === 4) return 3;
   if(pos === 5) return 1;
   return 0;
+}
+
+// Dado um array já ordenado (do melhor pro pior) e uma função que extrai o valor de cada item,
+// retorna as posições visuais (1,2,2,4...) respeitando empate — mesmo padrão esportivo usado no ranking.
+function getDisplayPositions(sortedArr, getValue) {
+  var positions = new Array(sortedArr.length);
+  var i = 0;
+  while(i < sortedArr.length) {
+    var val = getValue(sortedArr[i]);
+    var j = i;
+    while(j < sortedArr.length && getValue(sortedArr[j]) === val) j++;
+    var pos = i + 1;
+    for(var k = i; k < j; k++) positions[k] = pos;
+    i = j;
+  }
+  return positions;
 }
 
 function calcularPontosComEmpate(players, isTorneio) {
@@ -1716,10 +2196,13 @@ function renderRanking() {
   document.getElementById('ranking-season-num').textContent = S.season;
 
   document.getElementById('ranking-list').innerHTML = ranked.length
-    ? ranked.map(function(p,i) {
+    ? (function(){
+        var dpR = getDisplayPositions(ranked, function(p){ return p.avg.toFixed(3)+'|'+p.wins; });
+        return ranked.map(function(p,i) {
+        var pos = dpR[i];
         var temDescarte = window._sessaoDescartada[p.name];
         return '<div class="pgm-ranking-row">' +
-          '<div class="pgm-rank-pos ' + (i<3?'pgm-rank-'+(i+1):'') + '">' + (medals[i]||'#'+(i+1)) + '</div>' +
+          '<div class="pgm-rank-pos ' + (pos<=3?'pgm-rank-'+pos:'') + '">' + (medals[pos-1]||'#'+pos) + '</div>' +
           '<div class="pgm-rank-name-block">' +
             '<div class="pgm-rank-name">' + p.name + '</div>' +
             '<div class="pgm-rank-sessions">' + p.sessions + ' sessões · ' + p.wins + ' vitória(s)' + (temDescarte ? ' · <span style="color:var(--negative);font-size:10px">-1 descartada</span>' : '') + '</div>' +
@@ -1729,7 +2212,8 @@ function renderRanking() {
             '<div class="pgm-rank-detail">Total ' + p.points + ' pts · ' + (p.profit>=0?'+':'') + 'R$ ' + p.profit.toFixed(2).replace('.',',') + '</div>' +
           '</div>' +
         '</div>';
-      }).join('')
+      }).join('');
+      })()
     : '<div class="pgm-empty-state"><div class="suit">♠</div>Nenhuma sessão de Liga registrada ainda</div>';
 }
 
@@ -1803,19 +2287,37 @@ function renderHistorico() {
 function sessionCardHTML(s, sessionIndex) {
   var date = s.date ? new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR') : '—';
   var pot  = s.players.reduce(function(a,p){ return a+p.buyin+(p.rebuys||[]).reduce(function(r,v){return r+v;},0); }, 0);
-  var sorted = [...s.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
-  var winner = sorted[0];
-  var second = sorted[1];
+  var isClassico = s.tourneyMode === 'classico';
+  var sorted = [...s.players].sort(function(a,b){
+    if(isClassico && a.place && b.place) return a.place - b.place;
+    return (b.profit||0)-(a.profit||0);
+  });
+  var dp = getDisplayPositions(sorted, function(p){ return isClassico ? p.place : (p.profit||0); });
+  var top3 = sorted.slice(0, 3);
+  var medals = ['🥇','🥈','🥉'];
   var curios = s.curiosidades && s.curiosidades.length ? ' · ✨ '+s.curiosidades.length : '';
   var title = s.label ? s.label : (s.num ? 'Sessão '+s.num : 'Casual');
   var delBtn = _adminAuth ? '<button class="pgm-del-sess-list" data-uid="' + s._uid + '" style="background:none;border:none;color:var(--negative);cursor:pointer;font-size:13px;padding:2px 6px;flex-shrink:0">✕</button>' : '';
+
+  var podiumHTML = top3.map(function(p, i) {
+    var photo = getPlayerPhoto(p.name);
+    var avatarInner = photo ? '<img src="'+photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">' : p.name.slice(0,2).toUpperCase();
+    var pos = dp[i];
+    return '<div style="display:flex;align-items:center;gap:4px;flex:1;min-width:0">' +
+      '<span style="font-size:12px;flex-shrink:0">' + (medals[pos-1]||'#'+pos) + '</span>' +
+      '<div style="width:22px;height:22px;border-radius:50%;background:rgba(201,168,76,0.12);border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:var(--gold);flex-shrink:0;overflow:hidden">' + avatarInner + '</div>' +
+      '<span style="font-size:11px;font-weight:800;color:var(--cream);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">' + p.name + '</span>' +
+    '</div>';
+  }).join('');
+
   return '<div class="pgm-history-item" style="display:flex;align-items:center;gap:6px">' +
-    '<div data-uid-open="' + s._uid + '" style="flex:1;cursor:pointer">' +
+    '<div data-uid-open="' + s._uid + '" style="flex:1;cursor:pointer;min-width:0">' +
       '<div class="pgm-history-header">' +
         '<div class="pgm-history-title">' + title + '</div>' +
         '<div class="pgm-history-date">' + date + '</div>' +
       '</div>' +
-      '<div class="pgm-history-sub">' + s.players.length + ' jogadores · Pot '+fmtRaw(pot)+(s.duration?' · ⏱️ '+formatDuration(s.duration):'')+' · 🏆 '+(winner?winner.name:'-')+(second?' · 🥈 '+second.name:'')+curios+'</div>' +
+      '<div style="display:flex;gap:10px;margin:7px 0 5px">' + podiumHTML + '</div>' +
+      '<div class="pgm-history-sub">' + s.players.length + ' jogadores · Pot '+fmtRaw(pot)+(s.duration?' · ⏱️ '+formatDuration(s.duration):'')+curios+'</div>' +
     '</div>' +
     delBtn +
   '</div>';
@@ -1905,6 +2407,7 @@ function showSessionDetail(sessionIndex) {
     if(isClassico && a.place && b.place) return a.place - b.place;
     return (b.profit||0)-(a.profit||0);
   });
+  var displayPos = getDisplayPositions(sorted, function(p){ return isClassico ? p.place : (p.profit||0); });
   var medals = ['🥇','🥈','🥉'];
 
   // Colunas base + coluna extra pro botão de remover (só admin)
@@ -1914,13 +2417,14 @@ function showSessionDetail(sessionIndex) {
   var rowsHTML = sorted.map(function(p,i) {
     var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
     var pr = p.profit || 0;
+    var pos = displayPos[i];
     // Verificar se essa sessão foi descartada pra esse jogador
     var descartada = window._sessaoDescartada && s._uid && window._sessaoDescartada[p.name] === s._uid;
     var origIdx = s.players.indexOf(p);
     var delBtn = _adminAuth ? '<button class="pgm-close-btn" onclick="confirmRemovePlayerFromSession(' + sessionIndex + ',' + origIdx + ')" title="Remover jogador desta sessão" style="color:var(--negative);font-size:14px">✕</button>' : '';
     return '<div class="pgm-final-row" style="grid-template-columns:' + gridCols + ';' + (descartada ? 'opacity:0.55' : '') + '">' +
       '<div class="pgm-player-name" style="font-size:13px;display:flex;align-items:center;gap:6px">' +
-        avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[i]||('#'+(i+1))) + ' ' +
+        avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[pos-1]||('#'+pos)) + ' ' +
         (descartada ? '<span style="text-decoration:line-through;color:var(--negative)">' + p.name + '</span> <span style="font-size:9px;font-weight:900;color:var(--negative);background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;padding:1px 4px">descartada</span>' : p.name) +
       '</div>' +
       '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
@@ -2039,6 +2543,7 @@ function showSeasonDetail(idx) {
   var medals = ['🥇','🥈','🥉'];
   var podioHTML = '';
   if(rankFinal.length >= 2) {
+    var dpPodio = getDisplayPositions(rankFinal, function(p){ return (p.sessions>0?p.points/p.sessions:0).toFixed(3)+'|'+p.wins; });
     var top3 = rankFinal.slice(0, Math.min(3, rankFinal.length));
     // Reordenar: 2º, 1º, 3º (visual de pódio)
     var ordem = top3.length === 1 ? [0] : top3.length === 2 ? [1, 0] : [1, 0, 2];
@@ -2048,15 +2553,16 @@ function showSeasonDetail(idx) {
       ordem.map(function(i) {
         var p = top3[i];
         if(!p) return '';
-        var mc = medalColors[i] || medalColors[2];
+        var realPos = dpPodio[i]; // posição real considerando empate (1, 2 ou 3 — pode repetir)
+        var mc = medalColors[realPos-1] || medalColors[2];
         var initials = p.name.slice(0,2).toUpperCase();
         var photo = getPlayerPhoto(p.name);
         var avatarInner = photo
           ? '<img src="' + photo + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">'
           : initials;
         var avg = p.sessions > 0 ? (p.points / p.sessions).toFixed(1) : '0.0';
-        return '<div style="background:#14321a;border:1px solid ' + (i===0?'rgba(255,215,0,0.35)':'rgba(201,168,76,0.15)') + ';border-radius:12px;padding:10px 6px;text-align:center">' +
-          '<div style="font-size:16px;margin-bottom:3px">' + medals[i] + '</div>' +
+        return '<div style="background:#14321a;border:1px solid ' + (realPos===1?'rgba(255,215,0,0.35)':'rgba(201,168,76,0.15)') + ';border-radius:12px;padding:10px 6px;text-align:center">' +
+          '<div style="font-size:16px;margin-bottom:3px">' + (medals[realPos-1]||'#'+realPos) + '</div>' +
           '<div style="width:30px;height:30px;border-radius:50%;background:' + mc.bg + ';border:2px solid ' + mc.border + ';color:' + mc.color + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;margin:0 auto 5px;overflow:hidden">' + avatarInner + '</div>' +
           '<div style="font-size:11px;font-weight:900;color:#f0ede4;margin-bottom:2px">' + p.name + '</div>' +
           '<div style="font-size:13px;font-weight:900;color:#c9a84c;font-family:DM Mono,monospace">' + avg + '</div>' +
@@ -2076,12 +2582,14 @@ function showSeasonDetail(idx) {
       : '<span class="pgm-badge pgm-badge-casual" style="font-size:10px">🥃 Casual</span>';
     var sorted = [...s.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
     var medals2 = ['🥇','🥈','🥉'];
+    var dp2 = getDisplayPositions(sorted, function(p){ return p.profit||0; });
     var pot = s.players.reduce(function(a,p){ return a + p.buyin + p.rebuys.reduce(function(r,v){ return r+v; }, 0); }, 0);
 
     var rowsHTML = sorted.map(function(p, i) {
       var pr = p.profit || 0;
+      var pos2 = dp2[i];
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px">' +
-        '<span style="font-weight:800;color:var(--cream);display:flex;align-items:center;gap:5px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals2[i]||'') + ' ' + p.name + '</span>' +
+        '<span style="font-weight:800;color:var(--cream);display:flex;align-items:center;gap:5px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals2[pos2-1]||'') + ' ' + p.name + '</span>' +
         '<span style="font-family:DM Mono,monospace;color:' + (pr>=0?'var(--positive)':'var(--negative)') + '">' + fmtR(pr) + '</span>' +
       '</div>';
     }).join('');
@@ -2319,10 +2827,12 @@ function showAdminPanel() {
   });
   var ranked = Object.values(map).sort(function(a,b){ return b.profit - a.profit; });
   var medals = ['🥇','🥈','🥉'];
+  var dpAdmin = getDisplayPositions(ranked, function(p){ return p.profit; });
 
   var rankHTML = ranked.length ? ranked.map(function(p,i) {
+    var posA = dpAdmin[i];
     return '<div style="display:flex;align-items:center;gap:10px;padding:0.5rem 0;border-bottom:1px solid var(--border)">' +
-      '<div style="font-size:15px;min-width:24px">' + (medals[i]||'#'+(i+1)) + '</div>' +
+      '<div style="font-size:15px;min-width:24px">' + (medals[posA-1]||'#'+posA) + '</div>' +
       '<div style="flex:1;font-size:12px;font-weight:900;color:var(--cream)">' + p.name + '</div>' +
       '<div style="font-family:DM Mono,monospace;font-size:13px;color:' + (p.profit>=0?'var(--positive)':'var(--negative)') + '">' + fmtR(p.profit) + '</div>' +
     '</div>';
@@ -2631,16 +3141,22 @@ function compartilharResultado(sessao) {
   ctx.lineTo(W-30, 82);
   ctx.stroke();
 
-  const sorted = [...sessao.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
+  const isClassicoImg = sessao.tourneyMode === 'classico';
+  const sorted = [...sessao.players].sort(function(a,b){
+    if(isClassicoImg && a.place && b.place) return a.place - b.place;
+    return (b.profit||0)-(a.profit||0);
+  });
   const medals = ['🥇','🥈','🥉'];
+  const dpImg = getDisplayPositions(sorted, function(p){ return isClassicoImg ? p.place : (p.profit||0); });
 
   sorted.forEach(function(p, i) {
     const y = 82 + (i+1)*65;
     const profit = p.profit || 0;
+    const posImg = dpImg[i];
 
     ctx.font = '26px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText(medals[i] || (i+1)+'º', 24, y+8);
+    ctx.fillText(medals[posImg-1] || posImg+'º', 24, y+8);
 
     ctx.fillStyle = '#f5f5f2';
     ctx.font = 'bold 18px Arial, sans-serif';
