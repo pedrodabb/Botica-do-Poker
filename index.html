@@ -300,17 +300,12 @@
       .pgm-card { padding: 0.75rem; }
     }
 
-    /* Aba Praticar — layout no PC: compacto pra caber na tela sem rolagem */
-    @media (min-width: 860px) {
-      body.treino-wide #app { max-width: 640px; }
-      body.treino-wide .pgm-content { display: flex; justify-content: center; }
-      body.treino-wide #tab-treino.active { max-width: 560px; width: 100%; margin: 0 auto; }
-      body.treino-wide #treino-card { padding: 1rem 1.25rem; }
-      /* mesa limitada em largura -> altura proporcional menor, não empurra o conteúdo */
-      body.treino-wide #treino-mesa-wrap { max-width: 340px; margin: 0 auto 0.7rem; }
-      body.treino-wide #treino-question { font-size: 14px; margin: 0.7rem 0; }
-      body.treino-wide #treino-range-wrap { max-width: 380px; margin: 0.7rem auto 0; }
-    }
+    /* Aba Praticar — no PC ganha uma coluna um pouco mais larga pra leitura e botões,
+       mas a MESA tem tamanho fixo definido direto no HTML (JS), então nunca cresce
+       mesmo que esta regra não seja aplicada por qualquer motivo (largura de janela,
+       cache, etc). Regra simples e única — sem flex, sem condições cruzadas. */
+    body.treino-wide #app { max-width: 560px; margin: 0 auto; }
+    body.treino-wide #tab-treino.active { max-width: 100%; }
   </style>
 </head>
 <body>
@@ -1549,7 +1544,7 @@ function renderMesaVisual(hand) {
     '</div>';
   }).join('');
 
-  return '<div style="position:relative;width:100%;aspect-ratio:16/10;background:radial-gradient(ellipse at center, #1a4028 0%, #0d2218 78%);border:1px solid var(--border);border-radius:50%/40%;overflow:visible">' +
+  return '<div style="position:relative;width:100%;max-width:240px;margin:0 auto;aspect-ratio:16/10;background:radial-gradient(ellipse at center, #1a4028 0%, #0d2218 78%);border:1px solid var(--border);border-radius:50%/40%;overflow:visible">' +
     seatsHTML +
   '</div>';
 }
