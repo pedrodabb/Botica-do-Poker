@@ -299,6 +299,22 @@
       main { padding: 0.75rem; }
       .pgm-card { padding: 0.75rem; }
     }
+
+    /* Aba Praticar — layout mais largo no PC (não afeta as outras abas nem o mobile) */
+    @media (min-width: 860px) {
+      body.treino-wide #app { max-width: 900px; }
+      body.treino-wide .pgm-content { display: flex; justify-content: center; }
+      body.treino-wide #tab-treino.active { max-width: 720px; width: 100%; margin: 0 auto; }
+      body.treino-wide #treino-card { padding: 1.5rem 1.75rem; }
+      body.treino-wide #treino-mesa-wrap { max-width: 520px; margin: 0 auto 0.85rem; }
+      body.treino-wide .treino-card-visual { width: 64px; height: 88px; }
+      body.treino-wide .treino-card-visual .rank { font-size: 24px; }
+      body.treino-wide .treino-card-visual .suit { font-size: 20px; }
+      body.treino-wide .treino-card-visual.small { width: 52px; height: 72px; }
+      body.treino-wide #treino-question { font-size: 15px; }
+      body.treino-wide #treino-actions .pgm-btn { font-size: 14px; padding: 0.75rem 1.1rem; }
+      body.treino-wide #treino-range-wrap { max-width: 420px; margin: 0.85rem auto 0; }
+    }
   </style>
 </head>
 <body>
@@ -698,6 +714,7 @@ function fmtR(v) { return (v>=0?'+':'−')+'R$ '+Math.abs(v).toFixed(2).replace(
 function fmtRaw(v) { return 'R$ '+Math.abs(v).toFixed(2).replace('.',','); }
 
 function showTab(n) {
+  document.body.classList.toggle('treino-wide', n === 'treino');
   document.querySelectorAll('.pgm-tab-content').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.pgm-nav-btn').forEach(e=>e.classList.remove('active'));
   document.getElementById('tab-'+n).classList.add('active');
@@ -1255,18 +1272,42 @@ const TREINO_HANDS = [
   { street:'preflop', options:['check','raise'], position:'BB', hand:['Jc','4h'], board:null, actionsBefore:['Um jogador deu limp (só pagou) antes de você'],
     question:'Um jogador só pagou antes de você. O que você faz?', correct:'check',
     explanation:'J4o não tem força nenhuma pra justificar uma aposta — check e ver o flop de graça junto com o limper é o padrão aqui.' },
-  { street:'postflop', options:['check','raise'], position:'CO', hand:['7h','7c'], board:['9d','7d','2s'], actionsBefore:['Você pagou a abertura do UTG','Oponente deu check'],
-    question:'Você tem trinca escondida e o oponente deu check. O que você faz?', correct:'raise',
+  { street:'postflop', options:['check','bet'], position:'CO', hand:['7h','7c'], board:['9d','7d','2s'], actionsBefore:['Você pagou a abertura do UTG','Oponente deu check'],
+    question:'Você tem trinca escondida e o oponente deu check. O que você faz?', correct:'bet',
     explanation:'Trinca é uma mão muito forte e bem disfarçada — sempre apostar pra extrair valor quando o oponente abre espaço com um check.' },
-  { street:'postflop', options:['check','raise'], position:'BTN', hand:['Ac','Ks'], board:['2h','3d','5c'], actionsBefore:['Você pagou a abertura do CO','Oponente deu check'],
+  { street:'postflop', options:['check','bet'], position:'BTN', hand:['Ac','Ks'], board:['2h','3d','5c'], actionsBefore:['Você pagou a abertura do CO','Oponente deu check'],
     question:'Seu AK não formou par nenhum e o oponente deu check. O que você faz?', correct:'check',
     explanation:'Sem par e sem projeto, apostar aqui não tem propósito de valor claro — check preserva suas fichas e evita perder pra um call.' },
-  { street:'postflop', options:['check','raise'], position:'HJ', hand:['Qs','Jd'], board:['Qh','Jc','4d'], actionsBefore:['Você pagou a abertura do UTG','Oponente deu check'],
-    question:'Você tem dois pares fortes e o oponente deu check. O que você faz?', correct:'raise',
+  { street:'postflop', options:['check','bet'], position:'HJ', hand:['Qs','Jd'], board:['Qh','Jc','4d'], actionsBefore:['Você pagou a abertura do UTG','Oponente deu check'],
+    question:'Você tem dois pares fortes e o oponente deu check. O que você faz?', correct:'bet',
     explanation:'Dois pares nas cartas mais altas do flop merecem uma aposta de valor sempre que o oponente abre espaço com um check.' },
-  { street:'postflop', options:['check','raise'], position:'BB', hand:['Ac','Ad'], board:['9d','7c','2s'], actionsBefore:['Você defendeu o BB','Oponente deu check'],
-    question:'Você tem overpair (AA) num flop seco e o oponente deu check. O que você faz?', correct:'raise',
+  { street:'postflop', options:['check','bet'], position:'BB', hand:['Ac','Ad'], board:['9d','7c','2s'], actionsBefore:['Você defendeu o BB','Oponente deu check'],
+    question:'Você tem overpair (AA) num flop seco e o oponente deu check. O que você faz?', correct:'bet',
     explanation:'Overpair num flop seco e baixo deve sempre apostar quando o oponente permite — protege contra cartas futuras e constrói o pote.' },
+  { street:'postflop', options:['check','bet'], position:'BTN', hand:['Ks','Qs'], board:['Kd','8h','3c'], actionsBefore:['Você pagou a abertura do CO','Oponente deu check'],
+    question:'Você acertou o Rei do flop com kicker forte e o oponente deu check. O que você faz?', correct:'bet',
+    explanation:'Top par com ótimo kicker (KQ) contra um check — apostar extrai valor de mãos piores que ainda podem pagar, como reis com kicker fraco.' },
+  { street:'postflop', options:['check','bet'], position:'CO', hand:['9h','9d'], board:['Kc','7d','2s'], actionsBefore:['Você pagou a abertura do UTG','Oponente deu check'],
+    question:'Seu par 99 não é o par mais alto do flop (tem um Rei) e o oponente deu check. O que você faz?', correct:'check',
+    explanation:'Com um par médio abaixo da carta mais alta do board, apostar contra um check arrisca ser pago só por mãos melhores — check controla o tamanho do pote.' },
+  { street:'postflop', options:['check','bet'], position:'BB', hand:['Jh','Th'], board:['9h','8c','2h'], actionsBefore:['Você defendeu o BB','Oponente deu check'],
+    question:'Você tem projeto de sequência e flush ao mesmo tempo e o oponente deu check. O que você faz?', correct:'bet',
+    explanation:'Com tanta equity (flush draw + straight draw), apostar como semi-blefe pressiona o oponente agora e ainda mantém sua chance de completar o projeto se ele pagar.' },
+  { street:'postflop', options:['check','bet'], position:'HJ', hand:['Ac','Kd'], board:['7h','4c','2s'], actionsBefore:['Você pagou a abertura do UTG','Oponente deu check'],
+    question:'Você não formou par nenhum (AK) e o oponente deu check num flop baixo. O que você faz?', correct:'bet',
+    explanation:'Mesmo sem par, um flop baixo e seco raramente ajudou o range de quem só pagou — apostar como continuação mantém a pressão da agressão pré-flop.' },
+  { street:'postflop', options:['check','bet'], position:'BTN', hand:['5c','5d'], board:['Ah','Kd','Qc'], actionsBefore:['Você pagou a abertura do CO','Oponente deu check'],
+    question:'Seu par de 5 é o menor par possível nesse flop de cartas altas e o oponente deu check. O que você faz?', correct:'check',
+    explanation:'Com 3 cartas mais altas que seu par no board, apostar não tem propósito de valor real — só quem já te bate paga. Check é o caminho mais seguro.' },
+  { street:'postflop', options:['check','bet'], position:'CO', hand:['Qd','Qc'], board:['8h','4c','2s'], actionsBefore:['Você pagou a abertura do UTG','Oponente deu check'],
+    question:'Seu overpair (QQ) é a mão mais forte possível nesse flop e o oponente deu check. O que você faz?', correct:'bet',
+    explanation:'Overpair em flop seco e baixo deve apostar sempre que o oponente abrir espaço — protege contra draws e constrói valor.' },
+  { street:'postflop', options:['check','bet'], position:'SB', hand:['8c','7c'], board:['6c','5d','9h'], actionsBefore:['Você abriu no SB e o BB pagou','Oponente deu check'],
+    question:'Você formou sequência feita (8-7 com 6-5-9 no board) e o oponente deu check. O que você faz?', correct:'bet',
+    explanation:'Sequência já pronta é uma mão forte — contra um check, apostar constrói o pote e evita dar carta grátis pra quem tem um par que pode virar algo melhor.' },
+  { street:'postflop', options:['check','bet'], position:'BTN', hand:['6d','6c'], board:['Kh','Jd','9h'], actionsBefore:['Você pagou a abertura do CO','Oponente deu check'],
+    question:'Seu par de 6 não bate nada nesse flop de cartas altas e o oponente deu check. O que você faz?', correct:'check',
+    explanation:'Sem equity real contra um flop com 3 cartas altas, apostar sem força nenhuma raramente compensa — check preserva suas fichas pra outra mão.' },
 ];
 
 // ─── RANGE DE ABERTURA (referência simplificada por posição, sem dados de solver) ──
@@ -1490,6 +1531,7 @@ function nextTreinoHand() {
     fold:  { label: 'Fold',  cls: 'pgm-btn-danger' },
     check: { label: 'Check', cls: '', style: 'background:rgba(138,138,122,0.15);border-color:rgba(138,138,122,0.4);color:#c8c8b8' },
     call:  { label: 'Call',  cls: '', style: 'background:rgba(138,138,122,0.15);border-color:rgba(138,138,122,0.4);color:#c8c8b8' },
+    bet:   { label: 'Apostar', cls: 'pgm-btn-success' },
     raise: { label: 'Raise', cls: 'pgm-btn-success' }
   };
   var opts = h.options || ['fold','call','raise'];
@@ -1518,7 +1560,7 @@ function answerTreino(action) {
   document.getElementById('treino-streak').textContent = _treinoScore.streak;
   document.getElementById('treino-best').textContent = _treinoScore.best;
 
-  var actionLabel = { fold: 'Fold', check: 'Check', call: 'Call', raise: 'Raise' };
+  var actionLabel = { fold: 'Fold', check: 'Check', call: 'Call', bet: 'Apostar', raise: 'Raise' };
   var fb = document.getElementById('treino-feedback');
   fb.className = correct ? 'treino-feedback-correct' : 'treino-feedback-wrong';
   fb.innerHTML =
