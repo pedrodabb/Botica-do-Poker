@@ -310,6 +310,11 @@
       .pgm-nav { overflow-x: visible; }
       .pgm-nav-btn { flex: 1 1 0; padding: 0.7rem 0.3rem; font-size: 11px; min-width: 0; }
       .pgm-nav.admin-mode .pgm-nav-btn { font-size: 10px; padding: 0.7rem 0.2rem; }
+      /* Padroniza a largura: o conteúdo de baixo (cards) passa a ir de ponta a ponta,
+         alinhado com as linhas do header e da navbar. Antes ficava 20px recuado de
+         cada lado por causa do padding lateral do content — agora só sobra padding
+         vertical, e os cards têm seu próprio respiro interno. */
+      .pgm-content { padding-left: 0; padding-right: 0; }
     }
   </style>
 </head>
