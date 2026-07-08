@@ -32,21 +32,18 @@
     const db = getDatabase(fbApp);
     const DB_REF = 'homegame/dados';
 
-    // Expor funções para o código principal
     window._fbSave = function(data) {
       window._fbIgnoreNext = true;
       setTimeout(function(){ window._fbIgnoreNext = false; }, 3000);
       set(ref(db, DB_REF), data).catch(e => console.error('Firebase save error:', e));
     };
 
-    // Atualiza só campos específicos sem tocar no resto (evita conflito entre dispositivos)
     window._fbPatch = function(fields) {
       window._fbIgnoreNext = true;
       setTimeout(function(){ window._fbIgnoreNext = false; }, 3000);
       update(ref(db, DB_REF), fields).catch(e => console.error('Firebase patch error:', e));
     };
 
-    // Remove só um caminho específico (ex: uma sessão, o código temporário)
     window._fbRemovePath = function(path) {
       window._fbIgnoreNext = true;
       setTimeout(function(){ window._fbIgnoreNext = false; }, 3000);
@@ -61,7 +58,6 @@
       });
     };
 
-    // Leitura única do código temporário — usada na tela de senha, antes do app (e do sync completo) carregar
     window._fbGetTempCode = async function() {
       try {
         const snap = await get(ref(db, DB_REF + '/tempCode'));
@@ -72,7 +68,6 @@
       }
     };
 
-    // Monitor de conexão real
     import { getDatabase as getDb2, ref as ref2, onValue as onVal2 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
     const connRef = ref(db, '.info/connected');
     onValue(connRef, function(snap) {
@@ -84,7 +79,6 @@
       }
     });
 
-    // Sinalizar que Firebase está pronto
     window._fbReady = true;
     document.dispatchEvent(new Event('firebase-ready'));
   </script>
@@ -204,7 +198,6 @@
     .pgm-new-player-form { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 1rem; }
     .pgm-new-player-form .pgm-field { flex: 1; margin: 0; }
 
-    /* Curiosidades */
     .curio-card { background: var(--curio-bg); border: 1px solid var(--curio-border); border-radius: 14px; padding: 0.85rem 1rem; margin-bottom: 8px; }
     .curio-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem; }
     .curio-player { font-size: 13px; font-weight: 900; color: var(--curio-light); }
@@ -212,7 +205,6 @@
     .curio-text { font-size: 13px; font-weight: 700; color: var(--cream-dim); line-height: 1.5; }
     .curio-date { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-top: 0.35rem; }
 
-    /* Jogadores */
     .player-card { display: flex; align-items: center; gap: 12px; padding: 0.75rem; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 8px; background: var(--panel); }
     .player-card-avatar { width: 38px; height: 38px; border-radius: 50%; background: rgba(201,168,76,0.12); border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; overflow:hidden; cursor:pointer; transition:border-color 0.15s; }
     .player-card-avatar:hover { border-color:var(--gold-light); }
@@ -224,7 +216,6 @@
     .player-card-name { font-size: 14px; font-weight: 900; color: var(--cream); }
     .player-card-sub { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-top: 2px; }
 
-    /* Ranking */
     .pgm-ranking-row { display: flex; align-items: center; gap: 12px; padding: 0.8rem; border-radius: 14px; border: 1px solid var(--border); background: var(--panel); margin-bottom: 8px; }
     .pgm-ranking-row.greyed { opacity: 0.45; border-color: transparent; background: rgba(255,255,255,0.02); }
     .pgm-rank-pos { font-family: 'Nunito', sans-serif; font-size: 18px; font-weight: 900; color: var(--text-dim); min-width: 28px; text-align: center; }
@@ -238,7 +229,6 @@
     .pgm-best-badge { font-size: 10px; font-weight: 800; background: rgba(201,168,76,0.12); color: var(--gold-dim); border-radius: 4px; padding: 2px 6px; margin-left: 6px; }
     .pgm-suit-divider { text-align: center; color: var(--border-strong); font-size: 14px; letter-spacing: 6px; margin: 0.5rem 0 1rem; }
 
-    /* Histórico */
     .pgm-history-item { padding: 0.8rem 0.85rem; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s, background 0.15s; background: rgba(255,255,255,0.02); }
     .pgm-history-item:hover { border-color: var(--border-strong); background: rgba(255,255,255,0.04); }
     .pgm-history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
@@ -568,6 +558,8 @@
           <span style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em" id="treino-street-badge">Pré-flop</span>
         </div>
 
+        <div id="treino-mesa-wrap" style="margin-bottom:0.85rem"></div>
+
         <div id="treino-action-log" style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.6"></div>
 
         <div style="display:flex;justify-content:center;gap:8px;margin-bottom:0.5rem" id="treino-hand-cards"></div>
@@ -582,6 +574,8 @@
         <div class="pgm-row-btns" id="treino-actions" style="margin-bottom:0"></div>
 
         <div id="treino-feedback" style="display:none;margin-top:0.85rem;padding:0.75rem;border-radius:12px"></div>
+
+        <div id="treino-range-wrap" style="display:none;margin-top:0.85rem"></div>
 
         <button class="pgm-btn pgm-btn-success" id="treino-next-btn" style="width:100%;margin-top:0.75rem;display:none" onclick="nextTreinoHand()">Próxima mão →</button>
       </div>
@@ -621,7 +615,7 @@ const S = {
   sessions: [],
   pastSeasons: [],
   players: [],
-  curiosidades: [], // { id, sessionId, playerName, text, date, sessionLabel }
+  curiosidades: [],
   newSession: { type: 'oficial', players: [] },
   activeSession: null
 };
@@ -634,7 +628,6 @@ function save() {
   }
 }
 
-// Salva só os campos que realmente mudaram — evita conflito entre dispositivos
 function savePatch(fields) {
   S._lastUpdate = Date.now();
   try { localStorage.setItem('pgm_v4', JSON.stringify(S)); } catch(e){}
@@ -647,12 +640,10 @@ function savePatch(fields) {
   }
 }
 function sanitizeData() {
-  // Garantir que rebuys existe em todos os jogadores de todas as sessões
   function fixPlayers(players) {
     if(!players) return;
     players.forEach(function(p){ if(!p.rebuys) p.rebuys = []; });
   }
-  // Garantir que toda sessão tem _uid (sem isso, o botão de apagar não acha a sessão e fica "travado")
   function fixUid(s) {
     if(s && !s._uid) s._uid = 's'+Date.now()+Math.random().toString(36).slice(2,8);
   }
@@ -662,7 +653,6 @@ function sanitizeData() {
 }
 
 function load() {
-  // Carregar localStorage como fallback imediato
   try {
     const d = localStorage.getItem('pgm_v4');
     if(d) { const parsed = JSON.parse(d); Object.keys(parsed).forEach(k=>{ S[k]=parsed[k]; }); }
@@ -673,23 +663,17 @@ function load() {
 function initFirebaseSync() {
   if(!window._fbListen) return;
   window._fbListen(function(data) {
-    // Ignorar dados mais antigos que o que já temos localmente
     const remoteTime = data._lastUpdate || 0;
     const localTime = S._lastUpdate || 0;
-    if(remoteTime < localTime) return; // dado do servidor é mais antigo, ignora
+    if(remoteTime < localTime) return;
 
-    // Mesclar dados do Firebase com o estado local
     const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession','tempCode','_lastUpdate'];
     keys.forEach(k=>{ if(data[k]!==undefined) S[k]=data[k]; });
-    // activeSession: sempre confia no servidor quando ele é mais recente ou igual
     S.activeSession = data.activeSession || null;
-    // Sanitizar dados (e detectar se algo mudou para forçar salvar de volta)
     var hadMissingUid = S.sessions.some(function(s){ return !s._uid; });
     sanitizeData();
     if(hadMissingUid) { setTimeout(save, 500); }
-    // Atualizar localStorage
     try { localStorage.setItem('pgm_v4', JSON.stringify(S)); } catch(e){}
-    // Refresh da UI
     updateOverview();
     resetNewSessionForm();
     if(S.activeSession) {
@@ -700,7 +684,6 @@ function initFirebaseSync() {
       document.getElementById('no-session-state').style.display='block';
       document.getElementById('active-session-state').style.display='none';
     }
-    // Atualizar aba ativa se estiver aberta
     const activeTab = document.querySelector('.pgm-tab-content.active');
     if(activeTab) {
       const tabId = activeTab.id.replace('tab-','');
@@ -714,7 +697,6 @@ function initFirebaseSync() {
 function fmtR(v) { return (v>=0?'+':'−')+'R$ '+Math.abs(v).toFixed(2).replace('.',','); }
 function fmtRaw(v) { return 'R$ '+Math.abs(v).toFixed(2).replace('.',','); }
 
-// ─── NAV ──────────────────────────────────────────────────────────────────────
 function showTab(n) {
   document.querySelectorAll('.pgm-tab-content').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.pgm-nav-btn').forEach(e=>e.classList.remove('active'));
@@ -764,12 +746,10 @@ function setSessionType(t) {
   const oficialCount = S.sessions.filter(s=>s.type==='oficial').length;
   const inp = document.getElementById('new-session-num');
   if(inp) inp.value = t==='oficial' ? (oficialCount<5 ? oficialCount+1 : 'Completa') : 'Casual';
-  // Mostrar campo nome só para casual
   var nameField = document.getElementById('casual-name-field');
   if(nameField) nameField.style.display = t === 'casual' ? 'block' : 'none';
 }
 
-// ─── JOGADORES ────────────────────────────────────────────────────────────────
 function registerPlayer() {
   const inp = document.getElementById('reg-player-name');
   const name = inp.value.trim();
@@ -818,7 +798,6 @@ function renderJogadores() {
       (_adminAuth ? '<button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="removeRegisteredPlayer('+i+')" style="padding:3px 8px;font-size:11px">✕</button>' : '') +
     '</div>';
   }).join('');
-  // Adicionar eventos via JS para evitar problema de aspas
   document.querySelectorAll('.pgm-curio-player-btn').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
       e.stopPropagation();
@@ -829,7 +808,6 @@ function renderJogadores() {
 
 function showPlayerCurios(name) {
   var playerCurios = S.curiosidades.filter(function(cu){ return cu.playerName===name; });
-  // Adicionar também curiosidades de temporadas passadas
   S.pastSeasons.forEach(function(ps) {
     if(ps.curiosidades) ps.curiosidades.filter(function(cu){ return cu.playerName===name; }).forEach(function(cu){ playerCurios.push(cu); });
   });
@@ -852,8 +830,6 @@ function showPlayerCurios(name) {
   showModal(html);
 }
 
-
-// ─── CRONÔMETRO DA SESSÃO ──────────────────────────────────────────────────────
 var _timerInterval = null;
 
 function startSessionTimer() {
@@ -882,13 +858,11 @@ function toggleSessionTimer() {
   var s = S.activeSession;
   var btn = document.getElementById('timer-toggle-btn');
   if(s.pausedAt) {
-    // Retomar
     s.totalPaused = (s.totalPaused||0) + (Date.now() - s.pausedAt);
     s.pausedAt = null;
     if(btn) btn.textContent = '⏸️';
     startSessionTimer();
   } else {
-    // Pausar
     s.pausedAt = Date.now();
     if(btn) btn.textContent = '▶️';
     stopSessionTimer();
@@ -906,7 +880,6 @@ function formatDuration(ms) {
   return pad(h) + ':' + pad(m) + ':' + pad(s);
 }
 
-// ─── CURIOSIDADES ─────────────────────────────────────────────────────────────
 const CURIO_CATS = [
   { id: 'espetacular', icon: '🃁🌟', label: 'Mão Espetacular' },
   { id: 'capivarada',  icon: '🦦', label: 'Capivarada' },
@@ -960,7 +933,6 @@ function openAddCuriosidade() {
     '<div class="pgm-row-btns"><button class="pgm-btn pgm-btn-purple" style="flex:1" onclick="saveCuriosidade()">Salvar</button></div>'
   );
 
-  // Adicionar eventos aos botoes de categoria via JS (sem onclick inline)
   setTimeout(function() {
     document.querySelectorAll('.curio-cat-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
@@ -995,13 +967,11 @@ function saveCuriosidade() {
   showAlert('✨ Curiosidade de <strong>' + playerName + '</strong> registrada!');
 }
 
-
 function renderCuriosidades() {
   var noSess = document.getElementById('curio-no-session');
   var listEl  = document.getElementById('curio-list');
   var emptyEl = document.getElementById('curio-empty');
 
-  // Juntar todas as curiosidades (temporada atual + passadas)
   var pastCurios = S.pastSeasons.flatMap(function(ps){ return (ps.curiosidades||[]).map(function(cu){ return Object.assign({}, cu, {_season: ps.season}); }); });
   var all = [...S.curiosidades, ...pastCurios];
 
@@ -1009,14 +979,12 @@ function renderCuriosidades() {
   emptyEl.style.display = !all.length ? 'block' : 'none';
   if(!all.length) { listEl.innerHTML = ''; return; }
 
-  // Pegar lista única de jogadores que têm curiosidades
   var jogadores = [];
   all.forEach(function(cu) {
     if(!jogadores.includes(cu.playerName)) jogadores.push(cu.playerName);
   });
   jogadores.sort();
 
-  // Montar seletor de jogadores
   var html = '<div class="pgm-field" style="margin-bottom:0.75rem">' +
     '<label class="pgm-input-label">Ver curiosidades de</label>' +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:0.4rem" id="curio-player-filter">';
@@ -1034,10 +1002,8 @@ function renderCuriosidades() {
   listEl.innerHTML = html;
   emptyEl.style.display = 'none';
 
-  // Eventos nos botões de filtro
   document.querySelectorAll('.curio-filter-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      // Destacar botão selecionado
       document.querySelectorAll('.curio-filter-btn').forEach(function(b) {
         b.style.background = 'rgba(255,255,255,0.04)';
         b.style.borderColor = 'var(--curio-dim)';
@@ -1065,7 +1031,6 @@ function renderCuriosidades() {
       var resultEl = document.getElementById('curio-player-result');
       if(resultEl) {
         resultEl.innerHTML = resHTML;
-        // Eventos de deletar
         resultEl.querySelectorAll('.pgm-del-curio').forEach(function(db) {
           db.addEventListener('click', function() {
             deleteCuriosidade(parseInt(this.dataset.curioid));
@@ -1080,7 +1045,6 @@ function renderCuriosidades() {
 // TREINO DE DECISÃO — banco de cenários curados (pré-flop e pós-flop)
 // ═══════════════════════════════════════════════════════════════════════════
 const TREINO_HANDS = [
-  // ── RFI (ninguém agiu antes — decidir se abre) ──
   { street:'preflop', options:['fold','raise'], position:'UTG', hand:['As','Kh'], board:null, actionsBefore:[],
     question:'Todos foldaram até você. O que você faz?', correct:'raise',
     explanation:'AK é uma das mãos mais fortes do jogo — abre de qualquer posição, incluindo UTG.' },
@@ -1123,8 +1087,6 @@ const TREINO_HANDS = [
   { street:'preflop', options:['fold','raise'], position:'UTG', hand:['5d','5c'], board:null, actionsBefore:[],
     question:'Todos foldaram até você. O que você faz?', correct:'fold',
     explanation:'Par pequeno em UTG tem pouco valor de abertura — só serve bem pra tentar trinca (set-mine), o que pede posição melhor e mais gente atrás pra pagar.' },
-
-  // ── Reagindo a um raise anterior ──
   { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['Ac','Ah'], board:null, actionsBefore:['UTG deu raise para 3x'],
     question:'UTG abriu antes de você. O que você faz?', correct:'raise',
     explanation:'AA é a melhor mão do poker — sempre 3-bet contra qualquer abertura, não importa a posição do vilão.' },
@@ -1164,8 +1126,6 @@ const TREINO_HANDS = [
   { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['Kc','5c'], board:null, actionsBefore:['SB deu raise para 3x (limp-raise)'],
     question:'O SB deu um raise pequeno. O que você faz?', correct:'fold',
     explanation:'K5s tem algum valor especulativo, mas contra um raise vindo do SB (que geralmente representa força ali) não compensa pagar fora de posição.' },
-
-  // ── Pós-flop (alguém apostou, você decide) ──
   { street:'postflop', options:['fold','call','raise'], position:'BB', hand:['Th','Tc'], board:['Kd','7c','2h'], actionsBefore:['Você pagou o raise do BTN pré-flop','Oponente apostou metade do pot'],
     question:'O flop tem um Rei e o oponente apostou. O que você faz?', correct:'fold',
     explanation:'TT não bate nada nesse flop com carta alta (K) — contra uma aposta, é bluff-catch fraco demais pra continuar.' },
@@ -1202,8 +1162,6 @@ const TREINO_HANDS = [
   { street:'postflop', options:['fold','call','raise'], position:'BB', hand:['Ac','Ks'], board:['2h','3d','5c'], actionsBefore:['Você defendeu o BB','Oponente (que já tinha pagado pré-flop) apostou pequeno de forma consistente'],
     question:'O flop não bateu na sua mão (AK sem par). O que você faz?', correct:'fold',
     explanation:'Sem par e sem projeto forte, mesmo com duas cartas altas na mão, contra uma aposta consistente o correto é soltar — não dá pra continuar só na esperança da carta.' },
-
-  // ── Extras: só situações indiscutíveis (mão monstro, lixo puro, dominância clara, nuts, air total) ──
   { street:'preflop', options:['fold','raise'], position:'UTG', hand:['Kc','Kh'], board:null, actionsBefore:[],
     question:'Todos foldaram até você. O que você faz?', correct:'raise',
     explanation:'KK é a 2ª melhor mão do poker — abre de qualquer posição sem exceção.' },
@@ -1228,7 +1186,6 @@ const TREINO_HANDS = [
   { street:'preflop', options:['fold','raise'], position:'SB', hand:['Ks','Kh'], board:null, actionsBefore:[],
     question:'Todos foldaram até você. O que você faz?', correct:'raise',
     explanation:'KK abre contra qualquer oponente único — mão forte demais pra jogar diferente disso.' },
-
   { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['Kd','Kc'], board:null, actionsBefore:['UTG deu raise para 3x'],
     question:'UTG abriu antes de você. O que você faz?', correct:'raise',
     explanation:'KK sempre dá 3-bet contra qualquer abertura — só perde pra AA, e mesmo assim é forte demais pra só pagar.' },
@@ -1256,7 +1213,6 @@ const TREINO_HANDS = [
   { street:'preflop', options:['fold','call','raise'], position:'SB', hand:['Kd','4c'], board:null, actionsBefore:['CO deu raise para 2.5x'],
     question:'CO abriu antes de você. O que você faz?', correct:'fold',
     explanation:'K4o é facilmente dominado por qualquer Kx melhor no range de abertura do CO — fold evita entrar numa mão de kicker fraco.' },
-
   { street:'postflop', options:['fold','call','raise'], position:'BTN', hand:['9c','8c'], board:['7h','6c','2d'], actionsBefore:['Você pagou a abertura do CO','Oponente apostou'],
     question:'Você formou sequência feita. O que você faz?', correct:'raise',
     explanation:'98 com flop 765 forma sequência já pronta (9-8-7-6-5) — mão feita e forte, hora de dar raise e construir o pote.' },
@@ -1287,8 +1243,6 @@ const TREINO_HANDS = [
   { street:'postflop', options:['fold','call','raise'], position:'CO', hand:['Kc','Qd'], board:['2h','5c','9d'], actionsBefore:['Você pagou a abertura do UTG','Oponente apostou de forma consistente'],
     question:'Seu KQ não acertou nada nesse flop baixo. O que você faz?', correct:'fold',
     explanation:'Duas cartas altas sem par nenhum, contra pressão consistente num flop completamente baixo — fold é o padrão aqui.' },
-
-  // ── BB option (pré-flop): ninguém subiu, chegou sua vez de graça ou quase de graça ──
   { street:'preflop', options:['check','raise'], position:'BB', hand:['As','Ah'], board:null, actionsBefore:['Todos os jogadores antes de você só pagaram (call), ninguém subiu'],
     question:'Você tem a melhor mão possível e múltiplos jogadores já estão no pote. O que você faz?', correct:'raise',
     explanation:'Com AA e vários jogadores já dentro do pote, subir agora isola e constrói um pote maior com a melhor mão do poker — sempre correto.' },
@@ -1301,8 +1255,6 @@ const TREINO_HANDS = [
   { street:'preflop', options:['check','raise'], position:'BB', hand:['Jc','4h'], board:null, actionsBefore:['Um jogador deu limp (só pagou) antes de você'],
     question:'Um jogador só pagou antes de você. O que você faz?', correct:'check',
     explanation:'J4o não tem força nenhuma pra justificar uma aposta — check e ver o flop de graça junto com o limper é o padrão aqui.' },
-
-  // ── Pós-flop: o oponente checou antes de você — decidir entre check ou apostar ──
   { street:'postflop', options:['check','raise'], position:'CO', hand:['7h','7c'], board:['9d','7d','2s'], actionsBefore:['Você pagou a abertura do UTG','Oponente deu check'],
     question:'Você tem trinca escondida e o oponente deu check. O que você faz?', correct:'raise',
     explanation:'Trinca é uma mão muito forte e bem disfarçada — sempre apostar pra extrair valor quando o oponente abre espaço com um check.' },
@@ -1316,6 +1268,58 @@ const TREINO_HANDS = [
     question:'Você tem overpair (AA) num flop seco e o oponente deu check. O que você faz?', correct:'raise',
     explanation:'Overpair num flop seco e baixo deve sempre apostar quando o oponente permite — protege contra cartas futuras e constrói o pote.' },
 ];
+
+// ─── RANGE DE ABERTURA (referência simplificada por posição, sem dados de solver) ──
+const RANKS = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
+const RANGE_TIERS = {
+  pairs:  { AA:0, KK:0, QQ:0, JJ:0, TT:1, '99':1, '88':2, '77':2, '66':3, '55':3, '44':4, '33':4, '22':4 },
+  suited: { AKs:0, AQs:0, AJs:1, ATs:1, KQs:1, KJs:2, QJs:2, JTs:2, A9s:2, KTs:2, QTs:3, T9s:3, A8s:3, A7s:3, A6s:3, A5s:2, A4s:3, A3s:3, A2s:3, K9s:3, Q9s:3, J9s:3, T8s:3, '98s':3, '87s':3, '76s':4, '65s':4, '54s':4, K8s:4, K7s:4, K6s:4, K5s:4, Q8s:4, J8s:4, T7s:4, '97s':4, '86s':4, '75s':4, '64s':4, '43s':4 },
+  offsuit:{ AKo:0, AQo:1, AJo:2, KQo:2, ATo:3, KJo:3, QJo:3, KTo:4, QTo:4, JTo:4, A9o:4, A8o:4, K9o:4 }
+};
+function getRangeTier(rank1, rank2, suited) {
+  var hi = RANKS.indexOf(rank1) <= RANKS.indexOf(rank2) ? rank1 : rank2;
+  var lo = hi === rank1 ? rank2 : rank1;
+  if(hi === lo) { return RANGE_TIERS.pairs[hi+hi]; }
+  var key = hi + lo + (suited ? 's' : 'o');
+  var table = suited ? RANGE_TIERS.suited : RANGE_TIERS.offsuit;
+  return table[key] !== undefined ? table[key] : 99;
+}
+function tierLabel(tier) {
+  if(tier === 0) return 'Abre de qualquer posição';
+  if(tier === 1) return 'Abre a partir do Hijack';
+  if(tier === 2) return 'Abre a partir do Cutoff';
+  if(tier === 3) return 'Abre a partir do Botão';
+  if(tier === 4) return 'Só abre no Small Blind (1x1 contra o BB)';
+  return 'Fold em qualquer posição inicial';
+}
+function tierColor(tier) {
+  if(tier === 0) return '#1f8a4c';
+  if(tier === 1) return '#4caf6e';
+  if(tier === 2) return '#8bb84a';
+  if(tier === 3) return '#c9a84c';
+  if(tier === 4) return '#c97a4a';
+  return 'rgba(255,255,255,0.05)';
+}
+
+function renderRangeMatrix(heroRank1, heroRank2, heroSuited) {
+  var heroHi = RANKS.indexOf(heroRank1) <= RANKS.indexOf(heroRank2) ? heroRank1 : heroRank2;
+  var heroLo = heroHi === heroRank1 ? heroRank2 : heroRank1;
+  var rows = '';
+  for(var i = 0; i < 13; i++) {
+    var cells = '';
+    for(var j = 0; j < 13; j++) {
+      var r1 = RANKS[i], r2 = RANKS[j];
+      var suited = j > i;
+      var tier = getRangeTier(r1, r2, suited);
+      var label = i === j ? r1 + r2 : (suited ? r1 + r2 + 's' : r2 + r1 + 'o');
+      var isHero = (i === j && r1 === heroHi && heroHi === heroLo) ||
+                   (i !== j && ((r1 === heroHi && r2 === heroLo) || (r1 === heroLo && r2 === heroHi)) && suited === heroSuited);
+      cells += '<div style="aspect-ratio:1;background:' + tierColor(tier) + ';border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;color:' + (tier<50?'rgba(0,0,0,0.55)':'transparent') + ';' + (isHero ? 'outline:2px solid #fff;outline-offset:-1px;position:relative;z-index:1' : '') + '">' + (tier<50?label:'') + '</div>';
+    }
+    rows += cells;
+  }
+  return '<div style="display:grid;grid-template-columns:repeat(13,1fr);gap:1px;background:rgba(0,0,0,0.3);padding:3px;border-radius:8px">' + rows + '</div>';
+}
 
 var _treinoAtual = null;
 
@@ -1336,7 +1340,6 @@ function showPosicaoInfo(pos) {
   if(!info) return;
 
   var el = document.getElementById('pgm-modal');
-  // Se o modal já estava aberto mostrando outra posição, guarda ela no histórico antes de trocar
   if(el.style.display === 'block' && el.dataset.posicaoAtual && el.dataset.posicaoAtual !== pos) {
     _posicaoHistorico.push(el.dataset.posicaoAtual);
   }
@@ -1364,7 +1367,7 @@ function voltarPosicaoInfo() {
   if(!_posicaoHistorico.length) return;
   var posAnterior = _posicaoHistorico.pop();
   var el = document.getElementById('pgm-modal');
-  el.dataset.posicaoAtual = ''; // evita empilhar de novo ao voltar
+  el.dataset.posicaoAtual = '';
   showPosicaoInfo(posAnterior);
 }
 
@@ -1374,6 +1377,7 @@ function closePosicaoInfo() {
 }
 var _treinoRespondido = false;
 var _treinoScore = { correct: 0, total: 0, streak: 0, best: 0 };
+var _treinoModoAvancado = false;
 
 function _treinoParseCard(c) {
   var rank = c.slice(0, -1);
@@ -1396,13 +1400,69 @@ function _linkPosicoesNoTexto(texto) {
   });
 }
 
+// ─── MESA VISUAL ───────────────────────────────────────────────────────────────
+const MESA_SEATS = ['UTG','HJ','CO','BTN','SB','BB'];
+const MESA_SEAT_POS = {
+  'UTG': { x: 8,  y: 68 },
+  'HJ':  { x: 26, y: 16 },
+  'CO':  { x: 74, y: 16 },
+  'BTN': { x: 92, y: 68 },
+  'SB':  { x: 68, y: 96 },
+  'BB':  { x: 32, y: 96 }
+};
+
+function _mesaParseAcoes(actionsBefore) {
+  var acoes = {};
+  (actionsBefore || []).forEach(function(txt) {
+    MESA_SEATS.forEach(function(pos) {
+      if(txt.indexOf(pos) === 0 || txt.indexOf(pos + ' ') === 0) {
+        var label = 'Agiu';
+        if(/raise|steal|limp-raise/i.test(txt)) label = /steal/i.test(txt) ? 'Raise (steal)' : 'Raise';
+        else if(/pagou|call/i.test(txt)) label = 'Call';
+        else if(/limp/i.test(txt)) label = 'Limp';
+        else if(/check/i.test(txt)) label = 'Check';
+        acoes[pos] = label;
+      }
+    });
+  });
+  return acoes;
+}
+
+function renderMesaVisual(hand) {
+  var acoes = _mesaParseAcoes(hand.actionsBefore);
+  var heroPos = hand.position;
+  var isPostflop = hand.street === 'postflop';
+
+  var seatsHTML = MESA_SEATS.map(function(pos) {
+    var coord = MESA_SEAT_POS[pos];
+    var isHero = pos === heroPos;
+    var acao = acoes[pos];
+    var seatOrder = MESA_SEATS.indexOf(pos);
+    var heroOrder = MESA_SEATS.indexOf(heroPos);
+    var aindaNaMao = isHero || acao || seatOrder > heroOrder || (isPostflop);
+    var dim = !aindaNaMao;
+
+    return '<div style="position:absolute;left:' + coord.x + '%;top:' + coord.y + '%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;opacity:' + (dim?0.3:1) + '">' +
+      (acao ? '<div style="font-size:8px;font-weight:900;color:' + (acao.indexOf('Raise')===0?'#e8c97a':'#8fbf9f') + ';background:rgba(0,0,0,0.5);border-radius:6px;padding:1px 5px;white-space:nowrap;margin-bottom:1px">' + acao + '</div>' : '') +
+      '<div style="width:' + (isHero?34:26) + 'px;height:' + (isHero?34:26) + 'px;border-radius:50%;background:' + (isHero?'rgba(232,201,122,0.25)':'rgba(255,255,255,0.06)') + ';border:2px solid ' + (isHero?'#e8c97a':'rgba(255,255,255,0.2)') + ';display:flex;align-items:center;justify-content:center;font-size:' + (isHero?11:9) + 'px;font-weight:900;color:' + (isHero?'#e8c97a':'#c8dcc8') + '">' + pos + '</div>' +
+    '</div>';
+  }).join('');
+
+  return '<div style="position:relative;width:100%;aspect-ratio:16/9;background:radial-gradient(ellipse at center, #1a4028 0%, #0d2218 75%);border:1px solid var(--border);border-radius:50%/38%;overflow:visible">' +
+    seatsHTML +
+  '</div>';
+}
+
 function nextTreinoHand() {
   var h = TREINO_HANDS[Math.floor(Math.random() * TREINO_HANDS.length)];
   _treinoAtual = h;
   _treinoRespondido = false;
+  _treinoModoAvancado = false;
 
   document.getElementById('treino-pos-badge').textContent = h.position;
   document.getElementById('treino-street-badge').textContent = h.street === 'preflop' ? 'Pré-flop' : 'Pós-flop';
+
+  document.getElementById('treino-mesa-wrap').innerHTML = renderMesaVisual(h);
 
   var logEl = document.getElementById('treino-action-log');
   logEl.innerHTML = h.actionsBefore.length
@@ -1422,6 +1482,9 @@ function nextTreinoHand() {
   document.getElementById('treino-question').textContent = h.question;
   document.getElementById('treino-feedback').style.display = 'none';
   document.getElementById('treino-next-btn').style.display = 'none';
+  var rangeWrap = document.getElementById('treino-range-wrap');
+  rangeWrap.style.display = 'none';
+  rangeWrap.innerHTML = '';
 
   var btnDefs = {
     fold:  { label: 'Fold',  cls: 'pgm-btn-danger' },
@@ -1467,6 +1530,35 @@ function answerTreino(action) {
 
   document.getElementById('treino-actions').style.display = 'none';
   document.getElementById('treino-next-btn').style.display = 'block';
+
+  var rangeWrap = document.getElementById('treino-range-wrap');
+  if(_treinoAtual.street === 'preflop') {
+    var r1 = _treinoAtual.hand[0].slice(0,-1);
+    var r2 = _treinoAtual.hand[1].slice(0,-1);
+    var suited = _treinoAtual.hand[0].slice(-1) === _treinoAtual.hand[1].slice(-1);
+    var tier = getRangeTier(r1, r2, suited);
+    rangeWrap.innerHTML =
+      '<button class="pgm-btn pgm-btn-sm" style="width:100%;margin-bottom:0.6rem" onclick="toggleTreinoAvancado()">' +
+        (_treinoModoAvancado ? '▲ Esconder matriz de range' : '▼ Ver matriz de range (modo avançado)') +
+      '</button>' +
+      '<div id="treino-range-content" style="display:' + (_treinoModoAvancado?'block':'none') + '">' +
+        '<div style="font-size:11px;font-weight:800;color:var(--gold-light);text-align:center;margin-bottom:6px">' + tierLabel(tier) + '</div>' +
+        renderRangeMatrix(r1, r2, suited) +
+        '<div style="font-size:9px;font-weight:700;color:var(--text-dim);text-align:center;margin-top:6px;line-height:1.5">Referência simplificada de abertura por posição (não é saída de solver) · sua mão está com o contorno branco</div>' +
+      '</div>';
+    rangeWrap.style.display = 'block';
+  } else {
+    rangeWrap.style.display = 'none';
+    rangeWrap.innerHTML = '';
+  }
+}
+
+function toggleTreinoAvancado() {
+  _treinoModoAvancado = !_treinoModoAvancado;
+  var content = document.getElementById('treino-range-content');
+  if(content) content.style.display = _treinoModoAvancado ? 'block' : 'none';
+  var btn = document.querySelector('#treino-range-wrap button');
+  if(btn) btn.textContent = _treinoModoAvancado ? '▲ Esconder matriz de range' : '▼ Ver matriz de range (modo avançado)';
 }
 
 function deleteCuriosidade(id) {
@@ -1493,7 +1585,6 @@ function doDeleteCuriosidade(id) {
 
 function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
 
-// ─── SESSÃO ──────────────────────────────────────────────────────────────────
 function getKnownPlayers() {
   const names = new Set(S.players.map(p=>p.name));
   S.sessions.forEach(s=>s.players.forEach(p=>names.add(p.name)));
@@ -1544,7 +1635,6 @@ function startSession() {
   var label = (labelEl && labelEl.value.trim()) ? labelEl.value.trim() : (type==='torneio' ? 'Torneio' : null);
   var num   = type==='oficial' ? oficialCount+1 : null;
 
-  // Torneio clássico: validar cacife e premiação
   var tourneyMode = null, startingStack = null, payout = null;
   if(type === 'torneio') {
     tourneyMode = S.newSession.tourneyMode || 'classico';
@@ -1564,7 +1654,6 @@ function startSession() {
     label: label, curiosidades: [], startedAt: Date.now(), pausedAt: null, totalPaused: 0,
     players: S.newSession.players.map(function(p){ return { name: p.name, buyin: buyin, rebuys: [], finalStack: null }; }) };
   S.newSession = { type: 'oficial', players: [] };
-  // Limpar campo nome
   if(labelEl) labelEl.value = '';
   var nameField = document.getElementById('casual-name-field');
   if(nameField) nameField.style.display = 'none';
@@ -1649,8 +1738,6 @@ function confirmLeftTable(idx) {
   savePatch({ activeSession: S.activeSession });
   closeModal();
 }
-
-
 
 function openRebuyModal(idx) {
   const p = S.activeSession.players[idx];
@@ -1768,7 +1855,6 @@ function openFinishSession() {
   var totalIn = s.players.reduce(function(a,p){ return a + p.buyin + p.rebuys.reduce(function(r,v){ return r+v; }, 0); }, 0);
   var sessionLabel = s.num ? 'Sessão ' + s.num : (s.label || 'Sessão Casual');
 
-  // ── Torneio clássico: pede as fichas finais de cada jogador (posição é calculada) ──
   if(s.tourneyMode === 'classico') {
     var payoutInfo = (s.payout||[]).map(function(pct, i){
       return (i+1) + 'º: ' + fmtRaw(totalIn * pct / 100) + ' (' + pct + '%)';
@@ -1843,8 +1929,6 @@ function finishSessionClassico() {
   var totalIn = s.players.reduce(function(a,p){ return a + p.buyin + (p.rebuys||[]).reduce(function(r,v){ return r+v; }, 0); }, 0);
   var payout = s.payout || [];
 
-  // Calcular a posição automaticamente pelas fichas finais (mais fichas = melhor posição)
-  // Empate em fichas = mesma posição, no padrão esportivo já usado no resto do app (1-2-3-3-5)
   var indices = s.players.map(function(p, i){ return i; });
   indices.sort(function(a, b){ return chips[b] - chips[a]; });
 
@@ -1866,8 +1950,8 @@ function finishSessionClassico() {
     p.place = place;
     p.finalChips = chips[idx];
     p.premio = premio;
-    p.finalStack = premio; // pra compatibilidade com telas que usam finalStack
-    p.profit = premio - investido; // desconta buy-in + todos os cacifes (rebuys) que a pessoa pegou
+    p.finalStack = premio;
+    p.profit = premio - investido;
   });
 
   s.duration = s.startedAt ? (Date.now() - s.startedAt) : null;
@@ -1892,9 +1976,7 @@ function finishSessionCommon(s) {
   document.getElementById('active-session-state').style.display = 'none';
   resetNewSessionForm(); updateOverview();
   savePatch({ sessions: S.sessions, activeSession: null, players: S.players });
-  
-  // Modal de resultado com opção de compartilhar
-  // No clássico ordena pela colocação; no normal, pelo lucro
+
   const sorted = [...sessaoFinalizada.players].sort(function(a,b){
     if(sessaoFinalizada.tourneyMode === 'classico' && a.place && b.place) return a.place - b.place;
     return (b.profit||0)-(a.profit||0);
@@ -1912,7 +1994,7 @@ function finishSessionCommon(s) {
       '<span style="font-family:DM Mono,monospace;font-size:14px;color:' + (pr>=0?'var(--positive)':'var(--negative)') + '">' + (pr>=0?'+':'') + 'R$ ' + Math.abs(pr).toFixed(2).replace('.',',') + '</span>' +
     '</div>';
   }).join('');
-  
+
   var durStr = sessaoFinalizada.duration ? '⏱️ ' + formatDuration(sessaoFinalizada.duration) : '';
 
   showModal(
@@ -1927,7 +2009,6 @@ function finishSessionCommon(s) {
   setTimeout(function(){
     var btn = document.getElementById('btn-share-result');
     if(btn) btn.addEventListener('click', function(){ compartilharResultado(sessaoFinalizada); });
-    // Confete sobre o vencedor
     var winnerRow = document.querySelector('.pgm-winner-row');
     if(winnerRow) {
       var cores = ['#ffd700','#c9a84c','#e8c97a','#34d399','#fff'];
@@ -1976,7 +2057,6 @@ function updateOverview() {
   if(ni) { const t=S.newSession?S.newSession.type:'oficial'; ni.value=t==='oficial'?(n<5?n+1:'Completa'):'— Casual'; }
 }
 
-// ─── RANKING ──────────────────────────────────────────────────────────────────
 function getAllPlayerStats() {
   const map={};
   S.sessions.forEach(sess=>{
@@ -2027,13 +2107,11 @@ function renderAcumulado() {
 
   const medals = ['🥇','🥈','🥉'];
 
-  // ─── RANKING DE PONTOS ───────────────────────────────────────────────────────
   const rankedPts = all.sort(function(a,b){
     if(b.avg !== a.avg) return b.avg - a.avg;
     if(b.wins !== a.wins) return b.wins - a.wins;
     return b.profit - a.profit;
   });
-
 
   document.getElementById('acumulado-list').innerHTML = rankedPts.length
     ? (function(){
@@ -2055,14 +2133,10 @@ function renderAcumulado() {
       })()
     : '<div style="font-size:11px;color:var(--text-dim);padding:0.5rem 0">Nenhuma sessão oficial ainda</div>';
 
-
-
-  // ─── RANKING DE LUCRO ────────────────────────────────────────────────────────
   const rankedLucro = all.sort(function(a,b){
     if(b.profit !== a.profit) return b.profit - a.profit;
     return b.sessions - a.sessions;
   });
-
 
   document.getElementById('acumulado-lucro-list').innerHTML = rankedLucro.length
     ? (function(){
@@ -2083,10 +2157,7 @@ function renderAcumulado() {
       }).join('');
       })()
     : '<div style="font-size:11px;color:var(--text-dim);padding:0.5rem 0">Nenhuma sessão oficial ainda</div>';
-
-
 }
-
 
 function getPontosPosicao(pos) {
   if(pos === 1) return 5;
@@ -2105,8 +2176,6 @@ function getPontosTorneio(pos) {
   return 0;
 }
 
-// Dado um array já ordenado (do melhor pro pior) e uma função que extrai o valor de cada item,
-// retorna as posições visuais (1,2,2,4...) respeitando empate — mesmo padrão esportivo usado no ranking.
 function getDisplayPositions(sortedArr, getValue) {
   var positions = new Array(sortedArr.length);
   var i = 0;
@@ -2122,7 +2191,6 @@ function getDisplayPositions(sortedArr, getValue) {
 }
 
 function calcularPontosComEmpate(players, isTorneio) {
-  // Torneio clássico: posições calculadas pelas fichas finais (podem empatar entre si)
   var temPlace = players.length && players.every(function(p){ return p.place; });
   if(temPlace) {
     return players.map(function(p) {
@@ -2130,16 +2198,13 @@ function calcularPontosComEmpate(players, isTorneio) {
       return { name: p.name, profit: p.profit||0, pos: p.place, pts: pts };
     });
   }
-  // Ordenar por lucro decrescente
   var sorted = [...players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
   var resultado = [];
   var i = 0;
   while(i < sorted.length) {
     var lucroAtual = sorted[i].profit || 0;
     var j = i;
-    // Contar quantos têm o mesmo lucro
     while(j < sorted.length && (sorted[j].profit||0) === lucroAtual) j++;
-    // Todos de i até j-1 ficam na posição i+1
     var pos = i + 1;
     var pts = isTorneio ? getPontosTorneio(pos) : getPontosPosicao(pos);
     for(var k = i; k < j; k++) {
@@ -2152,7 +2217,6 @@ function calcularPontosComEmpate(players, isTorneio) {
 function renderRanking() {
   const oficiais = S.sessions.filter(function(s){ return s.type==='oficial'; });
   const map = {};
-  // Mapa de sessões por jogador para calcular qual descartar
   const sessoesPorJogador = {};
 
   oficiais.forEach(function(sess) {
@@ -2170,17 +2234,15 @@ function renderRanking() {
     });
   });
 
-  // Descartar a pior sessão (menos pontos) de cada jogador que tem 2+ sessões
-  // Guardar globalmente qual sessão foi descartada por jogador (pra mostrar no histórico)
   window._sessaoDescartada = {};
   Object.keys(sessoesPorJogador).forEach(function(nome) {
     var sessoes = sessoesPorJogador[nome];
-    if(sessoes.length < 5) return; // só descarta na última rodada (temporada completa)
+    if(sessoes.length < 5) return;
     var pior = sessoes.reduce(function(min, s) { return s.pts < min.pts ? s : min; }, sessoes[0]);
     window._sessaoDescartada[nome] = pior.uid;
     map[nome].points -= pior.pts;
-    map[nome].sessions--; // sessões contadas no ranking excluem a descartada
-    if(pior.pos === 1) map[nome].wins--; // se a descartada foi vitória, remove o win
+    map[nome].sessions--;
+    if(pior.pos === 1) map[nome].wins--;
   });
 
   const all = Object.values(map).map(function(p) {
@@ -2217,7 +2279,6 @@ function renderRanking() {
     : '<div class="pgm-empty-state"><div class="suit">♠</div>Nenhuma sessão de Liga registrada ainda</div>';
 }
 
-// ─── HISTÓRICO ────────────────────────────────────────────────────────────────
 function renderHistorico() {
   var el = document.getElementById('historico-list');
   if(!S.sessions.length && !S.pastSeasons.length) {
@@ -2253,19 +2314,16 @@ function renderHistorico() {
 
   var html = '';
 
-  // Tópico 1: Sessões
   html += '<div class="pgm-section-title">Sessões</div>';
   var sessoesCards = catCard('🏆', 'Sessões de Liga — Temporada ' + S.season, oficiaisIdx.length, 'liga', 'gold') +
                       catCard('🥃', 'Sessões Casuais', casuaisIdx.length, 'casual', 'casual');
   html += sessoesCards ? '<div class="pgm-hist-cat-grid">' + sessoesCards + '</div>' : emptyNote('Nenhuma sessão ainda.');
 
-  // Tópico 2: Temporadas de Liga
   html += '<div class="pgm-section-title" style="margin-top:1.25rem">Temporadas de Liga</div>';
   html += S.pastSeasons.length
     ? '<div class="pgm-hist-cat-grid">' + catCard('📦', 'Temporadas Anteriores', S.pastSeasons.length, 'temporadas', 'dim') + '</div>'
     : emptyNote('Nenhuma temporada arquivada ainda.');
 
-  // Tópico 3: Torneios (tópico sempre aparece, mesmo sem nenhum torneio finalizado)
   html += '<div class="pgm-section-title" style="margin-top:1.25rem">Torneios</div>';
   html += torneiosIdx.length
     ? '<div class="pgm-hist-cat-grid">' + catCard('🥊', 'Torneios', torneiosIdx.length, 'torneio', 'torneio') + '</div>'
@@ -2398,7 +2456,6 @@ function showSessionDetail(sessionIndex) {
   var s = S.sessions[sessionIndex];
   if(!s) return;
 
-  // Sanitizar rebuys
   s.players.forEach(function(p){ if(!p.rebuys) p.rebuys = []; });
 
   var date = s.date ? new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR') : '—';
@@ -2410,7 +2467,6 @@ function showSessionDetail(sessionIndex) {
   var displayPos = getDisplayPositions(sorted, function(p){ return isClassico ? p.place : (p.profit||0); });
   var medals = ['🥇','🥈','🥉'];
 
-  // Colunas base + coluna extra pro botão de remover (só admin)
   var baseCols = isClassico ? '1fr 65px 65px 75px' : '1fr 90px 90px';
   var gridCols = baseCols + (_adminAuth ? ' 26px' : '');
 
@@ -2418,7 +2474,6 @@ function showSessionDetail(sessionIndex) {
     var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
     var pr = p.profit || 0;
     var pos = displayPos[i];
-    // Verificar se essa sessão foi descartada pra esse jogador
     var descartada = window._sessaoDescartada && s._uid && window._sessaoDescartada[p.name] === s._uid;
     var origIdx = s.players.indexOf(p);
     var delBtn = _adminAuth ? '<button class="pgm-close-btn" onclick="confirmRemovePlayerFromSession(' + sessionIndex + ',' + origIdx + ')" title="Remover jogador desta sessão" style="color:var(--negative);font-size:14px">✕</button>' : '';
@@ -2498,7 +2553,6 @@ function doRemovePlayerFromSession(sessionIndex, playerIndex) {
   if(!p) return;
   var nome = p.name;
   s.players.splice(playerIndex, 1);
-  // Remover curiosidades desse jogador especificamente nesta sessão
   if(s.curiosidades) s.curiosidades = s.curiosidades.filter(function(c){ return c.playerName !== nome; });
   S.curiosidades = S.curiosidades.filter(function(c){
     var mesmaSessao = (c.sessionId === s.num) || (c.sessionId === ('casual-'+s.date)) || (c.sessionUid && c.sessionUid === s._uid);
@@ -2515,7 +2569,6 @@ function showSeasonDetail(idx) {
   var oficiais = ps.sessions.filter(function(s){ return s.type==='oficial'; });
   var curios = ps.curiosidades || [];
 
-  // ── Calcular ranking final da temporada pra montar o pódio ──
   var rankMap = {};
   oficiais.forEach(function(sess) {
     if(!sess.players || !sess.players.length) return;
@@ -2534,7 +2587,6 @@ function showSeasonDetail(idx) {
     return avgB !== avgA ? avgB - avgA : b.wins - a.wins;
   });
 
-  // ── Pódio HTML ──
   var medalColors = [
     { border:'rgba(255,215,0,0.5)', bg:'rgba(255,215,0,0.12)', color:'#ffd700' },
     { border:'rgba(192,192,192,0.4)', bg:'rgba(192,192,192,0.1)', color:'#c0c0c0' },
@@ -2545,7 +2597,6 @@ function showSeasonDetail(idx) {
   if(rankFinal.length >= 2) {
     var dpPodio = getDisplayPositions(rankFinal, function(p){ return (p.sessions>0?p.points/p.sessions:0).toFixed(3)+'|'+p.wins; });
     var top3 = rankFinal.slice(0, Math.min(3, rankFinal.length));
-    // Reordenar: 2º, 1º, 3º (visual de pódio)
     var ordem = top3.length === 1 ? [0] : top3.length === 2 ? [1, 0] : [1, 0, 2];
     podioHTML = '<div style="margin-bottom:1rem">' +
       '<div class="pgm-section-title" style="margin-bottom:8px">Pódio da Temporada</div>' +
@@ -2553,7 +2604,7 @@ function showSeasonDetail(idx) {
       ordem.map(function(i) {
         var p = top3[i];
         if(!p) return '';
-        var realPos = dpPodio[i]; // posição real considerando empate (1, 2 ou 3 — pode repetir)
+        var realPos = dpPodio[i];
         var mc = medalColors[realPos-1] || medalColors[2];
         var initials = p.name.slice(0,2).toUpperCase();
         var photo = getPlayerPhoto(p.name);
@@ -2636,11 +2687,6 @@ function showSeasonDetail(idx) {
   }, 80);
 }
 
-
-
-
-
-// ─── MODAL ────────────────────────────────────────────────────────────────────
 function showModal(html) { const el=document.getElementById('pgm-modal'); el.innerHTML=`<div class="pgm-modal-backdrop"><div class="pgm-modal">${html}</div></div>`; el.style.display='block'; }
 function closeModal() { const el=document.getElementById('pgm-modal'); el.style.display='none'; el.innerHTML=''; }
 
@@ -2669,7 +2715,6 @@ function showRulesGuide() {
 }
 function showAlert(msg) { showModal(`<div style="font-size:14px;font-weight:800;color:var(--cream);margin-bottom:1rem">${msg}</div><button class="pgm-btn" onclick="closeModal()">Ok</button>`); }
 
-// ─── ADMIN ────────────────────────────────────────────────────────────────────
 let _adminClicks = 0;
 let _adminTimer = null;
 let _adminAuth = false;
@@ -2678,7 +2723,6 @@ function adminClick() {
   _adminClicks++;
   clearTimeout(_adminTimer);
   _adminTimer = setTimeout(() => { _adminClicks = 0; }, 1200);
-  // Feedback visual sutil
   const el = document.getElementById('admin-trigger');
   if(el) { el.style.opacity = '0.5'; setTimeout(() => { el.style.opacity = '1'; }, 150); }
   if(_adminClicks >= 3) {
@@ -2914,7 +2958,6 @@ function adminConfirmDelete(sessionIndex) {
 }
 
 function apagarCuriosidadesDaSessao(s) {
-  // Remove curiosidades relacionadas a uma sessão pelos identificadores disponíveis
   S.curiosidades = S.curiosidades.filter(function(c) {
     if(s._uid && c.sessionUid && c.sessionUid === s._uid) return false;
     if(s.num && c.sessionId === s.num) return false;
@@ -2987,16 +3030,8 @@ function doAdminDeleteSeason(idx) {
   closeModal();
 }
 
-
 document.addEventListener('click', e=>{ const b=e.target.closest('.pgm-modal-backdrop'); if(b&&e.target===b) closeModal(); });
 
-// ─── SENHA ────────────────────────────────────────────────────────────────────
-
-
-
-
-
-// ─── CONEXÃO ──────────────────────────────────────────────────────────────────
 function updateConnectionStatus() {
   var pill = document.getElementById('offline-pill');
   if(!pill) return;
@@ -3022,13 +3057,11 @@ window.addEventListener('offline', function() {
   showOfflineToast();
 });
 
-// Interceptar save() pra mostrar toast quando offline
 var _originalSave = null;
 function initConnectionMonitor() {
   updateConnectionStatus();
 }
 
-// ─── FOTOS DE JOGADORES ───────────────────────────────────────────────────────
 function getPlayerPhoto(name) {
   var p = S.players.find(function(x){ return x.name === name; });
   return p && p.photo ? p.photo : null;
@@ -3081,7 +3114,6 @@ function compressAndSavePhoto(name, file) {
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       var base64 = canvas.toDataURL('image/jpeg', 0.75);
 
-      // Salvar no player
       var p = S.players.find(function(x){ return x.name === name; });
       if(p) {
         p.photo = base64;
@@ -3107,7 +3139,6 @@ function removePlayerPhoto(encodedName) {
     closeModal();
   }
 }
-
 
 function compartilharResultado(sessao) {
   const canvas = document.createElement('canvas');
@@ -3186,14 +3217,12 @@ function compartilharResultado(sessao) {
   canvas.toBlob(function(blob) {
     var fileName = 'botica-resultado-' + (sessao.date||'sessao') + '.png';
 
-    // Web Share API — abre direto o painel de compartilhamento do celular (WhatsApp, etc)
     if(navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'image/png' })] })) {
       var file = new File([blob], fileName, { type: 'image/png' });
       navigator.share({
         files: [file],
         title: 'Botica do Poker — Resultado',
       }).catch(function(e) {
-        // Usuário cancelou ou erro — fallback pra download
         if(e.name !== 'AbortError') {
           var url = URL.createObjectURL(blob);
           var a = document.createElement('a');
@@ -3202,7 +3231,6 @@ function compartilharResultado(sessao) {
         }
       });
     } else {
-      // Navegador sem suporte a Web Share — download normal
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url; a.download = fileName; a.click();
@@ -3212,7 +3240,6 @@ function compartilharResultado(sessao) {
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
-  // ─── SENHA ────────────────────────────────────────────────────────────────
   const senhaScreen = document.getElementById('senha-screen');
   const appDiv = document.getElementById('app');
   const senhaInput = document.getElementById('senha-input');
@@ -3251,7 +3278,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     setTimeout(()=>{ err.textContent=''; }, 2000);
   };
 
-  // ─── INICIAR APP ──────────────────────────────────────────────────────────
   function iniciarApp() {
     document.getElementById('new-player-name').addEventListener('keydown', e=>{ if(e.key==='Enter') addPlayer(); });
     document.getElementById('reg-player-name').addEventListener('keydown', e=>{ if(e.key==='Enter') registerPlayer(); });
