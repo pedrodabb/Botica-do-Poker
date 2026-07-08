@@ -300,20 +300,16 @@
       .pgm-card { padding: 0.75rem; }
     }
 
-    /* Aba Praticar — layout mais largo no PC (não afeta as outras abas nem o mobile) */
+    /* Aba Praticar — layout no PC: compacto pra caber na tela sem rolagem */
     @media (min-width: 860px) {
-      body.treino-wide #app { max-width: 900px; }
+      body.treino-wide #app { max-width: 640px; }
       body.treino-wide .pgm-content { display: flex; justify-content: center; }
-      body.treino-wide #tab-treino.active { max-width: 720px; width: 100%; margin: 0 auto; }
-      body.treino-wide #treino-card { padding: 1.5rem 1.75rem; }
-      body.treino-wide #treino-mesa-wrap { max-width: 520px; margin: 0 auto 0.85rem; }
-      body.treino-wide .treino-card-visual { width: 64px; height: 88px; }
-      body.treino-wide .treino-card-visual .rank { font-size: 24px; }
-      body.treino-wide .treino-card-visual .suit { font-size: 20px; }
-      body.treino-wide .treino-card-visual.small { width: 52px; height: 72px; }
-      body.treino-wide #treino-question { font-size: 15px; }
-      body.treino-wide #treino-actions .pgm-btn { font-size: 14px; padding: 0.75rem 1.1rem; }
-      body.treino-wide #treino-range-wrap { max-width: 420px; margin: 0.85rem auto 0; }
+      body.treino-wide #tab-treino.active { max-width: 560px; width: 100%; margin: 0 auto; }
+      body.treino-wide #treino-card { padding: 1rem 1.25rem; }
+      /* mesa limitada em largura -> altura proporcional menor, não empurra o conteúdo */
+      body.treino-wide #treino-mesa-wrap { max-width: 340px; margin: 0 auto 0.7rem; }
+      body.treino-wide #treino-question { font-size: 14px; margin: 0.7rem 0; }
+      body.treino-wide #treino-range-wrap { max-width: 380px; margin: 0.7rem auto 0; }
     }
   </style>
 </head>
