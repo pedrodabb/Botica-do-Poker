@@ -300,12 +300,17 @@
       .pgm-card { padding: 0.75rem; }
     }
 
-    /* Aba Praticar — no PC ganha uma coluna um pouco mais larga pra leitura e botões,
-       mas a MESA tem tamanho fixo definido direto no HTML (JS), então nunca cresce
-       mesmo que esta regra não seja aplicada por qualquer motivo (largura de janela,
-       cache, etc). Regra simples e única — sem flex, sem condições cruzadas. */
-    body.treino-wide #app { max-width: 560px; margin: 0 auto; }
-    body.treino-wide #tab-treino.active { max-width: 100%; }
+    /* Aba Praticar: a mesa tem tamanho fixo (240px) definido direto no HTML (JS),
+       então nunca cresce e o conteúdo cabe sem rolagem. O #app NÃO é alterado aqui,
+       pra não desalinhar header/navbar nas outras abas. */
+
+    /* PC (mouse, sem toque): os botões da navbar se distribuem pra caber TODOS sem
+       cortar e sem rolagem — no mobile a barra continua deslizável com o dedo. */
+    @media (hover: hover) and (pointer: fine) {
+      .pgm-nav { overflow-x: visible; }
+      .pgm-nav-btn { flex: 1 1 0; padding: 0.7rem 0.3rem; font-size: 11px; min-width: 0; }
+      .pgm-nav.admin-mode .pgm-nav-btn { font-size: 10px; padding: 0.7rem 0.2rem; }
+    }
   </style>
 </head>
 <body>
