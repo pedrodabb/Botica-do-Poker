@@ -1308,6 +1308,27 @@ const TREINO_HANDS = [
   { street:'postflop', options:['check','bet'], position:'BTN', hand:['6d','6c'], board:['Kh','Jd','9h'], actionsBefore:['Você pagou a abertura do CO','Oponente deu check'],
     question:'Seu par de 6 não bate nada nesse flop de cartas altas e o oponente deu check. O que você faz?', correct:'check',
     explanation:'Sem equity real contra um flop com 3 cartas altas, apostar sem força nenhuma raramente compensa — check preserva suas fichas pra outra mão.' },
+  { street:'preflop', options:['check','raise'], position:'BB', hand:['9d','4c'], board:null, actionsBefore:['Todos os jogadores antes de você só pagaram (call), ninguém subiu'],
+    question:'Ninguém subiu e chegou sua vez de graça no BB, com uma mão fraca. O que você faz?', correct:'check',
+    explanation:'Você já pagou o big blind — se ninguém subiu, você vê o flop de graça. Não existe motivo pra foldar uma mão que já está paga: check e siga.' },
+  { street:'preflop', options:['check','raise'], position:'BB', hand:['Ts','8d'], board:null, actionsBefore:['Um jogador deu limp (só pagou) antes de você'],
+    question:'Um jogador só pagou (limp) e você está no BB com uma mão mediana. O que você faz?', correct:'check',
+    explanation:'T8o não é forte o bastante pra isolar o limper com um raise, mas também não se foldа de graça — check pra ver o flop sem gastar mais é o padrão.' },
+  { street:'preflop', options:['check','raise'], position:'BB', hand:['Qc','Qd'], board:null, actionsBefore:['Dois jogadores deram limp (só pagaram) antes de você'],
+    question:'Dois jogadores deram limp e você está no BB com um par forte. O que você faz?', correct:'raise',
+    explanation:'QQ é forte demais pra dar check e jogar multiway — subir isola os limpers, constrói o pote e tira gente com mãos especulativas do caminho.' },
+  { street:'preflop', options:['check','raise'], position:'BB', hand:['Ah','Kd'], board:null, actionsBefore:['Um jogador deu limp (só pagou) antes de você'],
+    question:'Um jogador deu limp e você está no BB com AK. O que você faz?', correct:'raise',
+    explanation:'AK é uma das mãos mais fortes do jogo — contra um limper, subir extrai valor e ganha a iniciativa em vez de deixar o pote pequeno e multiway.' },
+  { street:'preflop', options:['check','raise'], position:'BB', hand:['6c','2d'], board:null, actionsBefore:['Todos os jogadores antes de você só pagaram (call), ninguém subiu'],
+    question:'Ninguém subiu e você está no BB com uma mão bem fraca. O que você faz?', correct:'check',
+    explanation:'Mão fraca, mas já paga — não há razão pra investir mais subindo nem pra abrir mão do flop grátis. Check é automático aqui.' },
+  { street:'postflop', options:['check','bet'], position:'BB', hand:['Kc','Kd'], board:['Kh','7s','2d'], actionsBefore:['Você defendeu o BB','Oponente deu check'],
+    question:'Você fez trinca de Reis e o oponente deu check. O que você faz?', correct:'bet',
+    explanation:'Trinca de Reis num flop seco é quase imbatível — apostar extrai valor e evita dar carta grátis pra um projeto se completar.' },
+  { street:'postflop', options:['check','bet'], position:'CO', hand:['Ah','Qd'], board:['Jc','9h','3s'], actionsBefore:['Você pagou a abertura do UTG','Oponente deu check'],
+    question:'Seu AQ não formou par (as duas cartas passaram do board) e o oponente deu check. O que você faz?', correct:'check',
+    explanation:'Sem par e sem projeto real, apostar aqui só constrói pote quando você está atrás — check te deixa ver a próxima carta de graça e desistir barato.' },
 ];
 
 // ─── RANGE DE ABERTURA (referência simplificada por posição, sem dados de solver) ──
@@ -1442,15 +1463,19 @@ function _linkPosicoesNoTexto(texto) {
 }
 
 // ─── MESA VISUAL ───────────────────────────────────────────────────────────────
+// Ordem de ação real no hold'em de 6 lugares (primeiro a agir → último)
 const MESA_SEATS = ['UTG','HJ','CO','BTN','SB','BB'];
-const MESA_SEAT_POS = {
-  'UTG': { x: 8,  y: 68 },
-  'HJ':  { x: 26, y: 16 },
-  'CO':  { x: 74, y: 16 },
-  'BTN': { x: 92, y: 68 },
-  'SB':  { x: 68, y: 96 },
-  'BB':  { x: 32, y: 96 }
-};
+
+// 6 cadeiras fixas NA TELA (formato de mesa). O índice 0 é sempre o centro-baixo,
+// onde o herói é encaixado — as demais rodam no sentido horário a partir dele.
+const MESA_CADEIRAS = [
+  { x: 50, y: 94 },  // 0 — centro-baixo (HERÓI, perspectiva de quem joga)
+  { x: 90, y: 68 },  // 1 — direita-baixo
+  { x: 90, y: 26 },  // 2 — direita-cima
+  { x: 50, y: 8  },  // 3 — centro-cima (em frente ao herói)
+  { x: 10, y: 26 },  // 4 — esquerda-cima
+  { x: 10, y: 68 }   // 5 — esquerda-baixo
+];
 
 function _mesaParseAcoes(actionsBefore) {
   var acoes = {};
@@ -1469,33 +1494,93 @@ function _mesaParseAcoes(actionsBefore) {
   return acoes;
 }
 
+// Detecta a ação do oponente em cenários pós-flop (heads-up), lida diretamente do actionsBefore
+function _mesaAcaoVilaoPostflop(actionsBefore) {
+  var found = null;
+  (actionsBefore || []).forEach(function(txt) {
+    if(/oponente/i.test(txt)) {
+      if(/apost/i.test(txt)) found = 'Apostou';
+      else if(/check/i.test(txt)) found = 'Check';
+    }
+  });
+  return found;
+}
+
 function renderMesaVisual(hand) {
   var acoes = _mesaParseAcoes(hand.actionsBefore);
   var heroPos = hand.position;
   var isPostflop = hand.street === 'postflop';
+  var heroIdx = MESA_SEATS.indexOf(heroPos);
+
+  // No pós-flop os cenários são heads-up (herói vs 1 oponente); o vilão senta em frente
+  var vilaoAcao = isPostflop ? _mesaAcaoVilaoPostflop(hand.actionsBefore) : null;
+  // posição do vilão em frente ao herói = cadeira 3 (centro-cima)
+  var vilaoCadeira = 3;
 
   var seatsHTML = MESA_SEATS.map(function(pos) {
-    var coord = MESA_SEAT_POS[pos];
+    var seatOrder = MESA_SEATS.indexOf(pos);
+    // rotaciona: a distância (no sentido de ação) entre o herói e este assento
+    // define em qual cadeira da tela ele senta — herói sempre na cadeira 0
+    var offset = (seatOrder - heroIdx + 6) % 6;
+    var coord = MESA_CADEIRAS[offset];
     var isHero = pos === heroPos;
     var acao = acoes[pos];
-    var seatOrder = MESA_SEATS.indexOf(pos);
-    var heroOrder = MESA_SEATS.indexOf(heroPos);
-    var aindaNaMao = isHero || acao || seatOrder > heroOrder || (isPostflop);
+
+    // No pós-flop, mostra só herói e o oponente (em frente); os demais somem
+    if(isPostflop) {
+      if(isHero) { acao = null; }
+      else if(offset === vilaoCadeira) { acao = vilaoAcao; }
+      else { acao = null; }
+    }
+
+    var aindaNaMao;
+    if(isPostflop) {
+      aindaNaMao = isHero || offset === vilaoCadeira;
+    } else {
+      var heroOrder = heroIdx;
+      aindaNaMao = isHero || acao || seatOrder > heroOrder;
+    }
+    // no pós-flop escondemos totalmente os assentos que não estão na mão
+    if(isPostflop && !aindaNaMao) return '';
     var dim = !aindaNaMao;
 
+    var corAcao = (acao === 'Apostou' || (acao && acao.indexOf('Raise') === 0)) ? '#e8c97a' : '#8fbf9f';
+
     return '<div style="position:absolute;left:' + coord.x + '%;top:' + coord.y + '%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;opacity:' + (dim?0.3:1) + '">' +
-      (acao ? '<div style="font-size:8px;font-weight:900;color:' + (acao.indexOf('Raise')===0?'#e8c97a':'#8fbf9f') + ';background:rgba(0,0,0,0.5);border-radius:6px;padding:1px 5px;white-space:nowrap;margin-bottom:1px">' + acao + '</div>' : '') +
-      '<div style="width:' + (isHero?34:26) + 'px;height:' + (isHero?34:26) + 'px;border-radius:50%;background:' + (isHero?'rgba(232,201,122,0.25)':'rgba(255,255,255,0.06)') + ';border:2px solid ' + (isHero?'#e8c97a':'rgba(255,255,255,0.2)') + ';display:flex;align-items:center;justify-content:center;font-size:' + (isHero?11:9) + 'px;font-weight:900;color:' + (isHero?'#e8c97a':'#c8dcc8') + '">' + pos + '</div>' +
+      (acao ? '<div style="font-size:8px;font-weight:900;color:' + corAcao + ';background:rgba(0,0,0,0.5);border-radius:6px;padding:1px 5px;white-space:nowrap;margin-bottom:1px">' + acao + '</div>' : '') +
+      '<div style="width:' + (isHero?36:26) + 'px;height:' + (isHero?36:26) + 'px;border-radius:50%;background:' + (isHero?'rgba(232,201,122,0.28)':'rgba(255,255,255,0.06)') + ';border:2px solid ' + (isHero?'#e8c97a':'rgba(255,255,255,0.2)') + ';display:flex;align-items:center;justify-content:center;font-size:' + (isHero?11:9) + 'px;font-weight:900;color:' + (isHero?'#e8c97a':'#c8dcc8') + ';box-shadow:' + (isHero?'0 0 12px rgba(232,201,122,0.4)':'none') + '">' + pos + '</div>' +
+      (isHero ? '<div style="font-size:7px;font-weight:900;color:#e8c97a;letter-spacing:0.05em;margin-top:1px">VOCÊ</div>' : '') +
     '</div>';
   }).join('');
 
-  return '<div style="position:relative;width:100%;aspect-ratio:16/9;background:radial-gradient(ellipse at center, #1a4028 0%, #0d2218 75%);border:1px solid var(--border);border-radius:50%/38%;overflow:visible">' +
+  return '<div style="position:relative;width:100%;aspect-ratio:16/10;background:radial-gradient(ellipse at center, #1a4028 0%, #0d2218 78%);border:1px solid var(--border);border-radius:50%/40%;overflow:visible">' +
     seatsHTML +
   '</div>';
 }
 
+// Shuffle bag: embaralha todas as mãos e vai consumindo sem repor.
+// Só quando a sacola esvazia é que re-embaralha — garante ver todas antes de repetir.
+var _treinoBag = [];
+var _treinoUltima = null;
+
+function _treinoReabastecerBag() {
+  _treinoBag = TREINO_HANDS.map(function(_, i){ return i; });
+  // Fisher-Yates
+  for(var i = _treinoBag.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = _treinoBag[i]; _treinoBag[i] = _treinoBag[j]; _treinoBag[j] = tmp;
+  }
+  // evita que a 1ª mão da nova sacola seja igual à última mostrada
+  if(_treinoUltima !== null && _treinoBag.length > 1 && _treinoBag[0] === _treinoUltima) {
+    var t = _treinoBag[0]; _treinoBag[0] = _treinoBag[1]; _treinoBag[1] = t;
+  }
+}
+
 function nextTreinoHand() {
-  var h = TREINO_HANDS[Math.floor(Math.random() * TREINO_HANDS.length)];
+  if(!_treinoBag.length) _treinoReabastecerBag();
+  var idx = _treinoBag.pop();
+  _treinoUltima = idx;
+  var h = TREINO_HANDS[idx];
   _treinoAtual = h;
   _treinoRespondido = false;
   _treinoModoAvancado = false;
