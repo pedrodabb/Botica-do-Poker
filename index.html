@@ -552,22 +552,6 @@
     <!-- TAB: Treino -->
     <div id="tab-treino" class="pgm-tab-content">
       <div class="pgm-section-title">🎓 Praticar decisão</div>
-      <div class="pgm-card" style="margin-bottom:0.85rem">
-        <div style="display:flex;justify-content:space-around;text-align:center">
-          <div>
-            <div style="font-size:18px;font-weight:900;color:var(--gold-light)" id="treino-score">0/0</div>
-            <div style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em">Acertos</div>
-          </div>
-          <div>
-            <div style="font-size:18px;font-weight:900;color:var(--positive)" id="treino-streak">0</div>
-            <div style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em">Sequência</div>
-          </div>
-          <div>
-            <div style="font-size:18px;font-weight:900;color:var(--cream)" id="treino-best">0</div>
-            <div style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em">Melhor</div>
-          </div>
-        </div>
-      </div>
 
       <div class="pgm-card" id="treino-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
@@ -1094,10 +1078,10 @@ const TREINO_HANDS = [
   { street:'preflop', options:['fold','raise'], position:'BTN', hand:['3h','2c'], board:null, actionsBefore:[],
     question:'Todos foldaram até você. O que você faz?', correct:'fold',
     explanation:'Mesmo no Botão existe um limite — 32o não tem nem força nem conectividade real. Nem toda mão vale roubar.' },
-  { street:'preflop', options:['fold','raise'], position:'SB', hand:['Ad','Tc'], board:null, actionsBefore:[],
+  { street:'preflop', options:['fold','call','raise'], position:'SB', hand:['Ad','Tc'], board:null, actionsBefore:[],
     question:'Todos foldaram até você. O que você faz?', correct:'raise',
     explanation:'No SB você só enfrenta o BB — ATo tem valor suficiente pra abrir contra um único oponente.' },
-  { street:'preflop', options:['fold','raise'], position:'SB', hand:['Jc','4h'], board:null, actionsBefore:[],
+  { street:'preflop', options:['fold','call','raise'], position:'SB', hand:['Jc','4h'], board:null, actionsBefore:[],
     question:'Todos foldaram até você. O que você faz?', correct:'fold',
     explanation:'J4o não tem força nem contra um oponente só — fold evita jogar fora de posição com mão fraca.' },
   { street:'preflop', options:['fold','raise'], position:'UTG', hand:['5d','5c'], board:null, actionsBefore:[],
@@ -1199,7 +1183,7 @@ const TREINO_HANDS = [
   { street:'preflop', options:['fold','raise'], position:'BTN', hand:['Qd','8d'], board:null, actionsBefore:[],
     question:'Todos foldaram até você. O que você faz?', correct:'raise',
     explanation:'Q8s suited no Botão entra tranquilamente no range mais largo da mesa — só tem os 2 blinds pra passar.' },
-  { street:'preflop', options:['fold','raise'], position:'SB', hand:['Ks','Kh'], board:null, actionsBefore:[],
+  { street:'preflop', options:['fold','call','raise'], position:'SB', hand:['Ks','Kh'], board:null, actionsBefore:[],
     question:'Todos foldaram até você. O que você faz?', correct:'raise',
     explanation:'KK abre contra qualquer oponente único — mão forte demais pra jogar diferente disso.' },
   { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['Kd','Kc'], board:null, actionsBefore:['UTG deu raise para 3x'],
@@ -1437,30 +1421,6 @@ function closePosicaoInfo() {
   closeModal();
 }
 var _treinoRespondido = false;
-var _treinoScore = { correct: 0, total: 0, streak: 0, best: 0 };
-
-function _treinoCarregarScore() {
-  try {
-    var salvo = localStorage.getItem('botica_treino_score');
-    if(salvo) {
-      var parsed = JSON.parse(salvo);
-      _treinoScore.correct = parsed.correct || 0;
-      _treinoScore.total = parsed.total || 0;
-      _treinoScore.streak = parsed.streak || 0;
-      _treinoScore.best = parsed.best || 0;
-    }
-  } catch(e) {}
-  var elScore = document.getElementById('treino-score');
-  var elStreak = document.getElementById('treino-streak');
-  var elBest = document.getElementById('treino-best');
-  if(elScore) elScore.textContent = _treinoScore.correct + '/' + _treinoScore.total;
-  if(elStreak) elStreak.textContent = _treinoScore.streak;
-  if(elBest) elBest.textContent = _treinoScore.best;
-}
-
-function _treinoSalvarScore() {
-  try { localStorage.setItem('botica_treino_score', JSON.stringify(_treinoScore)); } catch(e) {}
-}
 var _treinoModoAvancado = false;
 
 function _treinoParseCard(c) {
@@ -1655,19 +1615,6 @@ function answerTreino(action) {
   _treinoRespondido = true;
 
   var correct = action === _treinoAtual.correct;
-  _treinoScore.total++;
-  if(correct) {
-    _treinoScore.correct++;
-    _treinoScore.streak++;
-    if(_treinoScore.streak > _treinoScore.best) _treinoScore.best = _treinoScore.streak;
-  } else {
-    _treinoScore.streak = 0;
-  }
-
-  document.getElementById('treino-score').textContent = _treinoScore.correct + '/' + _treinoScore.total;
-  document.getElementById('treino-streak').textContent = _treinoScore.streak;
-  document.getElementById('treino-best').textContent = _treinoScore.best;
-  _treinoSalvarScore();
 
   var actionLabel = { fold: 'Fold', check: 'Check', call: 'Call', bet: 'Apostar', raise: 'Raise' };
   var fb = document.getElementById('treino-feedback');
@@ -3435,7 +3382,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('new-session-date').value = new Date().toISOString().split('T')[0];
     initConnectionMonitor();
     load(); updateOverview(); resetNewSessionForm();
-    _treinoCarregarScore();
     if(S.activeSession){
       document.getElementById('no-session-state').style.display='none';
       document.getElementById('active-session-state').style.display='block';
