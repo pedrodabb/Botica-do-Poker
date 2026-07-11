@@ -419,7 +419,7 @@
           <div style="margin-bottom:0.25rem;display:none" id="tourney-mode-wrapper">
             <label class="pgm-input-label">Modo do Torneio</label>
             <div class="pgm-toggle-group" id="tourney-mode-toggle">
-              <button class="pgm-toggle-opt active" onclick="setTourneyMode('classico')">🎫 Clássico</button>
+              <button class="pgm-toggle-opt active" onclick="setTourneyMode('classico')"><span style="color:var(--negative);font-size:1.15em">♦</span> Clássico</button>
               <button class="pgm-toggle-opt" onclick="setTourneyMode('cash')">💰 Fichas valem R$</button>
             </div>
           </div>
@@ -1807,7 +1807,7 @@ function renderActiveSession() {
       classicoInfo.style.cssText = 'font-size:11px;font-weight:800;color:var(--gold-light);margin-top:4px';
       document.getElementById('active-pot').parentNode.parentNode.appendChild(classicoInfo);
     }
-    classicoInfo.textContent = '🎫 Cacife: ' + (s.startingStack||0).toLocaleString('pt-BR') + ' fichas · Premiação: ' + (s.payout||[]).join('/') + '%';
+    classicoInfo.innerHTML = '<span style="color:var(--negative);font-size:1.15em">♦</span> Cacife: ' + (s.startingStack||0).toLocaleString('pt-BR') + ' fichas · Premiação: ' + (s.payout||[]).join('/') + '%';
     classicoInfo.style.display = 'block';
   } else if(classicoInfo) {
     classicoInfo.style.display = 'none';
@@ -2373,12 +2373,10 @@ function renderRanking() {
     if(pior.pos === 1) map[nome].wins--;
   });
 
-  const all = Object.values(map).map(function(p) {
-    return Object.assign({}, p, { avg: p.sessions > 0 ? p.points / p.sessions : 0 });
-  });
+  const all = Object.values(map);
 
   const ranked = all.sort(function(a,b){
-    if(b.avg !== a.avg) return b.avg - a.avg;
+    if(b.points !== a.points) return b.points - a.points;
     return b.wins - a.wins;
   });
   const medals = ['🥇','🥈','🥉'];
@@ -2387,7 +2385,7 @@ function renderRanking() {
 
   document.getElementById('ranking-list').innerHTML = ranked.length
     ? (function(){
-        var dpR = getDisplayPositions(ranked, function(p){ return p.avg.toFixed(3)+'|'+p.wins; });
+        var dpR = getDisplayPositions(ranked, function(p){ return p.points+'|'+p.wins; });
         return ranked.map(function(p,i) {
         var pos = dpR[i];
         var temDescarte = window._sessaoDescartada[p.name];
@@ -2398,8 +2396,8 @@ function renderRanking() {
             '<div class="pgm-rank-sessions">' + p.sessions + ' sessões · ' + p.wins + ' vitória(s)' + (temDescarte ? ' · <span style="color:var(--negative);font-size:10px">-1 descartada</span>' : '') + '</div>' +
           '</div>' +
           '<div class="pgm-rank-stats">' +
-            '<div class="pgm-rank-avg" style="color:var(--gold-light)">' + p.avg.toFixed(1) + '<span style="font-size:11px;color:var(--text-dim);font-weight:700"> pts/sess</span></div>' +
-            '<div class="pgm-rank-detail">Total ' + p.points + ' pts · ' + (p.profit>=0?'+':'') + 'R$ ' + p.profit.toFixed(2).replace('.',',') + '</div>' +
+            '<div class="pgm-rank-avg" style="color:var(--gold-light)">' + p.points + '<span style="font-size:11px;color:var(--text-dim);font-weight:700"> pts</span></div>' +
+            '<div class="pgm-rank-detail">' + (p.profit>=0?'+':'') + 'R$ ' + p.profit.toFixed(2).replace('.',',') + '</div>' +
           '</div>' +
         '</div>';
       }).join('');
@@ -2611,7 +2609,7 @@ function showSessionDetail(sessionIndex) {
         (descartada ? '<span style="text-decoration:line-through;color:var(--negative)">' + p.name + '</span> <span style="font-size:9px;font-weight:900;color:var(--negative);background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;padding:1px 4px">descartada</span>' : p.name) +
       '</div>' +
       '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
-      (isClassico ? '<div class="pgm-money neu" style="font-size:11px">' + (p.finalChips||0).toLocaleString('pt-BR') + ' 🎫</div>' : '') +
+      (isClassico ? '<div class="pgm-money neu" style="font-size:11px">' + (p.finalChips||0).toLocaleString('pt-BR') + ' <span style="color:var(--negative);font-size:1.15em">♦</span></div>' : '') +
       '<div class="pgm-money ' + (pr>=0?'pos':'neg') + '" style="font-size:13px">' + fmtR(pr) + '</div>' +
       delBtn +
       '</div>';
