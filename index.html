@@ -2693,7 +2693,7 @@ function showDevolucaoPix(sessionIndex) {
   );
 }
 
-
+function confirmRemovePlayerFromSession(sessionIndex, playerIndex) {
   if(!_adminAuth) return;
   var s = S.sessions[sessionIndex];
   if(!s) return;
