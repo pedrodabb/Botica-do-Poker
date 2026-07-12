@@ -137,6 +137,9 @@
     .treino-card-visual.small { width: 42px; height: 58px; }
     .treino-card-visual.small .rank { font-size: 16px; }
     .treino-card-visual.small .suit { font-size: 14px; }
+    .treino-card-visual.xs { width: 36px; height: 50px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.45); }
+    .treino-card-visual.xs .rank { font-size: 14px; }
+    .treino-card-visual.xs .suit { font-size: 12px; }
     .treino-feedback-correct { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.4); }
     .treino-feedback-wrong { background: rgba(241,106,106,0.1); border: 1px solid rgba(241,106,106,0.35); }
     .pgm-hist-cat-grid { display: flex; flex-direction: column; gap: 10px; }
@@ -559,10 +562,6 @@
             <div style="font-size:18px;font-weight:900;color:var(--positive)" id="treino-streak">0</div>
             <div style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em">Sequência</div>
           </div>
-          <div>
-            <div style="font-size:18px;font-weight:900;color:var(--cream)" id="treino-best">0</div>
-            <div style="font-size:10px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em">Melhor</div>
-          </div>
         </div>
       </div>
 
@@ -580,11 +579,6 @@
         <div id="treino-action-log" style="font-size:12.5px;font-weight:800;color:var(--cream-dim);margin-bottom:0.75rem;line-height:1.6"></div>
 
         <div style="display:flex;justify-content:center;gap:8px;margin-bottom:0.5rem" id="treino-hand-cards"></div>
-
-        <div id="treino-board-wrap" style="display:none;margin-bottom:0.75rem">
-          <div style="font-size:10px;font-weight:800;color:var(--text-dim);text-align:center;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Flop</div>
-          <div style="display:flex;justify-content:center;gap:8px" id="treino-board-cards"></div>
-        </div>
 
         <div style="font-size:13px;font-weight:800;color:var(--cream);text-align:center;margin:0.85rem 0;line-height:1.5" id="treino-question"></div>
 
@@ -1439,7 +1433,7 @@ function closePosicaoInfo() {
   closeModal();
 }
 var _treinoRespondido = false;
-var _treinoScore = { correct: 0, total: 0, streak: 0, best: 0 };
+var _treinoScore = { correct: 0, total: 0, streak: 0 };
 var _treinoModoAvancado = false;
 
 function _treinoParseCard(c) {
@@ -1450,9 +1444,10 @@ function _treinoParseCard(c) {
   return { rank: rank, suit: s.symbol, color: s.color };
 }
 
-function _treinoRenderCard(cardStr, small) {
+function _treinoRenderCard(cardStr, size) {
   var p = _treinoParseCard(cardStr);
-  return '<div class="treino-card-visual ' + p.color + (small?' small':'') + '"><div class="rank">' + p.rank + '</div><div class="suit">' + p.suit + '</div></div>';
+  var sizeClass = size === true ? ' small' : (size ? ' ' + size : '');
+  return '<div class="treino-card-visual ' + p.color + sizeClass + '"><div class="rank">' + p.rank + '</div><div class="suit">' + p.suit + '</div></div>';
 }
 
 function _linkPosicoesNoTexto(texto) {
@@ -1554,8 +1549,16 @@ function renderMesaVisual(hand) {
     '</div>';
   }).join('');
 
+  var boardHTML = '';
+  if(hand.board && hand.board.length) {
+    boardHTML = '<div style="position:absolute;left:50%;top:47%;transform:translate(-50%,-50%);display:flex;gap:4px;z-index:2">' +
+      hand.board.map(function(c){ return _treinoRenderCard(c, 'xs'); }).join('') +
+    '</div>';
+  }
+
   return '<div style="position:relative;width:100%;max-width:240px;margin:0 auto;aspect-ratio:16/10;background:radial-gradient(ellipse at center, #1a4028 0%, #0d2218 78%);border:1px solid var(--border);border-radius:50%/40%;overflow:visible">' +
     seatsHTML +
+    boardHTML +
   '</div>';
 }
 
@@ -1598,14 +1601,6 @@ function nextTreinoHand() {
 
   document.getElementById('treino-hand-cards').innerHTML = h.hand.map(function(c){ return _treinoRenderCard(c); }).join('');
 
-  var boardWrap = document.getElementById('treino-board-wrap');
-  if(h.board && h.board.length) {
-    boardWrap.style.display = 'block';
-    document.getElementById('treino-board-cards').innerHTML = h.board.map(function(c){ return _treinoRenderCard(c, true); }).join('');
-  } else {
-    boardWrap.style.display = 'none';
-  }
-
   document.getElementById('treino-question').textContent = h.question;
   document.getElementById('treino-feedback').style.display = 'none';
   document.getElementById('treino-next-btn').style.display = 'none';
@@ -1637,14 +1632,11 @@ function answerTreino(action) {
   if(correct) {
     _treinoScore.correct++;
     _treinoScore.streak++;
-    if(_treinoScore.streak > _treinoScore.best) _treinoScore.best = _treinoScore.streak;
   } else {
     _treinoScore.streak = 0;
   }
-
   document.getElementById('treino-score').textContent = _treinoScore.correct + '/' + _treinoScore.total;
   document.getElementById('treino-streak').textContent = _treinoScore.streak;
-  document.getElementById('treino-best').textContent = _treinoScore.best;
 
   var actionLabel = { fold: 'Fold', check: 'Check', call: 'Call', bet: 'Apostar', raise: 'Raise' };
   var fb = document.getElementById('treino-feedback');
