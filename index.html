@@ -215,11 +215,12 @@
     .pgm-player-avatar { width:28px;height:28px;border-radius:50%;background:rgba(201,168,76,0.12);border:1.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;overflow:hidden;cursor:pointer;vertical-align:middle; }
     .pgm-player-avatar:hover { border-color:var(--gold-light); }
     .pgm-player-avatar img { width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;display:block;flex-shrink:0; }
-    .pgm-active-card { display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:10px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; }
-    .pgm-active-avatar { width:42px;height:42px;border-radius:50%;background:rgba(201,168,76,0.15);border:1.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;overflow:hidden;cursor:pointer; }
+    .pgm-active-card { display:flex; align-items:center; gap:10px; padding:9px 11px; margin-bottom:7px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; }
+    .pgm-active-avatar { width:34px;height:34px;border-radius:50%;background:rgba(201,168,76,0.15);border:1.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;overflow:hidden;cursor:pointer; }
     .pgm-active-avatar img { width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;display:block;flex-shrink:0; }
-    .pgm-chip-dot { width:14px;height:14px;border-radius:50%;background:var(--gold-light);border:1.5px solid var(--felt-mid); margin-right:-6px; flex-shrink:0; }
-    .pgm-active-rebuy-btn { background:none; border:1px solid var(--border-strong); color:var(--gold-light); font-size:11px; font-weight:800; padding:9px 14px; border-radius:11px; cursor:pointer; flex-shrink:0; }
+    .pgm-chip-dot { width:11px;height:11px;border-radius:50%;background:var(--gold-light);border:1.5px solid var(--felt-mid); margin-right:-5px; flex-shrink:0; }
+    .pgm-active-rebuy-btn { background:none; border:1px solid var(--border-strong); color:var(--gold-light); font-size:10.5px; font-weight:800; padding:7px 11px; border-radius:10px; cursor:pointer; flex-shrink:0; }
+    .pgm-active-minibtn { display:inline-flex; align-items:center; font-size:9.5px; font-weight:800; color:var(--negative); background:rgba(241,106,106,0.1); border:1px solid rgba(241,106,106,0.35); padding:3px 8px; border-radius:8px; cursor:pointer; }
     .player-card-info { flex: 1; min-width: 0; }
     .player-card-name { font-size: 14px; font-weight: 900; color: var(--cream); }
     .player-card-sub { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-top: 2px; }
@@ -257,6 +258,7 @@
     .pgm-flex-between { display: flex; justify-content: space-between; align-items: center; }
     .pgm-tab-content { display: none; } .pgm-tab-content.active { display: block; animation: pgmTabIn 0.22s ease-out; }
     @keyframes pgmTabIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pgmBounceHint { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
     @keyframes pgmTimerPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
     .pgm-winner-row { position: relative; background: linear-gradient(90deg, rgba(255,215,0,0.12), rgba(201,168,76,0.05)) !important; border: 1px solid rgba(255,215,0,0.35) !important; border-radius: 12px; padding: 0.5rem 0.6rem !important; animation: pgmWinnerGlow 2.5s ease-in-out infinite; }
     @keyframes pgmWinnerGlow { 0%, 100% { box-shadow: 0 0 8px rgba(255,215,0,0.15); } 50% { box-shadow: 0 0 18px rgba(255,215,0,0.35); } }
@@ -493,6 +495,7 @@
         <div class="pgm-section-title">Fichas em jogo</div>
         <div>
           <div id="active-players-rows"></div>
+          <div id="active-players-hint" style="display:none;text-align:center;font-size:11px;font-weight:800;color:var(--gold-light);background:rgba(201,168,76,0.1);border:1px solid var(--border-strong);border-radius:20px;padding:6px 12px;margin:2px 0 8px;animation:pgmBounceHint 1.6s ease-in-out infinite">▼ mais jogadores</div>
         </div>
         <div class="pgm-row-btns">
           <button class="pgm-btn" onclick="openAddPlayerMidSession()" style="flex:1">+ Jogador</button>
@@ -1833,9 +1836,9 @@ function renderActiveSession() {
       ? `<span style="font-size:10px;font-weight:800;color:var(--text-dim);flex-shrink:0">Saiu · ${(p.finalStack-(p.buyin+rt))>=0?'+':''}R$ ${Math.abs(p.finalStack-(p.buyin+rt)).toFixed(2).replace('.',',')}</span>`
       : `<button class="pgm-active-rebuy-btn" onclick="openRebuyModal(${i})">Rebuy</button>`;
     const miniActions = saiu ? '' : `
-      <div style="display:flex;gap:10px;margin-top:4px">
-        ${isClassico ? '' : `<span onclick="openLeftTableModal(${i})" style="font-size:10px;font-weight:700;color:var(--text-dim);cursor:pointer">Saiu da mesa</span>`}
-        <span onclick="confirmRemoveFromTable(${i})" title="Remover (adicionado por engano)" style="font-size:10px;font-weight:700;color:var(--text-dim);cursor:pointer">Remover</span>
+      <div style="display:flex;gap:6px;margin-top:5px">
+        ${isClassico ? '' : `<span class="pgm-active-minibtn" onclick="openLeftTableModal(${i})">Sair da mesa</span>`}
+        <span class="pgm-active-minibtn" onclick="confirmRemoveFromTable(${i})" title="Remover (adicionado por engano)">Remover</span>
       </div>`;
     return `<div class="pgm-active-card" style="${saiu?'opacity:0.7':''}">
       ${avatarHTML(p.name,'pgm-active-avatar','♟')}
@@ -1848,6 +1851,17 @@ function renderActiveSession() {
       ${actionArea}
     </div>`;
   }).join('');
+  updatePlayersScrollHint();
+}
+
+function updatePlayersScrollHint() {
+  var hint = document.getElementById('active-players-hint');
+  var rows = document.getElementById('active-players-rows');
+  if(!hint || !rows || !S.activeSession) return;
+  if(S.activeSession.players.length <= 4) { hint.style.display = 'none'; return; }
+  var rect = rows.getBoundingClientRect();
+  var jaViuFim = rect.bottom <= window.innerHeight + 30;
+  hint.style.display = jaViuFim ? 'none' : 'block';
 }
 
 function openLeftTableModal(idx) {
@@ -3445,6 +3459,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('new-session-date').value = new Date().toISOString().split('T')[0];
     initConnectionMonitor();
     load(); updateOverview(); resetNewSessionForm();
+    window.addEventListener('scroll', updatePlayersScrollHint, { passive: true });
     if(S.activeSession){
       document.getElementById('no-session-state').style.display='none';
       document.getElementById('active-session-state').style.display='block';
