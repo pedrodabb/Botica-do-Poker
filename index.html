@@ -450,7 +450,7 @@
           </div>
           <div class="pgm-field">
             <label class="pgm-input-label">Buy-in (R$)</label>
-            <input type="number" id="new-session-buyin" class="pgm-input" placeholder="Valor do buy-in" min="1">
+            <input type="text" inputmode="numeric" id="new-session-buyin" class="pgm-input" placeholder="0,00" oninput="maskMoedaOninput(this)">
           </div>
 
           <div class="pgm-section-title" style="margin-top:0.5rem">Jogadores da sessão</div>
@@ -707,6 +707,19 @@ function initFirebaseSync() {
 }
 function fmtR(v) { return (v>=0?'+':'−')+'R$ '+Math.abs(v).toFixed(2).replace('.',','); }
 function fmtRaw(v) { return 'R$ '+Math.abs(v).toFixed(2).replace('.',','); }
+
+function maskMoedaOninput(el) {
+  var digits = el.value.replace(/\D/g, '');
+  if(!digits) { el.value = ''; return; }
+  var num = parseInt(digits, 10) / 100;
+  el.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseMoedaBR(str) {
+  if(!str) return 0;
+  var v = parseFloat(String(str).replace(/\./g, '').replace(',', '.'));
+  return isNaN(v) ? 0 : v;
+}
 
 function showTab(n) {
   document.body.classList.toggle('treino-wide', n === 'treino');
@@ -1717,7 +1730,7 @@ function addPlayer(nameOverride) {
   const name = nameOverride || inp.value.trim();
   if(!name) return;
   if(S.newSession.players.find(p=>p.name.toLowerCase()===name.toLowerCase())) { inp.value=''; return; }
-  const buyin = parseFloat(document.getElementById('new-session-buyin').value)||20;
+  const buyin = parseMoedaBR(document.getElementById('new-session-buyin').value)||20;
   S.newSession.players.push({ name, buyin, rebuys:[] });
   inp.value = ''; renderNewPlayers();
 }
@@ -1748,7 +1761,7 @@ function startSession() {
   var oficialCount = S.sessions.filter(function(s){ return s.type==='oficial'; }).length;
   if(type==='oficial' && oficialCount>=5) { showAlert('Temporada já tem 5 sessões oficiais!'); return; }
   if(!S.newSession.players.length) { showAlert('Adicione pelo menos um jogador.'); return; }
-  var buyin = parseFloat(document.getElementById('new-session-buyin').value)||20;
+  var buyin = parseMoedaBR(document.getElementById('new-session-buyin').value)||20;
   var rebuy = buyin;
   var date  = document.getElementById('new-session-date').value || new Date().toISOString().split('T')[0];
   var labelEl = document.getElementById('new-session-label');
@@ -1837,7 +1850,7 @@ function openLeftTableModal(idx) {
     '<div class="pgm-modal-title">× ' + p.name + ' saiu da mesa <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:12px;color:var(--text-dim);margin-bottom:0.75rem">Investiu: ' + fmtRaw(investido) + '</div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Stack final (R$)</label>' +
-    '<input type="number" id="left-table-stack" class="pgm-input" placeholder="0" step="0.01" autofocus></div>' +
+    '<input type="text" inputmode="numeric" id="left-table-stack" class="pgm-input" placeholder="0,00" autofocus oninput="maskMoedaOninput(this)"></div>' +
     '<div class="pgm-row-btns"><button class="pgm-btn pgm-btn-success" style="flex:1" id="btn-confirm-left">Confirmar saída</button></div>'
   );
   setTimeout(function() {
@@ -1849,7 +1862,7 @@ function openLeftTableModal(idx) {
 }
 
 function confirmLeftTable(idx) {
-  var stack = parseFloat(document.getElementById('left-table-stack').value) || 0;
+  var stack = parseMoedaBR(document.getElementById('left-table-stack').value);
   var p = S.activeSession.players[idx];
   p.leftTable = true;
   p.finalStack = stack;
@@ -1865,7 +1878,7 @@ function openRebuyModal(idx) {
   showModal(`
     <div class="pgm-modal-title">Rebuy — ${p.name} <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
     <div class="pgm-field"><label class="pgm-input-label">Valor do rebuy (R$)</label>
-    <input type="number" id="rebuy-val" class="pgm-input" value="${defaultRebuy}"></div>
+    <input type="text" inputmode="numeric" id="rebuy-val" class="pgm-input" value="${defaultRebuy.toFixed(2).replace('.',',')}" oninput="maskMoedaOninput(this)"></div>
     <div style="margin-top:0.5rem">
       ${p.rebuys.length
         ? p.rebuys.map((r,i)=>`<div class="rebuy-item"><span>${i+1}° rebuy</span><span style="display:inline-flex;align-items:center;gap:10px">R$ ${r.toFixed(2).replace('.',',')} <button class="pgm-close-btn" onclick="removeRebuy(${idx},${i})" title="Apagar este rebuy" style="color:var(--negative);font-size:13px">✕</button></span></div>`).join('')
@@ -1877,7 +1890,7 @@ function openRebuyModal(idx) {
 }
 
 function doRebuy(idx) {
-  const v = parseFloat(document.getElementById('rebuy-val').value);
+  const v = parseMoedaBR(document.getElementById('rebuy-val').value);
   if(!v||v<=0) return;
   S.activeSession.players[idx].rebuys.push(v);
   renderActiveSession(); closeModal(); savePatch({ activeSession: S.activeSession });
@@ -1924,7 +1937,7 @@ function openAddPlayerMidSession() {
     <div class="pgm-field"><label class="pgm-input-label">Ou digitar nome</label>
     <input type="text" id="mid-player-name" class="pgm-input" placeholder="Nome..." autocomplete="off"></div>
     <div class="pgm-field"><label class="pgm-input-label">Buy-in (R$)</label>
-    <input type="number" id="mid-player-buyin" class="pgm-input" value="${S.activeSession.buyin}"></div>
+    <input type="text" inputmode="numeric" id="mid-player-buyin" class="pgm-input" value="${S.activeSession.buyin.toFixed(2).replace('.',',')}" oninput="maskMoedaOninput(this)"></div>
     <div class="pgm-row-btns">
       <button class="pgm-btn pgm-btn-success" style="flex:1" onclick="doAddMidSession()">Adicionar</button>
     </div>`);
@@ -1937,7 +1950,7 @@ function doAddMidSessionNamed(name) {
 
 function doAddMidSession() {
   const name = document.getElementById('mid-player-name').value.trim();
-  const buyin = parseFloat(document.getElementById('mid-player-buyin').value)||S.activeSession.buyin;
+  const buyin = parseMoedaBR(document.getElementById('mid-player-buyin').value)||S.activeSession.buyin;
   if(!name) return;
   S.activeSession.players.push({ name, buyin, rebuys:[], finalStack:null });
   renderActiveSession(); closeModal(); savePatch({ activeSession: S.activeSession });
@@ -2007,8 +2020,8 @@ function openFinishSession() {
     var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
     var jaSaiu = p.leftTable;
     var inputHTML = jaSaiu
-      ? '<input type="number" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px;opacity:0.6" value="' + (p.finalStack||0) + '" readonly oninput="updateFinishPot()">'
-      : '<input type="number" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0" step="0.01" oninput="updateFinishPot()">';
+      ? '<input type="text" inputmode="numeric" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px;opacity:0.6" value="' + (p.finalStack||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '" readonly oninput="maskMoedaOninput(this);updateFinishPot()">'
+      : '<input type="text" inputmode="numeric" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0,00" oninput="maskMoedaOninput(this);updateFinishPot()">';
     return '<div class="pgm-final-row">' +
       '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px;' + (jaSaiu?'opacity:0.6':'') + '">' + avatarHTML(p.name,'pgm-player-avatar','♟') + p.name + (jaSaiu?' <span style="font-size:9px;color:var(--text-dim)">(saiu)</span>':'') + '</div>' +
       '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
@@ -2032,7 +2045,7 @@ function openFinishSession() {
 
 function updateFinishPot() {
   const s = S.activeSession, totalIn = s.players.reduce((a,p)=>a+p.buyin+p.rebuys.reduce((r,v)=>r+v,0),0);
-  let sum=0; s.players.forEach((_,i)=>{ sum+=parseFloat(document.getElementById('stack-'+i).value)||0; });
+  let sum=0; s.players.forEach((_,i)=>{ sum+=parseMoedaBR(document.getElementById('stack-'+i).value); });
   const el = document.getElementById('finish-balance');
   if(el) { const d=sum-totalIn; el.innerHTML=`Soma: ${fmtRaw(sum)} | Pot: ${fmtRaw(totalIn)} | ${d===0?'<span style="color:var(--positive)">✓ Balanceado</span>':`<span style="color:var(--negative)">Diferença: ${fmtR(d)}</span>`}`; }
 }
@@ -2081,7 +2094,7 @@ function finishSessionClassico() {
 
 function finishSession() {
   const s = S.activeSession;
-  s.players.forEach((p,i)=>{ if(!p.rebuys) p.rebuys = []; p.finalStack=parseFloat(document.getElementById('stack-'+i).value)||0; p.profit=p.finalStack-(p.buyin+p.rebuys.reduce((a,r)=>a+r,0)); });
+  s.players.forEach((p,i)=>{ if(!p.rebuys) p.rebuys = []; p.finalStack=parseMoedaBR(document.getElementById('stack-'+i).value); p.profit=p.finalStack-(p.buyin+p.rebuys.reduce((a,r)=>a+r,0)); });
   stopSessionTimer();
   s.duration = s.startedAt ? (Date.now() - s.startedAt) : null;
   finishSessionCommon(s);
