@@ -215,6 +215,11 @@
     .pgm-player-avatar { width:28px;height:28px;border-radius:50%;background:rgba(201,168,76,0.12);border:1.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;overflow:hidden;cursor:pointer;vertical-align:middle; }
     .pgm-player-avatar:hover { border-color:var(--gold-light); }
     .pgm-player-avatar img { width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;display:block;flex-shrink:0; }
+    .pgm-active-card { display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:10px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; }
+    .pgm-active-avatar { width:42px;height:42px;border-radius:50%;background:rgba(201,168,76,0.15);border:1.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;overflow:hidden;cursor:pointer; }
+    .pgm-active-avatar img { width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;display:block;flex-shrink:0; }
+    .pgm-chip-dot { width:14px;height:14px;border-radius:50%;background:var(--gold-light);border:1.5px solid var(--felt-mid); margin-right:-6px; flex-shrink:0; }
+    .pgm-active-rebuy-btn { background:none; border:1px solid var(--border-strong); color:var(--gold-light); font-size:11px; font-weight:800; padding:9px 14px; border-radius:11px; cursor:pointer; flex-shrink:0; }
     .player-card-info { flex: 1; min-width: 0; }
     .player-card-name { font-size: 14px; font-weight: 900; color: var(--cream); }
     .player-card-sub { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-top: 2px; }
@@ -472,28 +477,21 @@
             <div class="pgm-card-title" id="active-session-title">Sessão 1</div>
             <span id="active-session-badge" class="pgm-badge pgm-badge-gold">🏆 Liga</span>
           </div>
-          <div style="font-size:12px;font-weight:800;color:var(--cream-dim)">
+          <div style="background:rgba(201,168,76,0.06);border:1px solid var(--border);border-radius:12px;padding:0.65rem 0.8rem;font-size:12px;font-weight:800;color:var(--cream-dim)">
             Buy-in: <span id="active-buyin" style="color:var(--gold-light);font-family:'DM Mono',monospace">R$ 20</span>
             &nbsp;·&nbsp;
             Rebuy: <span id="active-rebuy" style="color:var(--gold-light);font-family:'DM Mono',monospace">R$ 20</span>
             &nbsp;·&nbsp;
             Pot: <span id="active-pot" style="color:var(--gold-light);font-family:'DM Mono',monospace">R$ 0</span>
-          </div>
           <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;padding-top:0.45rem;border-top:1px solid var(--border)">
             <button onclick="toggleSessionTimer()" id="timer-toggle-btn" style="background:none;border:none;color:var(--gold-light);cursor:pointer;font-size:19px;width:34px;height:34px;min-width:34px;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0">⏸️</button>
             <span id="active-timer" style="color:var(--gold-light);font-family:'DM Mono',monospace;font-size:13px;font-weight:800">⏱️ 00:00:00</span>
+          </div>
           </div>
           <div class="pgm-pot-bar" style="margin-top:0.5rem;margin-bottom:0"><div id="active-pot-bar" class="pgm-pot-fill" style="width:0%"></div></div>
         </div>
         <div class="pgm-section-title">Fichas em jogo</div>
         <div>
-          <div style="display:grid;grid-template-columns:1fr 75px 75px 75px auto;gap:8px;padding:0.4rem 0">
-            <div class="pgm-player-col-label">Jogador</div>
-            <div class="pgm-player-col-label">Buy-in</div>
-            <div class="pgm-player-col-label">Rebuy</div>
-            <div class="pgm-player-col-label">Investiu</div>
-            <div></div>
-          </div>
           <div id="active-players-rows"></div>
         </div>
         <div class="pgm-row-btns">
@@ -1827,17 +1825,27 @@ function renderActiveSession() {
     const saiu = p.leftTable;
     const isClassico = s.tourneyMode === 'classico';
     const nameStyle = saiu ? 'opacity:0.5;text-decoration:line-through' : '';
-    const actionBtn = saiu
-      ? `<span style="font-size:10px;font-weight:800;color:var(--text-dim)">Saiu · ${(p.finalStack-(p.buyin+rt))>=0?'+':''}R$ ${Math.abs(p.finalStack-(p.buyin+rt)).toFixed(2).replace('.',',')}</span>`
-      : `<button class="pgm-btn pgm-btn-sm" onclick="openRebuyModal(${i})" style="font-size:11px;padding:3px 8px">Rebuy</button>
-         ${isClassico ? '' : `<button class="pgm-btn pgm-btn-sm" onclick="openLeftTableModal(${i})" style="font-size:10px;padding:3px 6px;color:var(--text-dim)">Saiu</button>`}
-         <button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="confirmRemoveFromTable(${i})" title="Remover (adicionado por engano)" style="font-size:10px;padding:3px 6px">✕</button>`;
-    return `<div class="pgm-player-row" style="${saiu?'opacity:0.7':''}">
-      <span class="pgm-player-name" style="${nameStyle};display:flex;align-items:center;gap:6px;min-width:0">${avatarHTML(p.name,'pgm-player-avatar','♟')}<span class="pgm-player-name-text">${p.name}</span></span>
-      <span class="pgm-money neu">${fmtRaw(p.buyin)}</span>
-      <span class="pgm-money ${rt>0?'neg':'neu'}">${rt>0?fmtRaw(rt):'—'}</span>
-      <span class="pgm-money neu">${fmtRaw(p.buyin+rt)}</span>
-      <div style="display:flex;gap:4px;align-items:center">${actionBtn}</div>
+    const numFichas = 1 + p.rebuys.length;
+    const chipsHTML = Array.from({length: Math.min(numFichas,6)}).map(function(_,ci){
+      return '<div class="pgm-chip-dot" style="' + (ci===Math.min(numFichas,6)-1?'margin-right:0':'') + '"></div>';
+    }).join('') + (numFichas>6 ? '<span style="font-size:10px;color:var(--text-dim);font-weight:800;margin-left:8px">+' + (numFichas-6) + '</span>' : '');
+    const actionArea = saiu
+      ? `<span style="font-size:10px;font-weight:800;color:var(--text-dim);flex-shrink:0">Saiu · ${(p.finalStack-(p.buyin+rt))>=0?'+':''}R$ ${Math.abs(p.finalStack-(p.buyin+rt)).toFixed(2).replace('.',',')}</span>`
+      : `<button class="pgm-active-rebuy-btn" onclick="openRebuyModal(${i})">Rebuy</button>`;
+    const miniActions = saiu ? '' : `
+      <div style="display:flex;gap:10px;margin-top:4px">
+        ${isClassico ? '' : `<span onclick="openLeftTableModal(${i})" style="font-size:10px;font-weight:700;color:var(--text-dim);cursor:pointer">Saiu da mesa</span>`}
+        <span onclick="confirmRemoveFromTable(${i})" title="Remover (adicionado por engano)" style="font-size:10px;font-weight:700;color:var(--text-dim);cursor:pointer">Remover</span>
+      </div>`;
+    return `<div class="pgm-active-card" style="${saiu?'opacity:0.7':''}">
+      ${avatarHTML(p.name,'pgm-active-avatar','♟')}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:800;color:var(--cream);${nameStyle};margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+        <div style="display:flex;align-items:center;margin-bottom:3px">${chipsHTML}</div>
+        <div style="font-size:11px;color:var(--text-dim);font-weight:700">Investiu ${fmtRaw(p.buyin+rt)}</div>
+        ${miniActions}
+      </div>
+      ${actionArea}
     </div>`;
   }).join('');
 }
