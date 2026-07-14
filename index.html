@@ -16,7 +16,7 @@
   <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, get, update, remove } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+    import { getDatabase, ref, set, onValue, get, update, remove, runTransaction } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyACviy1MMQadWQb0FQNzRReuaSvXALYzC0",
@@ -48,6 +48,16 @@
       window._fbIgnoreNext = true;
       setTimeout(function(){ window._fbIgnoreNext = false; }, 3000);
       remove(ref(db, DB_REF + '/' + path)).catch(e => console.error('Firebase remove error:', e));
+    };
+
+    window._fbTransactPlayers = function(mutatorFn) {
+      window._fbIgnoreNext = true;
+      setTimeout(function(){ window._fbIgnoreNext = false; }, 3000);
+      return runTransaction(ref(db, DB_REF + '/activeSession/players'), function(currentPlayers) {
+        return mutatorFn(currentPlayers || []);
+      }).then(function() {
+        return update(ref(db, DB_REF), { _lastUpdate: Date.now() });
+      }).catch(e => console.error('Firebase transaction error:', e));
     };
 
     window._fbListen = function(callback) {
@@ -651,10 +661,24 @@ function savePatch(fields) {
     window._fbSave(JSON.parse(JSON.stringify(S)));
   }
 }
+
+function savePatchPlayersTransaction(mutatorFn) {
+  S._lastUpdate = Date.now();
+  try { localStorage.setItem('pgm_v4', JSON.stringify(S)); } catch(e){}
+  if(window._fbTransactPlayers) {
+    window._fbTransactPlayers(mutatorFn);
+  } else if(window._fbSave) {
+    window._fbSave(JSON.parse(JSON.stringify(S)));
+  }
+}
+
 function sanitizeData() {
   function fixPlayers(players) {
     if(!players) return;
-    players.forEach(function(p){ if(!p.rebuys) p.rebuys = []; });
+    players.forEach(function(p){
+      if(!p.rebuys) p.rebuys = [];
+      if(!p._uid) p._uid = 'p'+Date.now()+Math.random().toString(36).slice(2,8);
+    });
   }
   function fixUid(s) {
     if(s && !s._uid) s._uid = 's'+Date.now()+Math.random().toString(36).slice(2,8);
@@ -894,7 +918,7 @@ function toggleSessionTimer() {
     stopSessionTimer();
     updateSessionTimerDisplay();
   }
-  savePatch({ activeSession: S.activeSession });
+  savePatch({ 'activeSession/pausedAt': s.pausedAt, 'activeSession/totalPaused': s.totalPaused });
 }
 
 function formatDuration(ms) {
@@ -989,7 +1013,7 @@ function saveCuriosidade() {
   S.curiosidades.push(curio);
   if(!s.curiosidades) s.curiosidades = [];
   s.curiosidades.push(curio);
-  closeModal(); savePatch({ curiosidades: S.curiosidades, activeSession: S.activeSession });
+  closeModal(); savePatch({ curiosidades: S.curiosidades, 'activeSession/curiosidades': s.curiosidades });
   showAlert('✨ Curiosidade de <strong>' + playerName + '</strong> registrada!');
 }
 
@@ -1713,8 +1737,12 @@ function deleteCuriosidade(id) {
 
 function doDeleteCuriosidade(id) {
   S.curiosidades = S.curiosidades.filter(c=>c.id!==id);
-  if(S.activeSession && S.activeSession.curiosidades) S.activeSession.curiosidades = S.activeSession.curiosidades.filter(c=>c.id!==id);
-  savePatch({ curiosidades: S.curiosidades, activeSession: S.activeSession }); closeModal(); renderCuriosidades();
+  var patch = { curiosidades: S.curiosidades };
+  if(S.activeSession && S.activeSession.curiosidades) {
+    S.activeSession.curiosidades = S.activeSession.curiosidades.filter(c=>c.id!==id);
+    patch['activeSession/curiosidades'] = S.activeSession.curiosidades;
+  }
+  savePatch(patch); closeModal(); renderCuriosidades();
 }
 
 function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
@@ -1786,7 +1814,7 @@ function startSession() {
   S.activeSession = { _uid: 's'+Date.now()+Math.random().toString(36).slice(2,8), num: num, type: type, date: date, buyin: buyin, rebuy: rebuy,
     tourneyMode: tourneyMode, startingStack: startingStack, payout: payout,
     label: label, curiosidades: [], startedAt: Date.now(), pausedAt: null, totalPaused: 0,
-    players: S.newSession.players.map(function(p){ return { name: p.name, buyin: buyin, rebuys: [], finalStack: null }; }) };
+    players: S.newSession.players.map(function(p){ return { _uid: 'p'+Date.now()+Math.random().toString(36).slice(2,8), name: p.name, buyin: buyin, rebuys: [], finalStack: null }; }) };
   S.newSession = { type: 'oficial', players: [] };
   if(labelEl) labelEl.value = '';
   var nameField = document.getElementById('casual-name-field');
@@ -1869,7 +1897,7 @@ function confirmLeftTable(idx) {
   p.finalStack = stack;
   p.profit = stack - (p.buyin + (p.rebuys||[]).reduce(function(a,r){return a+r;},0));
   renderActiveSession();
-  savePatch({ activeSession: S.activeSession });
+  savePatch({ ['activeSession/players/'+idx]: p });
   closeModal();
 }
 
@@ -1894,7 +1922,8 @@ function doRebuy(idx) {
   const v = parseMoedaBR(document.getElementById('rebuy-val').value);
   if(!v||v<=0) return;
   S.activeSession.players[idx].rebuys.push(v);
-  renderActiveSession(); closeModal(); savePatch({ activeSession: S.activeSession });
+  renderActiveSession(); closeModal();
+  savePatch({ ['activeSession/players/'+idx+'/rebuys']: S.activeSession.players[idx].rebuys });
 }
 
 function removeRebuy(playerIdx, rebuyIdx) {
@@ -1902,7 +1931,7 @@ function removeRebuy(playerIdx, rebuyIdx) {
   if(!p || !p.rebuys) return;
   p.rebuys.splice(rebuyIdx, 1);
   renderActiveSession();
-  savePatch({ activeSession: S.activeSession });
+  savePatch({ ['activeSession/players/'+playerIdx+'/rebuys']: p.rebuys });
   openRebuyModal(playerIdx);
 }
 
@@ -1920,10 +1949,15 @@ function confirmRemoveFromTable(idx) {
 }
 
 function doRemoveFromTable(idx) {
+  var uid = S.activeSession.players[idx]._uid;
   S.activeSession.players.splice(idx, 1);
   renderActiveSession();
-  savePatch({ activeSession: S.activeSession });
   closeModal();
+  savePatchPlayersTransaction(function(players) {
+    var i = players.findIndex(function(p){ return p && p._uid === uid; });
+    if(i > -1) players.splice(i, 1);
+    return players;
+  });
 }
 
 function openAddPlayerMidSession() {
@@ -1945,16 +1979,20 @@ function openAddPlayerMidSession() {
 }
 
 function doAddMidSessionNamed(name) {
-  S.activeSession.players.push({ name, buyin: S.activeSession.buyin, rebuys:[], finalStack:null });
-  renderActiveSession(); closeModal(); savePatch({ activeSession: S.activeSession });
+  var novo = { _uid: 'p'+Date.now()+Math.random().toString(36).slice(2,8), name, buyin: S.activeSession.buyin, rebuys:[], finalStack:null };
+  S.activeSession.players.push(novo);
+  renderActiveSession(); closeModal();
+  savePatchPlayersTransaction(function(players) { players.push(novo); return players; });
 }
 
 function doAddMidSession() {
   const name = document.getElementById('mid-player-name').value.trim();
   const buyin = parseMoedaBR(document.getElementById('mid-player-buyin').value)||S.activeSession.buyin;
   if(!name) return;
-  S.activeSession.players.push({ name, buyin, rebuys:[], finalStack:null });
-  renderActiveSession(); closeModal(); savePatch({ activeSession: S.activeSession });
+  var novo = { _uid: 'p'+Date.now()+Math.random().toString(36).slice(2,8), name, buyin, rebuys:[], finalStack:null };
+  S.activeSession.players.push(novo);
+  renderActiveSession(); closeModal();
+  savePatchPlayersTransaction(function(players) { players.push(novo); return players; });
 }
 
 function confirmCancelarSessao() {
