@@ -430,6 +430,7 @@
       <span id="sessions-counter">0 / 5 oficiais</span>
     </div>
     <div class="pgm-offline-pill" id="offline-pill"><div class="pgm-offline-dot"></div>offline</div>
+    <button onclick="confirmarSairApp()" title="Sair do app" style="background:none;border:none;color:var(--text-dim);font-size:17px;cursor:pointer;padding:4px;line-height:1;margin-left:4px">🚪</button>
   </header>
 
   <nav class="pgm-nav">
@@ -3140,7 +3141,6 @@ function showAdminPanel() {
       '<button class="pgm-toggle-opt' + (ac.googleAtivo ? ' active' : '') + '" onclick="toggleAuthConfig(\'googleAtivo\',true)">Ativado</button>' +
       '<button class="pgm-toggle-opt' + (!ac.googleAtivo ? ' active' : '') + '" onclick="toggleAuthConfig(\'googleAtivo\',false)">Desativado</button>' +
     '</div>' +
-    '<button class="pgm-btn pgm-btn-sm" style="width:100%;margin-top:0.6rem" onclick="logoutApp()">Sair do app (trocar de conta/senha)</button>' +
   '</div>';
 
   showModal(
@@ -3156,8 +3156,19 @@ function showAdminPanel() {
   );
 }
 
+function confirmarSairApp() {
+  showModal(
+    '<div class="pgm-modal-title">Sair do app? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-warn">Você vai precisar entrar de novo (senha da mesa ou Google) da próxima vez.</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="logoutApp()">Sim, sair</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
+    '</div>'
+  );
+}
+
 function logoutApp() {
-  localStorage.removeItem('pgm_auth');
+  localStorage.removeItem('pgm_auth_exp');
   if(window._fbSignOut) window._fbSignOut();
   closeModal();
   location.reload();
@@ -3521,6 +3532,17 @@ document.addEventListener('DOMContentLoaded', ()=>{
     iniciarApp();
   }
 
+  var DURACAO_LOGIN_MS = 8*60*60*1000; // 8 horas, igual o código temporário de casuais
+
+  function definirLoginValido() {
+    localStorage.setItem('pgm_auth_exp', String(Date.now() + DURACAO_LOGIN_MS));
+  }
+
+  function loginAindaValido() {
+    var exp = parseInt(localStorage.getItem('pgm_auth_exp') || '0', 10);
+    return Date.now() < exp;
+  }
+
   function renderLoginOptions(ac) {
     ac = ac || { senhaMesaAtiva: true, googleAtivo: false };
     var senhaBlock = document.getElementById('senha-mesa-block');
@@ -3545,13 +3567,20 @@ document.addEventListener('DOMContentLoaded', ()=>{
   if(window._fbReady) refreshLoginOptionsFromFirebase();
   else document.addEventListener('firebase-ready', refreshLoginOptionsFromFirebase);
 
-  if(localStorage.getItem('pgm_auth') === '1') {
+  if(loginAindaValido()) {
     mostrarApp();
+  } else {
+    localStorage.removeItem('pgm_auth_exp');
   }
 
   if(window._fbOnAuthChange) {
     window._fbOnAuthChange(function(user) {
-      if(user) { localStorage.setItem('pgm_auth', '1'); mostrarApp(); }
+      if(!user) return;
+      if(loginAindaValido()) {
+        mostrarApp();
+      } else {
+        window._fbSignOut && window._fbSignOut();
+      }
     });
   }
 
@@ -3566,7 +3595,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }
     try {
       const result = await window._fbSignInGoogle();
-      if(result && result.user) { localStorage.setItem('pgm_auth', '1'); mostrarApp(); }
+      if(result && result.user) { definirLoginValido(); mostrarApp(); }
     } catch(e) {
       console.error('Erro no login Google:', e);
       var msg = 'Não foi possível entrar com Google (' + (e && e.code ? e.code : 'erro desconhecido') + ').';
@@ -3581,14 +3610,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
   window.checkSenha = async function() {
     const val = senhaInput.value.trim();
     if(val === '800') {
-      localStorage.setItem('pgm_auth', '1');
+      definirLoginValido();
       mostrarApp();
       return;
     }
     if(val && window._fbGetTempCode) {
       const tc = await window._fbGetTempCode();
       if(tc && tc.code === val && tc.expiresAt && Date.now() < tc.expiresAt) {
-        localStorage.setItem('pgm_auth', '1');
+        definirLoginValido();
         mostrarApp();
         return;
       }
