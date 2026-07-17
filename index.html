@@ -354,6 +354,51 @@
          vertical, e os cards têm seu próprio respiro interno. */
       .pgm-content { padding-left: 0; padding-right: 0; }
     }
+
+    /* Layout de PC (>=1024px): painel com barra lateral, em vez da coluna de celular
+       esticada. Bloco só aditivo — nada abaixo de 1024px é tocado. */
+    @media (min-width: 1024px) {
+      #app {
+        display: grid !important;
+        max-width: 1180px;
+        grid-template-columns: 220px 1fr;
+        grid-template-areas: "header header" "nav content";
+      }
+      .pgm-header { grid-area: header; }
+      .pgm-nav { grid-area: nav; }
+      .pgm-content { grid-area: content; padding: 1.5rem 2rem; }
+
+      .pgm-nav {
+        flex-direction: column;
+        align-items: stretch;
+        overflow-x: visible;
+        overflow-y: auto;
+        width: 220px;
+        border-bottom: none;
+        border-right: 1px solid var(--border);
+        position: sticky;
+        top: 61px;
+        align-self: start;
+        height: calc(100vh - 61px);
+      }
+      .pgm-nav-btn {
+        flex: 0 0 auto;
+        text-align: left;
+        white-space: normal;
+        border-bottom: none;
+        border-left: 3px solid transparent;
+        padding: 0.75rem 1rem;
+      }
+      .pgm-nav-btn.active {
+        border-left-color: var(--gold);
+        border-bottom-color: transparent;
+        background: rgba(255,215,0,0.06);
+      }
+
+      #jogadores-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 10px; align-items: start; }
+      #ranking-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 10px; }
+      .pgm-hist-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 10px; }
+    }
   </style>
 </head>
 <body>
