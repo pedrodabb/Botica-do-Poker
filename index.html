@@ -103,7 +103,9 @@
       onAuthStateChanged(auth, function(user) { callback(user); });
     };
 
-    getRedirectResult(auth).catch(e => console.error('Firebase Google redirect error:', e));
+    window._fbGetRedirectResult = function() {
+      return getRedirectResult(auth);
+    };
 
     import { getDatabase as getDb2, ref as ref2, onValue as onVal2 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
     const connRef = ref(db, '.info/connected');
@@ -3556,6 +3558,26 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if(user) { localStorage.setItem('pgm_auth', '1'); mostrarApp(); }
     });
   }
+
+  function mostrarErroGoogle(msg) {
+    var err = document.getElementById('google-erro');
+    if(err) err.textContent = msg;
+  }
+
+  function checarRetornoGoogle() {
+    if(!window._fbGetRedirectResult) return;
+    window._fbGetRedirectResult().then(function(result) {
+      if(result && result.user) { localStorage.setItem('pgm_auth', '1'); mostrarApp(); }
+    }).catch(function(e) {
+      console.error('Erro no retorno do login Google:', e);
+      var msg = 'Não foi possível concluir o login com Google (' + (e && e.code ? e.code : 'erro desconhecido') + ').';
+      if(e && e.code === 'auth/unauthorized-domain') msg = 'Este site ainda não está autorizado no Firebase (Authentication → Configurações → Domínios autorizados).';
+      else if(e && e.code === 'auth/operation-not-allowed') msg = 'Login com Google ainda não foi ativado no Firebase.';
+      mostrarErroGoogle(msg);
+    });
+  }
+  if(window._fbReady) checarRetornoGoogle();
+  else document.addEventListener('firebase-ready', checarRetornoGoogle);
 
   senhaInput.addEventListener('keydown', e=>{ if(e.key==='Enter') checkSenha(); });
 
