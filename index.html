@@ -814,7 +814,7 @@ function removeRegisteredPlayer(idx) {
   if(!_adminAuth) return;
   showModal(`
     <div class="pgm-modal-title">Remover jogador? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
-    <div style="font-size:13px;font-weight:700;color:var(--cream-dim);margin-bottom:1rem">Remover <strong>${S.players[idx].name}</strong> do cadastro? O histórico não é afetado.</div>
+    <div style="font-size:13px;font-weight:700;color:var(--cream-dim);margin-bottom:1rem">Remover <strong>${escHtml(S.players[idx].name)}</strong> do cadastro? O histórico não é afetado.</div>
     <div class="pgm-row-btns">
       <button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doRemovePlayer(${idx})">Remover</button>
       <button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>
@@ -842,7 +842,7 @@ function renderJogadores() {
     return '<div class="player-card">' +
       avatarHTML(p.name, 'player-card-avatar', '♟') +
       '<div class="player-card-info" style="flex:1">' +
-        '<div class="player-card-name">' + p.name + '</div>' +
+        '<div class="player-card-name">' + escHtml(p.name) + '</div>' +
         '<div class="player-card-sub">' + sub + '</div>' +
       '</div>' +
       (_adminAuth ? '<button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="removeRegisteredPlayer('+i+')" style="padding:3px 8px;font-size:11px">✕</button>' : '') +
@@ -862,9 +862,9 @@ function showPlayerCurios(name) {
     if(ps.curiosidades) ps.curiosidades.filter(function(cu){ return cu.playerName===name; }).forEach(function(cu){ playerCurios.push(cu); });
   });
 
-  if(!playerCurios.length) { showAlert('Nenhuma curiosidade registrada para ' + name); return; }
+  if(!playerCurios.length) { showAlert('Nenhuma curiosidade registrada para ' + escHtml(name)); return; }
 
-  var html = '<div class="pgm-modal-title">✨ ' + name + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+  var html = '<div class="pgm-modal-title">✨ ' + escHtml(name) + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:11px;color:var(--text-dim);margin-bottom:0.75rem">' + playerCurios.length + ' curiosidade(s)</div>';
 
   playerCurios.forEach(function(cu) {
@@ -968,7 +968,7 @@ function openAddCuriosidade() {
   ).join('');
 
   const playerOpts = players.map(function(p) {
-    return '<option value="' + p.name + '">' + p.name + '</option>';
+    return '<option value="' + escHtml(p.name) + '">' + escHtml(p.name) + '</option>';
   }).join('');
 
   showModal(
@@ -1014,7 +1014,7 @@ function saveCuriosidade() {
   if(!s.curiosidades) s.curiosidades = [];
   s.curiosidades.push(curio);
   closeModal(); savePatch({ curiosidades: S.curiosidades, 'activeSession/curiosidades': s.curiosidades });
-  showAlert('✨ Curiosidade de <strong>' + playerName + '</strong> registrada!');
+  showAlert('✨ Curiosidade de <strong>' + escHtml(playerName) + '</strong> registrada!');
 }
 
 function renderCuriosidades() {
@@ -1041,9 +1041,9 @@ function renderCuriosidades() {
 
   jogadores.forEach(function(nome) {
     var count = all.filter(function(cu){ return cu.playerName === nome; }).length;
-    html += '<button class="pgm-btn pgm-btn-sm curio-filter-btn" data-player="' + nome + '" ' +
+    html += '<button class="pgm-btn pgm-btn-sm curio-filter-btn" data-player="' + escHtml(nome) + '" ' +
       'style="font-size:11px;border-color:var(--curio-dim);color:var(--curio-light)">' +
-      nome + ' (' + count + ')' +
+      escHtml(nome) + ' (' + count + ')' +
     '</button>';
   });
   html += '</div></div>';
@@ -1066,7 +1066,7 @@ function renderCuriosidades() {
       var player = this.dataset.player;
       var playerCurios = all.filter(function(cu){ return cu.playerName === player; }).reverse();
 
-      var resHTML = '<div class="pgm-section-title" style="margin-bottom:0.5rem">' + player + ' — ' + playerCurios.length + ' curiosidade(s)</div>';
+      var resHTML = '<div class="pgm-section-title" style="margin-bottom:0.5rem">' + escHtml(player) + ' — ' + playerCurios.length + ' curiosidade(s)</div>';
       playerCurios.forEach(function(cu) {
         resHTML += '<div class="curio-card" style="margin-bottom:8px">' +
           '<div class="curio-card-header">' +
@@ -1745,7 +1745,7 @@ function doDeleteCuriosidade(id) {
   savePatch(patch); closeModal(); renderCuriosidades();
 }
 
-function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/\n/g,'<br>'); }
 
 function getKnownPlayers() {
   const names = new Set(S.players.map(p=>p.name));
@@ -1769,7 +1769,7 @@ function removeNewPlayer(i) { S.newSession.players.splice(i,1); renderNewPlayers
 function renderNewPlayers() {
   document.getElementById('players-list-new').innerHTML = S.newSession.players.map((p,i)=>
     `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:13px;color:var(--cream);font-weight:800">♟ ${p.name}</span>
+      <span style="font-size:13px;color:var(--cream);font-weight:800">♟ ${escHtml(p.name)}</span>
       <button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="removeNewPlayer(${i})" style="padding:3px 8px;font-size:11px">✕</button>
     </div>`).join('');
   renderQuickAdd();
@@ -1781,7 +1781,7 @@ function renderQuickAdd() {
   const known = getKnownPlayers().filter(n=>!S.newSession.players.find(p=>p.name===n));
   qel.innerHTML = known.length
     ? `<div style="font-size:11px;font-weight:900;color:var(--text-dim);margin:0.5rem 0 0.4rem;letter-spacing:0.08em;text-transform:uppercase">Adicionar rápido</div>
-       <div style="display:flex;flex-wrap:wrap;gap:6px">${known.map(n=>`<button class="pgm-btn pgm-btn-sm" style="font-size:12px;font-weight:800" onclick="addPlayer(decodeURIComponent('${encodeURIComponent(n)}'))">+ ${n}</button>`).join('')}</div>`
+       <div style="display:flex;flex-wrap:wrap;gap:6px">${known.map(n=>`<button class="pgm-btn pgm-btn-sm" style="font-size:12px;font-weight:800" onclick="addPlayer(decodeURIComponent('${encodeURIComponent(n)}'))">+ ${escHtml(n)}</button>`).join('')}</div>`
     : '';
 }
 
@@ -1861,7 +1861,7 @@ function renderActiveSession() {
          ${isClassico ? '' : `<button class="pgm-btn pgm-btn-sm" onclick="openLeftTableModal(${i})" style="font-size:10px;padding:3px 6px;color:var(--text-dim)">Saiu</button>`}
          <button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="confirmRemoveFromTable(${i})" title="Remover (adicionado por engano)" style="font-size:10px;padding:3px 6px">✕</button>`;
     return `<div class="pgm-player-row" style="${saiu?'opacity:0.7':''}">
-      <span class="pgm-player-name" style="${nameStyle};display:flex;align-items:center;gap:6px;min-width:0">${avatarHTML(p.name,'pgm-player-avatar','♟')}<span class="pgm-player-name-text">${p.name}</span></span>
+      <span class="pgm-player-name" style="${nameStyle};display:flex;align-items:center;gap:6px;min-width:0">${avatarHTML(p.name,'pgm-player-avatar','♟')}<span class="pgm-player-name-text">${escHtml(p.name)}</span></span>
       <span class="pgm-money neu">${fmtRaw(p.buyin)}</span>
       <span class="pgm-money ${rt>0?'neg':'neu'}">${rt>0?fmtRaw(rt):'—'}</span>
       <span class="pgm-money neu">${fmtRaw(p.buyin+rt)}</span>
@@ -1876,7 +1876,7 @@ function openLeftTableModal(idx) {
   const rt = (p.rebuys||[]).reduce((a,r)=>a+r,0);
   const investido = p.buyin + rt;
   showModal(
-    '<div class="pgm-modal-title">× ' + p.name + ' saiu da mesa <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-modal-title">× ' + escHtml(p.name) + ' saiu da mesa <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:12px;color:var(--text-dim);margin-bottom:0.75rem">Investiu: ' + fmtRaw(investido) + '</div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Stack final (R$)</label>' +
     '<input type="text" inputmode="numeric" id="left-table-stack" class="pgm-input" placeholder="0,00" autofocus oninput="maskMoedaOninput(this)"></div>' +
@@ -1905,7 +1905,7 @@ function openRebuyModal(idx) {
   const p = S.activeSession.players[idx];
   const defaultRebuy = S.activeSession.rebuy || S.activeSession.buyin;
   showModal(`
-    <div class="pgm-modal-title">Rebuy — ${p.name} <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
+    <div class="pgm-modal-title">Rebuy — ${escHtml(p.name)} <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
     <div class="pgm-field"><label class="pgm-input-label">Valor do rebuy (R$)</label>
     <input type="text" inputmode="numeric" id="rebuy-val" class="pgm-input" value="${defaultRebuy.toFixed(2).replace('.',',')}" oninput="maskMoedaOninput(this)"></div>
     <div style="margin-top:0.5rem">
@@ -1939,7 +1939,7 @@ function confirmRemoveFromTable(idx) {
   var p = S.activeSession.players[idx];
   var rt = (p.rebuys||[]).reduce(function(a,r){return a+r;},0);
   showModal(
-    '<div class="pgm-modal-title">Remover ' + p.name + '? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-modal-title">Remover ' + escHtml(p.name) + '? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div class="pgm-warn">O jogador sai da sessão como se nunca tivesse entrado' + (rt>0 ? ' — os ' + fmtRaw(rt) + ' de rebuy saem do pot junto' : '') + '. Use apenas se foi adicionado por engano.</div>' +
     '<div class="pgm-row-btns">' +
     '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doRemoveFromTable(' + idx + ')">Sim, remover</button>' +
@@ -1964,7 +1964,7 @@ function openAddPlayerMidSession() {
   const known = getKnownPlayers().filter(n=>!S.activeSession.players.find(p=>p.name===n));
   const quickBtns = known.length
     ? `<div style="font-size:11px;font-weight:900;color:var(--text-dim);margin-bottom:0.4rem;letter-spacing:0.08em;text-transform:uppercase">Cadastrados</div>
-       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:0.75rem">${known.map(n=>`<button class="pgm-btn pgm-btn-sm" style="font-size:12px" onclick="doAddMidSessionNamed(decodeURIComponent('${encodeURIComponent(n)}'))">+ ${n}</button>`).join('')}</div>`
+       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:0.75rem">${known.map(n=>`<button class="pgm-btn pgm-btn-sm" style="font-size:12px" onclick="doAddMidSessionNamed(decodeURIComponent('${encodeURIComponent(n)}'))">+ ${escHtml(n)}</button>`).join('')}</div>`
     : '';
   showModal(`
     <div class="pgm-modal-title">Adicionar jogador <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
@@ -2025,7 +2025,7 @@ function openFinishSession() {
   var s = S.activeSession;
   s.players.forEach(function(p){ if(!p.rebuys) p.rebuys = []; });
   var totalIn = s.players.reduce(function(a,p){ return a + p.buyin + p.rebuys.reduce(function(r,v){ return r+v; }, 0); }, 0);
-  var sessionLabel = s.num ? 'Sessão ' + s.num : (s.label || 'Sessão Casual');
+  var sessionLabel = s.num ? 'Sessão ' + s.num : escHtml(s.label || 'Sessão Casual');
 
   if(s.tourneyMode === 'classico') {
     var payoutInfo = (s.payout||[]).map(function(pct, i){
@@ -2034,7 +2034,7 @@ function openFinishSession() {
     var rowsClassico = s.players.map(function(p, i) {
       var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
       return '<div class="pgm-final-row">' +
-        '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + p.name + '</div>' +
+        '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + escHtml(p.name) + '</div>' +
         '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
         '<input type="number" id="chips-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0" min="0">' +
         '</div>';
@@ -2062,7 +2062,7 @@ function openFinishSession() {
       ? '<input type="text" inputmode="numeric" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px;opacity:0.6" value="' + (p.finalStack||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '" readonly oninput="maskMoedaOninput(this);updateFinishPot()">'
       : '<input type="text" inputmode="numeric" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0,00" oninput="maskMoedaOninput(this);updateFinishPot()">';
     return '<div class="pgm-final-row">' +
-      '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px;' + (jaSaiu?'opacity:0.6':'') + '">' + avatarHTML(p.name,'pgm-player-avatar','♟') + p.name + (jaSaiu?' <span style="font-size:9px;color:var(--text-dim)">(saiu)</span>':'') + '</div>' +
+      '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px;' + (jaSaiu?'opacity:0.6':'') + '">' + avatarHTML(p.name,'pgm-player-avatar','♟') + escHtml(p.name) + (jaSaiu?' <span style="font-size:9px;color:var(--text-dim)">(saiu)</span>':'') + '</div>' +
       '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
       inputHTML +
       '</div>';
@@ -2293,7 +2293,7 @@ function renderAcumulado() {
         return '<div class="pgm-ranking-row" style="border-color:rgba(232,201,122,0.2);padding:0.4rem 0">' +
           '<div class="pgm-rank-pos ' + (pos<=3?'pgm-rank-'+pos:'') + '" style="font-size:13px">' + (medals[pos-1]||'#'+pos) + '</div>' +
           '<div class="pgm-rank-name-block">' +
-            '<div class="pgm-rank-name" style="font-size:12px">' + p.name + '</div>' +
+            '<div class="pgm-rank-name" style="font-size:12px">' + escHtml(p.name) + '</div>' +
             '<div class="pgm-rank-sessions" style="font-size:10px">' + p.sessions + ' sess. · 🥇' + p.wins + ' · 🏆' + p.podios + '</div>' +
           '</div>' +
           '<div class="pgm-rank-stats">' +
@@ -2318,7 +2318,7 @@ function renderAcumulado() {
         return '<div class="pgm-ranking-row" style="border-color:rgba(232,201,122,0.2);padding:0.4rem 0">' +
           '<div class="pgm-rank-pos ' + (pos<=3?'pgm-rank-'+pos:'') + '" style="font-size:13px">' + (medals[pos-1]||'#'+pos) + '</div>' +
           '<div class="pgm-rank-name-block">' +
-            '<div class="pgm-rank-name" style="font-size:12px">' + p.name + '</div>' +
+            '<div class="pgm-rank-name" style="font-size:12px">' + escHtml(p.name) + '</div>' +
             '<div class="pgm-rank-sessions" style="font-size:10px">' + p.sessions + ' sess. · melhor ' + fmtR(p.best||0) + '</div>' +
           '</div>' +
           '<div class="pgm-rank-stats">' +
@@ -2436,7 +2436,7 @@ function renderRanking() {
         return '<div class="pgm-ranking-row">' +
           '<div class="pgm-rank-pos ' + (pos<=3?'pgm-rank-'+pos:'') + '">' + (medals[pos-1]||'#'+pos) + '</div>' +
           '<div class="pgm-rank-name-block">' +
-            '<div class="pgm-rank-name">' + p.name + '</div>' +
+            '<div class="pgm-rank-name">' + escHtml(p.name) + '</div>' +
             '<div class="pgm-rank-sessions">' + p.sessions + ' sessões · ' + p.wins + ' vitória(s)' + (temDescarte ? ' · <span style="color:var(--negative);font-size:10px">-1 descartada</span>' : '') + '</div>' +
           '</div>' +
           '<div class="pgm-rank-stats">' +
@@ -2524,17 +2524,17 @@ function sessionCardHTML(s, sessionIndex) {
   var top3 = sorted.slice(0, 3);
   var medals = ['🥇','🥈','🥉'];
   var curios = s.curiosidades && s.curiosidades.length ? ' · ✨ '+s.curiosidades.length : '';
-  var title = s.label ? s.label : (s.num ? 'Sessão '+s.num : 'Casual');
+  var title = s.label ? escHtml(s.label) : (s.num ? 'Sessão '+s.num : 'Casual');
   var delBtn = _adminAuth ? '<button class="pgm-del-sess-list" data-uid="' + s._uid + '" style="background:none;border:none;color:var(--negative);cursor:pointer;font-size:13px;padding:2px 6px;flex-shrink:0">✕</button>' : '';
 
   var podiumHTML = top3.map(function(p, i) {
     var photo = getPlayerPhoto(p.name);
-    var avatarInner = photo ? '<img src="'+photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">' : p.name.slice(0,2).toUpperCase();
+    var avatarInner = photo ? '<img src="'+photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">' : escHtml(p.name.slice(0,2).toUpperCase());
     var pos = dp[i];
     return '<div style="display:flex;align-items:center;gap:4px;flex:1;min-width:0">' +
       '<span style="font-size:12px;flex-shrink:0">' + (medals[pos-1]||'#'+pos) + '</span>' +
       '<div style="width:22px;height:22px;border-radius:50%;background:rgba(201,168,76,0.12);border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:var(--gold);flex-shrink:0;overflow:hidden">' + avatarInner + '</div>' +
-      '<span style="font-size:11px;font-weight:800;color:var(--cream);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">' + p.name + '</span>' +
+      '<span style="font-size:11px;font-weight:800;color:var(--cream);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">' + escHtml(p.name) + '</span>' +
     '</div>';
   }).join('');
 
@@ -2650,7 +2650,7 @@ function showSessionDetail(sessionIndex) {
     return '<div class="pgm-final-row" style="grid-template-columns:' + gridCols + ';' + (descartada ? 'opacity:0.55' : '') + '">' +
       '<div class="pgm-player-name" style="font-size:13px;display:flex;align-items:center;gap:6px">' +
         avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[pos-1]||('#'+pos)) + ' ' +
-        (descartada ? '<span style="text-decoration:line-through;color:var(--negative)">' + p.name + '</span> <span style="font-size:9px;font-weight:900;color:var(--negative);background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;padding:1px 4px">descartada</span>' : p.name) +
+        (descartada ? '<span style="text-decoration:line-through;color:var(--negative)">' + escHtml(p.name) + '</span> <span style="font-size:9px;font-weight:900;color:var(--negative);background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;padding:1px 4px">descartada</span>' : escHtml(p.name)) +
       '</div>' +
       '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
       (isClassico ? '<div class="pgm-money neu" style="font-size:11px">' + (p.finalChips||0).toLocaleString('pt-BR') + ' <span style="color:var(--negative);font-size:1.15em">♦</span></div>' : '') +
@@ -2664,7 +2664,7 @@ function showSessionDetail(sessionIndex) {
     curiosHTML = '<div style="margin-top:0.75rem"><div class="pgm-section-title" style="color:var(--curio-light)">Curiosidades</div>' +
       s.curiosidades.map(function(cu) {
         return '<div class="curio-card" style="margin-bottom:6px">' +
-          '<div class="curio-player" style="margin-bottom:4px">' + (cu.catIcon||'✨') + ' ' + cu.playerName +
+          '<div class="curio-player" style="margin-bottom:4px">' + (cu.catIcon||'✨') + ' ' + escHtml(cu.playerName) +
           ' <span style="font-size:10px;font-weight:700;color:var(--text-dim)">' + (cu.catLabel||'') + '</span></div>' +
           '<div class="curio-text">' + escHtml(cu.text) + '</div></div>';
       }).join('') + '</div>';
@@ -2713,7 +2713,7 @@ function showDevolucaoPix(sessionIndex) {
   var rowsHTML = sorted.map(function(p) {
     var leva = p.finalStack || 0;
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.55rem 0;border-bottom:1px solid var(--border)">' +
-      '<div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--cream)">' + avatarHTML(p.name,'pgm-player-avatar','♟') + p.name + '</div>' +
+      '<div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--cream)">' + avatarHTML(p.name,'pgm-player-avatar','♟') + escHtml(p.name) + '</div>' +
       '<div style="font-family:\'DM Mono\',monospace;font-size:16px;font-weight:900;color:var(--gold-light)">' + fmtRaw(leva) + '</div>' +
     '</div>';
   }).join('');
@@ -2742,8 +2742,8 @@ function confirmRemovePlayerFromSession(sessionIndex, playerIndex) {
   var p = s.players[playerIndex];
   if(!p) return;
   showModal(
-    '<div class="pgm-modal-title">Remover ' + p.name + '? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div class="pgm-warn">' + p.name + ' sai desta sessão como se nunca tivesse jogado. O pot, o ranking e o Total ★ são recalculados automaticamente. Use apenas para corrigir um jogador adicionado por engano.</div>' +
+    '<div class="pgm-modal-title">Remover ' + escHtml(p.name) + '? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-warn">' + escHtml(p.name) + ' sai desta sessão como se nunca tivesse jogado. O pot, o ranking e o Total ★ são recalculados automaticamente. Use apenas para corrigir um jogador adicionado por engano.</div>' +
     '<div class="pgm-row-btns">' +
     '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doRemovePlayerFromSession(' + sessionIndex + ',' + playerIndex + ')">Sim, remover</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="showSessionDetail(' + sessionIndex + ')">Voltar</button>' +
@@ -2812,7 +2812,7 @@ function showSeasonDetail(idx) {
         if(!p) return '';
         var realPos = dpPodio[i];
         var mc = medalColors[realPos-1] || medalColors[2];
-        var initials = p.name.slice(0,2).toUpperCase();
+        var initials = escHtml(p.name.slice(0,2).toUpperCase());
         var photo = getPlayerPhoto(p.name);
         var avatarInner = photo
           ? '<img src="' + photo + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">'
@@ -2821,7 +2821,7 @@ function showSeasonDetail(idx) {
         return '<div style="background:#14321a;border:1px solid ' + (realPos===1?'rgba(255,215,0,0.35)':'rgba(201,168,76,0.15)') + ';border-radius:12px;padding:10px 6px;text-align:center">' +
           '<div style="font-size:16px;margin-bottom:3px">' + (medals[realPos-1]||'#'+realPos) + '</div>' +
           '<div style="width:30px;height:30px;border-radius:50%;background:' + mc.bg + ';border:2px solid ' + mc.border + ';color:' + mc.color + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;margin:0 auto 5px;overflow:hidden">' + avatarInner + '</div>' +
-          '<div style="font-size:11px;font-weight:900;color:#f0ede4;margin-bottom:2px">' + p.name + '</div>' +
+          '<div style="font-size:11px;font-weight:900;color:#f0ede4;margin-bottom:2px">' + escHtml(p.name) + '</div>' +
           '<div style="font-size:13px;font-weight:900;color:#c9a84c;font-family:DM Mono,monospace">' + avg + '</div>' +
           '<div style="font-size:9px;font-weight:700;color:#5a7a5a">pts/sess</div>' +
         '</div>';
@@ -2833,7 +2833,7 @@ function showSeasonDetail(idx) {
     if(!s.players) return '';
     s.players.forEach(function(p){ if(!p.rebuys) p.rebuys = []; });
     var date = s.date ? new Date(s.date+'T12:00:00').toLocaleDateString('pt-BR') : '—';
-    var label = s.num ? 'Sessão ' + s.num : (s.label || 'Casual');
+    var label = s.num ? 'Sessão ' + s.num : escHtml(s.label || 'Casual');
     var badge = s.type==='oficial'
       ? '<span class="pgm-badge pgm-badge-gold" style="font-size:10px">🏆 Oficial</span>'
       : '<span class="pgm-badge pgm-badge-casual" style="font-size:10px">🥃 Casual</span>';
@@ -2846,7 +2846,7 @@ function showSeasonDetail(idx) {
       var pr = p.profit || 0;
       var pos2 = dp2[i];
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px">' +
-        '<span style="font-weight:800;color:var(--cream);display:flex;align-items:center;gap:5px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals2[pos2-1]||'') + ' ' + p.name + '</span>' +
+        '<span style="font-weight:800;color:var(--cream);display:flex;align-items:center;gap:5px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals2[pos2-1]||'') + ' ' + escHtml(p.name) + '</span>' +
         '<span style="font-family:DM Mono,monospace;color:' + (pr>=0?'var(--positive)':'var(--negative)') + '">' + fmtR(pr) + '</span>' +
       '</div>';
     }).join('');
@@ -2865,7 +2865,7 @@ function showSeasonDetail(idx) {
     curiosHTML = '<div style="margin-top:0.75rem"><div class="pgm-section-title" style="color:var(--curio-light)">Curiosidades</div>' +
       curios.map(function(cu) {
         return '<div class="curio-card" style="margin-bottom:6px">' +
-          '<div class="curio-player" style="margin-bottom:4px">' + (cu.catIcon||'✨') + ' ' + cu.playerName +
+          '<div class="curio-player" style="margin-bottom:4px">' + (cu.catIcon||'✨') + ' ' + escHtml(cu.playerName) +
           ' <span style="font-size:10px;color:var(--text-dim);font-weight:700">' + cu.sessionLabel + ' · ' + (cu.catLabel||'') + '</span></div>' +
           '<div class="curio-text">' + escHtml(cu.text) + '</div></div>';
       }).join('') + '</div>';
@@ -3121,7 +3121,7 @@ function adminConfirmDeleteByUid(uid) {
   if(!s) return;
   window._pendingDeleteUid = uid;
   window._pendingDeleteIsFromList = true;
-  var label = s.label ? s.label : (s.num ? 'Sessão ' + s.num : 'Sessão Casual');
+  var label = s.label ? escHtml(s.label) : (s.num ? 'Sessão ' + s.num : 'Sessão Casual');
   showModal(
     '<div class="pgm-modal-title">Apagar? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div class="pgm-warn">Apagar <strong>' + label + '</strong>? Não pode ser desfeito.</div>' +
@@ -3137,7 +3137,7 @@ function adminConfirmDelete(sessionIndex) {
   if(!s) return;
   window._pendingDeleteUid = s._uid;
   window._pendingDeleteIsFromList = false;
-  var label = s.label ? s.label : (s.num ? 'Sessão ' + s.num : 'Sessão Casual');
+  var label = s.label ? escHtml(s.label) : (s.num ? 'Sessão ' + s.num : 'Sessão Casual');
   showModal(
     '<div class="pgm-modal-title">Apagar? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div class="pgm-warn">Apagar <strong>' + label + '</strong>? Não pode ser desfeito.</div>' +
@@ -3272,7 +3272,7 @@ function openPhotoModal(encodedName) {
   var name = decodeURIComponent(encodedName);
   var photo = getPlayerPhoto(name);
   showModal(
-    '<div class="pgm-modal-title">📷 ' + name + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-modal-title">📷 ' + escHtml(name) + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;padding:0.5rem 0">' +
       '<div style="width:80px;height:80px;border-radius:50%;overflow:hidden;border:2px solid var(--gold-light);background:rgba(201,168,76,0.12);display:flex;align-items:center;justify-content:center;font-size:32px" id="photo-preview">' +
         (photo ? '<img src="' + photo + '" style="width:100%;height:100%;object-fit:cover">' : '♟') +
