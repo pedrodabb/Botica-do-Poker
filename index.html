@@ -17,6 +17,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
     import { getDatabase, ref, set, onValue, get, update, remove, runTransaction } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+    import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyACviy1MMQadWQb0FQNzRReuaSvXALYzC0",
@@ -31,6 +32,8 @@
     const fbApp = initializeApp(firebaseConfig);
     const db = getDatabase(fbApp);
     const DB_REF = 'homegame/dados';
+    const auth = getAuth(fbApp);
+    const googleProvider = new GoogleAuthProvider();
 
     window._fbSave = function(data) {
       window._fbIgnoreNext = true;
@@ -77,6 +80,30 @@
         return null;
       }
     };
+
+    window._fbGetAuthConfig = async function() {
+      try {
+        const snap = await get(ref(db, DB_REF + '/authConfig'));
+        return snap.val();
+      } catch(e) {
+        console.error('Erro ao ler configuração de login:', e);
+        return null;
+      }
+    };
+
+    window._fbSignInGoogle = function() {
+      return signInWithRedirect(auth, googleProvider);
+    };
+
+    window._fbSignOut = function() {
+      return signOut(auth).catch(e => console.error('Firebase signOut error:', e));
+    };
+
+    window._fbOnAuthChange = function(callback) {
+      onAuthStateChanged(auth, function(user) { callback(user); });
+    };
+
+    getRedirectResult(auth).catch(e => console.error('Firebase Google redirect error:', e));
 
     import { getDatabase as getDb2, ref as ref2, onValue as onVal2 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
     const connRef = ref(db, '.info/connected');
@@ -366,17 +393,29 @@
 </svg>
   <div style="font-size:22px;font-weight:900;color:#c9a84c;font-family:Nunito,sans-serif;margin:0.75rem 0 0.5rem">Botica do Poker</div>
   <div style="font-size:13px;font-weight:700;color:#8a9080;font-family:Nunito,sans-serif;margin-bottom:2rem;letter-spacing:0.05em">Acesso restrito</div>
-  <input type="password" id="senha-input" placeholder="Senha" 
-    style="background:rgba(255,255,255,0.06);border:1px solid rgba(201,168,76,0.45);border-radius:10px;
-           color:#fff;font-family:DM Mono,monospace;font-size:18px;padding:0.75rem 1.25rem;
-           width:100%;max-width:260px;outline:none;text-align:center;letter-spacing:0.15em;margin-bottom:0.75rem">
-  <div id="senha-erro" style="font-size:12px;font-weight:800;color:#f16a6a;font-family:Nunito,sans-serif;height:18px;margin-bottom:0.75rem"></div>
-  <button onclick="checkSenha()" 
-    style="background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.45);color:#e8c97a;
-           font-family:Nunito,sans-serif;font-size:14px;font-weight:900;padding:0.7rem 2rem;
-           border-radius:10px;cursor:pointer;width:100%;max-width:260px">
-    Entrar
-  </button>
+  <div id="senha-mesa-block" style="width:100%;max-width:260px">
+    <input type="password" id="senha-input" placeholder="Senha"
+      style="background:rgba(255,255,255,0.06);border:1px solid rgba(201,168,76,0.45);border-radius:10px;
+             color:#fff;font-family:DM Mono,monospace;font-size:18px;padding:0.75rem 1.25rem;
+             width:100%;outline:none;text-align:center;letter-spacing:0.15em;margin-bottom:0.75rem">
+    <div id="senha-erro" style="font-size:12px;font-weight:800;color:#f16a6a;font-family:Nunito,sans-serif;height:18px;margin-bottom:0.75rem"></div>
+    <button onclick="checkSenha()"
+      style="background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.45);color:#e8c97a;
+             font-family:Nunito,sans-serif;font-size:14px;font-weight:900;padding:0.7rem 2rem;
+             border-radius:10px;cursor:pointer;width:100%">
+      Entrar
+    </button>
+  </div>
+  <div id="login-ou-divider" style="display:none;color:#8a9080;font-size:11px;font-weight:800;margin:1rem 0;letter-spacing:0.1em;text-transform:uppercase">ou</div>
+  <div id="google-login-block" style="display:none;width:100%;max-width:260px">
+    <button onclick="window._fbSignInGoogle && window._fbSignInGoogle()"
+      style="background:#fff;border:1px solid rgba(255,255,255,0.6);color:#3c4043;
+             font-family:Nunito,sans-serif;font-size:14px;font-weight:900;padding:0.7rem 1.25rem;
+             border-radius:10px;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:10px">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.72A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.29-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+      Continuar com Google
+    </button>
+  </div>
 </div>
 
 <div id="app" style="display:none">
@@ -639,7 +678,8 @@ const S = {
   players: [],
   curiosidades: [],
   newSession: { type: 'oficial', players: [] },
-  activeSession: null
+  activeSession: null,
+  authConfig: { senhaMesaAtiva: true, googleAtivo: false }
 };
 
 function save() {
@@ -703,7 +743,7 @@ function initFirebaseSync() {
     const localTime = S._lastUpdate || 0;
     if(remoteTime < localTime) return;
 
-    const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession','tempCode','_lastUpdate'];
+    const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession','tempCode','_lastUpdate','authConfig'];
     keys.forEach(k=>{ if(data[k]!==undefined) S[k]=data[k]; });
     S.activeSession = data.activeSession || null;
     var hadMissingUid = S.sessions.some(function(s){ return !s._uid; });
@@ -3088,16 +3128,54 @@ function showAdminPanel() {
         '<button class="pgm-btn pgm-btn-sm" style="width:100%" onclick="gerarCodigoTemporario()">Gerar código (válido 8h)</button>') +
     '</div>';
 
+  var ac = S.authConfig || { senhaMesaAtiva: true, googleAtivo: false };
+  var authHTML = '<div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:0.75rem">' +
+    '<div style="font-size:10px;color:var(--text-dim);font-weight:900;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.5rem">Formas de entrar no app</div>' +
+    '<div style="font-size:12px;font-weight:800;color:var(--cream-dim);margin-bottom:4px">Senha da mesa</div>' +
+    '<div class="pgm-toggle-group" style="margin-bottom:0.6rem">' +
+      '<button class="pgm-toggle-opt' + (ac.senhaMesaAtiva ? ' active' : '') + '" onclick="toggleAuthConfig(\'senhaMesaAtiva\',true)">Ativada</button>' +
+      '<button class="pgm-toggle-opt' + (!ac.senhaMesaAtiva ? ' active' : '') + '" onclick="toggleAuthConfig(\'senhaMesaAtiva\',false)">Desativada</button>' +
+    '</div>' +
+    '<div style="font-size:12px;font-weight:800;color:var(--cream-dim);margin-bottom:4px">Login com Google</div>' +
+    '<div class="pgm-toggle-group">' +
+      '<button class="pgm-toggle-opt' + (ac.googleAtivo ? ' active' : '') + '" onclick="toggleAuthConfig(\'googleAtivo\',true)">Ativado</button>' +
+      '<button class="pgm-toggle-opt' + (!ac.googleAtivo ? ' active' : '') + '" onclick="toggleAuthConfig(\'googleAtivo\',false)">Desativado</button>' +
+    '</div>' +
+    '<button class="pgm-btn pgm-btn-sm" style="width:100%;margin-top:0.6rem" onclick="logoutApp()">Sair do app (trocar de conta/senha)</button>' +
+  '</div>';
+
   showModal(
     '<div class="pgm-modal-title">📊 Admin <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     temporadaHTML +
     tcHTML +
+    authHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminSair()">Sair</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="adminRedefinirTemporada()">Redefinir</button>' +
     '</div>'
   );
+}
+
+function logoutApp() {
+  localStorage.removeItem('pgm_auth');
+  if(window._fbSignOut) window._fbSignOut();
+  closeModal();
+  location.reload();
+}
+
+function toggleAuthConfig(key, value) {
+  if(!_adminAuth) return;
+  var ac = S.authConfig || { senhaMesaAtiva: true, googleAtivo: false };
+  var next = Object.assign({}, ac, {});
+  next[key] = value;
+  if(!next.senhaMesaAtiva && !next.googleAtivo) {
+    showAlert('Deixe pelo menos uma forma de entrar ativada.');
+    return;
+  }
+  S.authConfig = next;
+  savePatch({ authConfig: S.authConfig });
+  showAdminPanel();
 }
 
 function gerarCodigoTemporario() {
@@ -3434,15 +3512,48 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const senhaScreen = document.getElementById('senha-screen');
   const appDiv = document.getElementById('app');
   const senhaInput = document.getElementById('senha-input');
+  var _appMostrado = false;
 
   function mostrarApp() {
+    if(_appMostrado) return;
+    _appMostrado = true;
     senhaScreen.style.display = 'none';
     appDiv.style.display = 'block';
     iniciarApp();
   }
 
-  if(sessionStorage.getItem('pgm_auth') === '1') {
+  function renderLoginOptions(ac) {
+    ac = ac || { senhaMesaAtiva: true, googleAtivo: false };
+    var senhaBlock = document.getElementById('senha-mesa-block');
+    var googleBlock = document.getElementById('google-login-block');
+    var divider = document.getElementById('login-ou-divider');
+    if(senhaBlock) senhaBlock.style.display = ac.senhaMesaAtiva ? 'block' : 'none';
+    if(googleBlock) googleBlock.style.display = ac.googleAtivo ? 'block' : 'none';
+    if(divider) divider.style.display = (ac.senhaMesaAtiva && ac.googleAtivo) ? 'block' : 'none';
+  }
+
+  // Mostra opções com o que já tem em cache local, e atualiza assim que o Firebase confirmar
+  try {
+    var cached = JSON.parse(localStorage.getItem('pgm_v4') || 'null');
+    renderLoginOptions(cached && cached.authConfig);
+  } catch(e) { renderLoginOptions(null); }
+
+  function refreshLoginOptionsFromFirebase() {
+    if(window._fbGetAuthConfig) {
+      window._fbGetAuthConfig().then(function(ac){ if(ac) renderLoginOptions(ac); });
+    }
+  }
+  if(window._fbReady) refreshLoginOptionsFromFirebase();
+  else document.addEventListener('firebase-ready', refreshLoginOptionsFromFirebase);
+
+  if(localStorage.getItem('pgm_auth') === '1') {
     mostrarApp();
+  }
+
+  if(window._fbOnAuthChange) {
+    window._fbOnAuthChange(function(user) {
+      if(user) { localStorage.setItem('pgm_auth', '1'); mostrarApp(); }
+    });
   }
 
   senhaInput.addEventListener('keydown', e=>{ if(e.key==='Enter') checkSenha(); });
@@ -3450,14 +3561,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
   window.checkSenha = async function() {
     const val = senhaInput.value.trim();
     if(val === '800') {
-      sessionStorage.setItem('pgm_auth', '1');
+      localStorage.setItem('pgm_auth', '1');
       mostrarApp();
       return;
     }
     if(val && window._fbGetTempCode) {
       const tc = await window._fbGetTempCode();
       if(tc && tc.code === val && tc.expiresAt && Date.now() < tc.expiresAt) {
-        sessionStorage.setItem('pgm_auth', '1');
+        localStorage.setItem('pgm_auth', '1');
         mostrarApp();
         return;
       }
