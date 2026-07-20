@@ -2530,7 +2530,7 @@ function renderRanking() {
 
   const ranked = all.sort(function(a,b){
     if(b.points !== a.points) return b.points - a.points;
-    return b.wins - a.wins;
+    return b.profit - a.profit;
   });
   const medals = ['🥇','🥈','🥉'];
 
@@ -2538,7 +2538,7 @@ function renderRanking() {
 
   document.getElementById('ranking-list').innerHTML = ranked.length
     ? (function(){
-        var dpR = getDisplayPositions(ranked, function(p){ return p.points+'|'+p.wins; });
+        var dpR = getDisplayPositions(ranked, function(p){ return p.points+'|'+p.profit; });
         return ranked.map(function(p,i) {
         var pos = dpR[i];
         var temDescarte = window._sessaoDescartada[p.name];
