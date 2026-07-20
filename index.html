@@ -1967,7 +1967,7 @@ function renderActiveSession() {
     const actionBtn = saiu
       ? `<span style="font-size:10px;font-weight:800;color:var(--text-dim)">Saiu · ${(p.finalStack-(p.buyin+rt))>=0?'+':''}R$ ${Math.abs(p.finalStack-(p.buyin+rt)).toFixed(2).replace('.',',')}</span>`
       : `<button class="pgm-btn pgm-btn-sm" onclick="openRebuyModal(${i})" style="font-size:11px;padding:3px 8px">Rebuy</button>
-         ${isClassico ? '' : `<button class="pgm-btn pgm-btn-sm" onclick="openLeftTableModal(${i})" style="font-size:10px;padding:3px 6px;color:var(--text-dim)">Saiu</button>`}
+         ${isClassico ? '' : `<button class="pgm-btn pgm-btn-sm" onclick="openLeftTableModal(${i})" style="font-size:10px;padding:3px 6px;color:var(--negative)">Sair</button>`}
          <button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="confirmRemoveFromTable(${i})" title="Remover (adicionado por engano)" style="font-size:10px;padding:3px 6px">✕</button>`;
     return `<div class="pgm-player-row" style="${saiu?'opacity:0.7':''}">
       <span class="pgm-player-name" style="${nameStyle};display:flex;align-items:center;gap:6px;min-width:0">${avatarHTML(p.name,'pgm-player-avatar','♟')}<span class="pgm-player-name-text">${escHtml(p.name)}</span></span>
@@ -2441,7 +2441,7 @@ function renderAcumulado() {
 }
 
 function getPontosPosicao(pos) {
-  if(pos === 1) return 5;
+  if(pos === 1) return 6;
   if(pos === 2) return 3;
   if(pos === 3) return 2;
   if(pos === 4) return 1;
