@@ -3179,7 +3179,7 @@ function showAdminPanel() {
       '<div style="font-size:10px;font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Temporada em vigor</div>' +
       '<div style="display:flex;align-items:baseline;justify-content:space-between">' +
         '<div style="font-size:22px;font-weight:900;color:var(--gold-light)">Temporada ' + S.season + '</div>' +
-        '<div style="font-size:11px;color:var(--text-dim);font-weight:700;text-align:right">' + totalSessOficiais + ' sessão(ões) oficial(is)<br>' + totalTemps + ' temporada(s) no total</div>' +
+        '<div style="font-size:11px;color:var(--text-dim);font-weight:700;text-align:right">' + totalSessOficiais + (totalSessOficiais===1?' sessão oficial':' sessões oficiais') + '<br>' + totalTemps + (totalTemps===1?' temporada no total':' temporadas no total') + '</div>' +
       '</div>' +
     '</div>';
 
