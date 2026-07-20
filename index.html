@@ -3011,7 +3011,7 @@ function showRulesGuide() {
       return '<div class="pgm-rules-row"><span>' + r[0] + '</span><span style="color:var(--gold-light);font-family:\'DM Mono\',monospace">' + r[1] + ' pts</span></div>';
     }).join('');
   }
-  var liga = [['🥇 1º lugar','5'],['🥈 2º lugar','3'],['🥉 3º lugar','2'],['4º lugar','1'],['5º lugar em diante','0']];
+  var liga = [['🥇 1º lugar','6'],['🥈 2º lugar','3'],['🥉 3º lugar','2'],['4º lugar','1'],['5º lugar em diante','0']];
   var torneio = [['🥇 1º lugar','12'],['🥈 2º lugar','8'],['🥉 3º lugar','5'],['4º lugar','3'],['5º lugar','1'],['6º lugar em diante','0']];
   var el = document.getElementById('pgm-modal');
   el.innerHTML = '<div class="pgm-modal-backdrop pgm-sheet-mode"><div class="pgm-sheet">' +
@@ -3022,7 +3022,8 @@ function showRulesGuide() {
     rows(torneio) +
     '<div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:0.75rem">' +
     '<div style="font-size:10px;color:var(--gold-light);font-weight:900;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.4rem">Obs:</div>' +
-    '<div style="font-size:12px;color:var(--gold-light);font-weight:700;line-height:1.5">Empate em lucro = mesma posição e mesmos pontos para todos os empatados.</div>' +
+    '<div style="font-size:12px;color:var(--gold-light);font-weight:700;line-height:1.5">Empate em lucro numa mesma sessão = mesma posição e mesmos pontos para todos os empatados.</div>' +
+    '<div style="font-size:12px;color:var(--gold-light);margin-top:0.4rem;font-weight:700;line-height:1.5">Empate no total de pontos da temporada é desfeito por lucro total acumulado — quem lucrou mais fica na frente.</div>' +
     '<div style="font-size:12px;color:var(--gold-light);margin-top:0.4rem;font-weight:700;line-height:1.5">Partidas casuais não pontuam.</div>' +
     '</div>' +
     '</div></div>';
