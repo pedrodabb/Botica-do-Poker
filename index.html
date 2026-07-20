@@ -945,7 +945,7 @@ function renderJogadores() {
     var playerCurios = S.curiosidades.filter(function(cu){ return cu.playerName===p.name; });
     var curios = playerCurios.length;
     var sub = st
-      ? st.totalSessions + ' sessão(ões)' + (curios?' · ✨ '+curios+' curiosidade(s)':'')
+      ? st.totalSessions + (st.totalSessions===1?' sessão':' sessões') + (curios?' · ✨ '+curios+(curios===1?' curiosidade':' curiosidades'):'')
       : 'Nunca jogou ainda';
     return '<div class="player-card">' +
       avatarHTML(p.name, 'player-card-avatar', '♟') +
