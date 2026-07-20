@@ -322,14 +322,12 @@
     .pgm-save-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
     .pgm-close-btn:hover { color: var(--cream); }
 
-    @media (max-width: 400px) {
-      .pgm-player-row { grid-template-columns: minmax(56px,1fr) 52px 52px 52px auto; gap: 4px; }
-      .pgm-money { font-size: 11px; }
-      .pgm-player-row .pgm-btn-sm { padding: 3px 6px !important; font-size: 10px !important; }
-    }
-
     .pgm-nav.admin-mode .pgm-nav-btn { font-size: 10px; }
     @media (max-width: 480px) {
+      .pgm-player-row { grid-template-columns: minmax(90px,1fr) 64px auto; gap: 6px; }
+      .pgm-money { font-size: 11px; }
+      .pgm-player-row .pgm-btn-sm { padding: 3px 6px !important; font-size: 10px !important; }
+      .pgm-col-buyin, .pgm-col-rebuy { display: none; }
       .pgm-nav-btn { font-size: 10px; padding: 0.6rem 0.7rem; }
       .pgm-nav.admin-mode .pgm-nav-btn { font-size: 9px; }
       .pgm-header { padding: 0.6rem 0.75rem; }
@@ -543,10 +541,10 @@
         </div>
         <div class="pgm-section-title">Fichas em jogo</div>
         <div>
-          <div style="display:grid;grid-template-columns:1fr 75px 75px 75px auto;gap:8px;padding:0.4rem 0">
+          <div class="pgm-player-row" style="padding:0.4rem 0;border-bottom:none">
             <div class="pgm-player-col-label">Jogador</div>
-            <div class="pgm-player-col-label">Buy-in</div>
-            <div class="pgm-player-col-label">Rebuy</div>
+            <div class="pgm-player-col-label pgm-col-buyin">Buy-in</div>
+            <div class="pgm-player-col-label pgm-col-rebuy">Rebuy</div>
             <div class="pgm-player-col-label">Investiu</div>
             <div></div>
           </div>
@@ -857,6 +855,69 @@ function registerPlayer() {
   renderJogadores(); renderQuickAdd(); savePatch({ players: S.players });
 }
 
+function editRegisteredPlayer(idx) {
+  if(!_adminAuth) return;
+  var p = S.players[idx];
+  showModal(
+    '<div class="pgm-modal-title">Editar nome <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-field"><label class="pgm-input-label">Nome</label>' +
+    '<input type="text" id="edit-player-name" class="pgm-input" value="' + escHtml(p.name) + '"></div>' +
+    '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem">Atualiza o nome em todo o histórico e ranking também, não só no cadastro.</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-success" style="flex:1" onclick="doEditPlayerName(' + idx + ')">Salvar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
+    '</div>'
+  );
+  setTimeout(function() {
+    var inp = document.getElementById('edit-player-name');
+    if(inp) { inp.focus(); inp.select(); inp.addEventListener('keydown', function(e){ if(e.key==='Enter') doEditPlayerName(idx); }); }
+  }, 80);
+}
+
+function doEditPlayerName(idx) {
+  if(!_adminAuth) return;
+  var p = S.players[idx];
+  if(!p) return;
+  var newName = document.getElementById('edit-player-name').value.trim();
+  if(!newName) return;
+  var oldName = p.name;
+  if(newName === oldName) { closeModal(); return; }
+  var dupe = S.players.find(function(x,i){ return i!==idx && x.name.toLowerCase()===newName.toLowerCase(); });
+  if(dupe) { showAlert('Já existe um jogador cadastrado com esse nome.'); return; }
+  renomearJogadorEmTudo(oldName, newName);
+  closeModal();
+}
+
+function renomearJogadorEmTudo(oldName, newName) {
+  S.players.forEach(function(p){ if(p.name === oldName) p.name = newName; });
+  S.sessions.forEach(function(s){
+    (s.players||[]).forEach(function(p){ if(p.name === oldName) p.name = newName; });
+    (s.curiosidades||[]).forEach(function(cu){ if(cu.playerName === oldName) cu.playerName = newName; });
+  });
+  S.pastSeasons.forEach(function(ps){
+    ps.sessions.forEach(function(s){
+      (s.players||[]).forEach(function(p){ if(p.name === oldName) p.name = newName; });
+      (s.curiosidades||[]).forEach(function(cu){ if(cu.playerName === oldName) cu.playerName = newName; });
+    });
+    (ps.curiosidades||[]).forEach(function(cu){ if(cu.playerName === oldName) cu.playerName = newName; });
+  });
+  S.curiosidades.forEach(function(cu){ if(cu.playerName === oldName) cu.playerName = newName; });
+  if(S.activeSession && S.activeSession.players) {
+    S.activeSession.players.forEach(function(p){ if(p.name === oldName) p.name = newName; });
+  }
+  if(S.activeSession && S.activeSession.curiosidades) {
+    S.activeSession.curiosidades.forEach(function(cu){ if(cu.playerName === oldName) cu.playerName = newName; });
+  }
+  if(S.newSession && S.newSession.players) {
+    S.newSession.players.forEach(function(p){ if(p.name === oldName) p.name = newName; });
+  }
+  renderJogadores(); renderQuickAdd(); updateOverview();
+  var patch = { players: S.players, sessions: S.sessions, pastSeasons: S.pastSeasons, curiosidades: S.curiosidades };
+  if(S.activeSession) patch.activeSession = S.activeSession;
+  savePatch(patch);
+  showAlert('Nome atualizado pra <strong>' + escHtml(newName) + '</strong> em todo o histórico.');
+}
+
 function removeRegisteredPlayer(idx) {
   if(!_adminAuth) return;
   showModal(`
@@ -892,6 +953,7 @@ function renderJogadores() {
         '<div class="player-card-name">' + escHtml(p.name) + '</div>' +
         '<div class="player-card-sub">' + sub + '</div>' +
       '</div>' +
+      (_adminAuth ? '<button class="pgm-btn pgm-btn-sm" onclick="editRegisteredPlayer('+i+')" title="Editar nome" style="padding:3px 8px;font-size:11px;margin-right:4px">✏️</button>' : '') +
       (_adminAuth ? '<button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="removeRegisteredPlayer('+i+')" style="padding:3px 8px;font-size:11px">✕</button>' : '') +
     '</div>';
   }).join('');
@@ -1909,8 +1971,8 @@ function renderActiveSession() {
          <button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="confirmRemoveFromTable(${i})" title="Remover (adicionado por engano)" style="font-size:10px;padding:3px 6px">✕</button>`;
     return `<div class="pgm-player-row" style="${saiu?'opacity:0.7':''}">
       <span class="pgm-player-name" style="${nameStyle};display:flex;align-items:center;gap:6px;min-width:0">${avatarHTML(p.name,'pgm-player-avatar','♟')}<span class="pgm-player-name-text">${escHtml(p.name)}</span></span>
-      <span class="pgm-money neu">${fmtRaw(p.buyin)}</span>
-      <span class="pgm-money ${rt>0?'neg':'neu'}">${rt>0?fmtRaw(rt):'—'}</span>
+      <span class="pgm-money neu pgm-col-buyin">${fmtRaw(p.buyin)}</span>
+      <span class="pgm-money ${rt>0?'neg':'neu'} pgm-col-rebuy">${rt>0?fmtRaw(rt):'—'}</span>
       <span class="pgm-money neu">${fmtRaw(p.buyin+rt)}</span>
       <div style="display:flex;gap:4px;align-items:center">${actionBtn}</div>
     </div>`;
