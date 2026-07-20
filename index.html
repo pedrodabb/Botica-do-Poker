@@ -1816,7 +1816,7 @@ function removeNewPlayer(i) { S.newSession.players.splice(i,1); renderNewPlayers
 function renderNewPlayers() {
   document.getElementById('players-list-new').innerHTML = S.newSession.players.map((p,i)=>
     `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:13px;color:var(--cream);font-weight:800">♟ ${escHtml(p.name)}</span>
+      <span style="font-size:13px;color:var(--cream);font-weight:800;display:flex;align-items:center;gap:8px">${avatarHTML(p.name,'pgm-player-avatar')}${escHtml(p.name)}</span>
       <button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="removeNewPlayer(${i})" style="padding:3px 8px;font-size:11px">✕</button>
     </div>`).join('');
   renderQuickAdd();
