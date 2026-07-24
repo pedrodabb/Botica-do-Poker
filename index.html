@@ -138,7 +138,8 @@
     body { font-family: 'Nunito', -apple-system, sans-serif; color: var(--text-on-felt); min-height: 100vh; padding-bottom: 3rem; -webkit-font-smoothing: antialiased; font-weight: 700; }
     #app { max-width: 480px; margin: 0 auto; }
 
-    .pgm-header { background: var(--felt-mid); border-bottom: 1px solid var(--border-strong); padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .pgm-header-nav-sticky { position: sticky; top: 0; z-index: 100; }
+    .pgm-header { background: var(--felt-mid); border-bottom: 1px solid var(--border-strong); padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; }
     .pgm-logo { display: flex; align-items: center; gap: 10px; }
     .pgm-logo-suit { font-size: 22px; color: var(--gold); line-height: 1; }
     .pgm-logo-text { font-size: 16px; font-weight: 900; color: var(--cream); }
@@ -146,7 +147,7 @@
     .pgm-season-info { text-align: right; font-size: 12px; font-weight: 700; color: var(--cream-dim); }
     .pgm-season-info strong { color: var(--gold); font-size: 13px; font-weight: 900; display: block; }
 
-    .pgm-nav { display: flex; border-bottom: 1px solid var(--border); background: var(--felt-mid); padding: 0; position: sticky; top: 61px; z-index: 99; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; touch-action: pan-x; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .pgm-nav { display: flex; border-bottom: 1px solid var(--border); background: var(--felt-mid); padding: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; touch-action: pan-x; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .pgm-nav::-webkit-scrollbar { display: none; }
     .pgm-nav-btn { background: none; border: none; color: var(--nav); font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 900; padding: 0.75rem 0.9rem; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; white-space: nowrap; flex: 0 0 auto; text-align: center; }
     .pgm-nav-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
@@ -419,6 +420,7 @@
 <div id="app" style="display:none">
 <div class="pgm-save-toast" id="save-toast">⚠️ Sem internet — salvo localmente</div>
 
+  <div class="pgm-header-nav-sticky">
   <header class="pgm-header">
     <div class="pgm-logo">
       <div class="pgm-logo-suit" onclick="adminClick()" style="cursor:pointer;user-select:none;position:relative" id="admin-trigger">♠<span id="admin-dot" style="display:none;position:absolute;top:-2px;right:-4px;width:7px;height:7px;border-radius:50%;background:#e8c97a;box-shadow:0 0 6px #e8c97a"></span></div>
@@ -447,6 +449,7 @@
     <button class="pgm-nav-btn" onclick="showTab('treino')">🎓 Praticar</button>
     <button class="pgm-nav-btn" id="nav-acumulado" onclick="showTab('acumulado')" style="display:none;color:#e8c97a">Total ★</button>
   </nav>
+  </div>
 
   <main class="pgm-content">
 
