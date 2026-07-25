@@ -2535,8 +2535,6 @@ function renderRanking() {
     if(b.points !== a.points) return b.points - a.points;
     return b.profit - a.profit;
   });
-  const medals = ['🥇','🥈','🥉'];
-
   document.getElementById('ranking-season-num').textContent = S.season;
 
   document.getElementById('ranking-list').innerHTML = ranked.length
@@ -2546,7 +2544,7 @@ function renderRanking() {
         var pos = dpR[i];
         var temDescarte = window._sessaoDescartada[p.name];
         return '<div class="pgm-ranking-row">' +
-          '<div class="pgm-rank-pos ' + (pos<=3?'pgm-rank-'+pos:'') + '">' + (medals[pos-1]||'#'+pos) + '</div>' +
+          '<div class="pgm-rank-pos">#' + pos + '</div>' +
           '<div class="pgm-rank-name-block">' +
             '<div class="pgm-rank-name">' + escHtml(p.name) + '</div>' +
             '<div class="pgm-rank-sessions">' + p.sessions + ' sessões · ' + p.wins + ' vitória(s)' + (temDescarte ? ' · <span style="color:var(--negative);font-size:10px">-1 descartada</span>' : '') + '</div>' +
