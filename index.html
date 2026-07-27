@@ -2143,12 +2143,13 @@ function openFinishSession() {
     var payoutInfo = (s.payout||[]).map(function(pct, i){
       return (i+1) + 'º: ' + fmtRaw(totalIn * pct / 100) + ' (' + pct + '%)';
     }).join(' · ');
+    var posOptions = '<option value="">-</option>' + s.players.map(function(p,pi){ return '<option value="' + (pi+1) + '">' + (pi+1) + 'º</option>'; }).join('');
     var rowsClassico = s.players.map(function(p, i) {
       var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
       return '<div class="pgm-final-row">' +
         '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + escHtml(p.name) + '</div>' +
         '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
-        '<input type="number" id="chips-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0" min="0">' +
+        '<select id="pos-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px">' + posOptions + '</select>' +
         '</div>';
     }).join('');
 
@@ -2156,9 +2157,9 @@ function openFinishSession() {
       '<div class="pgm-modal-title">Encerrar ' + sessionLabel + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
       '<div class="pgm-alert"><span>💰</span> Pot total: <strong>' + fmtRaw(totalIn) + '</strong></div>' +
       '<div style="font-size:11px;font-weight:800;color:var(--gold-light);margin-bottom:0.75rem">🏆 ' + payoutInfo + '</div>' +
-      '<div class="pgm-section-title">Fichas finais de cada jogador</div>' +
-      '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-4px 0 10px">A posição é calculada automaticamente pelas fichas — quem ficou com mais fichas fica em posição melhor. Deixe 0 (ou em branco) quem foi eliminado.</div>' +
-      '<div class="pgm-final-row header"><div>Jogador</div><div style="text-align:right">Pagou</div><div style="text-align:right">Fichas finais</div></div>' +
+      '<div class="pgm-section-title">Posição final de cada jogador</div>' +
+      '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-4px 0 10px">Escolha a ordem de eliminação: 1º é quem venceu (sobrou com as fichas), o último número é quem foi eliminado primeiro.</div>' +
+      '<div class="pgm-final-row header"><div>Jogador</div><div style="text-align:right">Pagou</div><div style="text-align:right">Posição</div></div>' +
       rowsClassico +
       '<div class="pgm-row-btns" style="margin-top:0.75rem">' +
       '<button class="pgm-btn pgm-btn-success" style="flex:1" onclick="finishSessionClassico()">Encerrar e salvar</button>' +
@@ -2204,35 +2205,31 @@ function updateFinishPot() {
 function finishSessionClassico() {
   var s = S.activeSession;
   var n = s.players.length;
-  var chips = [];
+  var places = [];
   for(var i = 0; i < n; i++) {
-    var v = parseFloat(document.getElementById('chips-' + i).value);
-    chips.push(isNaN(v) || v < 0 ? 0 : v);
+    var v = parseInt(document.getElementById('pos-' + i).value, 10);
+    places.push(isNaN(v) ? null : v);
+  }
+
+  if(places.some(function(p){ return p === null; })) {
+    showAlert('Preencha a posição final de todos os jogadores.');
+    return;
+  }
+  var unicos = {};
+  var duplicado = places.some(function(p){ if(unicos[p]) return true; unicos[p] = true; return false; });
+  if(duplicado) {
+    showAlert('Duas pessoas não podem ficar na mesma posição — confira e ajuste.');
+    return;
   }
 
   var totalIn = s.players.reduce(function(a,p){ return a + p.buyin + (p.rebuys||[]).reduce(function(r,v){ return r+v; }, 0); }, 0);
   var payout = s.payout || [];
-
-  var indices = s.players.map(function(p, i){ return i; });
-  indices.sort(function(a, b){ return chips[b] - chips[a]; });
-
-  var places = new Array(n);
-  var i = 0;
-  while(i < n) {
-    var chipAtual = chips[indices[i]];
-    var j = i;
-    while(j < n && chips[indices[j]] === chipAtual) j++;
-    var pos = i + 1;
-    for(var k = i; k < j; k++) { places[indices[k]] = pos; }
-    i = j;
-  }
 
   s.players.forEach(function(p, idx) {
     var place = places[idx];
     var investido = p.buyin + (p.rebuys||[]).reduce(function(a,r){ return a+r; }, 0);
     var premio = (place <= payout.length) ? totalIn * payout[place-1] / 100 : 0;
     p.place = place;
-    p.finalChips = chips[idx];
     p.premio = premio;
     p.finalStack = premio;
     p.profit = premio - investido;
