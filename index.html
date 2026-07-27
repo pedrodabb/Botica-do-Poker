@@ -1968,9 +1968,11 @@ function renderActiveSession() {
     const isClassico = s.tourneyMode === 'classico';
     const nameStyle = saiu ? 'opacity:0.5;text-decoration:line-through' : '';
     const actionBtn = saiu
-      ? `<span style="font-size:10px;font-weight:800;color:var(--text-dim)">Saiu · ${(p.finalStack-(p.buyin+rt))>=0?'+':''}R$ ${Math.abs(p.finalStack-(p.buyin+rt)).toFixed(2).replace('.',',')}</span>`
+      ? (isClassico
+          ? `<span style="font-size:10px;font-weight:800;color:var(--text-dim)">💀 ${p.bustOrder||''}º eliminado</span>`
+          : `<span style="font-size:10px;font-weight:800;color:var(--text-dim)">Saiu · ${(p.finalStack-(p.buyin+rt))>=0?'+':''}R$ ${Math.abs(p.finalStack-(p.buyin+rt)).toFixed(2).replace('.',',')}</span>`)
       : `<button class="pgm-btn pgm-btn-sm" onclick="openRebuyModal(${i})" style="font-size:11px;padding:3px 8px">Rebuy</button>
-         ${isClassico ? '' : `<button class="pgm-btn pgm-btn-sm" onclick="openLeftTableModal(${i})" style="font-size:10px;padding:3px 6px;color:var(--negative)">Sair</button>`}
+         <button class="pgm-btn pgm-btn-sm" onclick="${isClassico ? 'openEliminarModal('+i+')' : 'openLeftTableModal('+i+')'}" style="font-size:10px;padding:3px 6px;color:var(--negative)">${isClassico ? 'Eliminado' : 'Sair'}</button>
          <button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="confirmRemoveFromTable(${i})" title="Remover (adicionado por engano)" style="font-size:10px;padding:3px 6px">✕</button>`;
     return `<div class="pgm-player-row" style="${saiu?'opacity:0.7':''}">
       <span class="pgm-player-name" style="${nameStyle};display:flex;align-items:center;gap:6px;min-width:0">${avatarHTML(p.name,'pgm-player-avatar','♟')}<span class="pgm-player-name-text">${escHtml(p.name)}</span></span>
@@ -2008,6 +2010,32 @@ function confirmLeftTable(idx) {
   p.leftTable = true;
   p.finalStack = stack;
   p.profit = stack - (p.buyin + (p.rebuys||[]).reduce(function(a,r){return a+r;},0));
+  renderActiveSession();
+  savePatch({ ['activeSession/players/'+idx]: p });
+  closeModal();
+}
+
+function openEliminarModal(idx) {
+  const s = S.activeSession;
+  const p = s.players[idx];
+  const rt = (p.rebuys||[]).reduce((a,r)=>a+r,0);
+  const investido = p.buyin + rt;
+  showModal(
+    '<div class="pgm-modal-title">💀 ' + escHtml(p.name) + ' foi eliminado? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="font-size:12px;color:var(--text-dim);margin-bottom:0.75rem">Investiu: ' + fmtRaw(investido) + '. A posição final é calculada automaticamente pela ordem de eliminação ao encerrar a mesa.</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="confirmEliminarClassico(' + idx + ')">Sim, eliminado</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Voltar</button>' +
+    '</div>'
+  );
+}
+
+function confirmEliminarClassico(idx) {
+  var s = S.activeSession;
+  var p = s.players[idx];
+  var jaEliminados = s.players.filter(function(pl){ return pl.leftTable; }).length;
+  p.leftTable = true;
+  p.bustOrder = jaEliminados + 1;
   renderActiveSession();
   savePatch({ ['activeSession/players/'+idx]: p });
   closeModal();
@@ -2143,13 +2171,20 @@ function openFinishSession() {
     var payoutInfo = (s.payout||[]).map(function(pct, i){
       return (i+1) + 'º: ' + fmtRaw(totalIn * pct / 100) + ' (' + pct + '%)';
     }).join(' · ');
-    var posOptions = '<option value="">-</option>' + s.players.map(function(p,pi){ return '<option value="' + (pi+1) + '">' + (pi+1) + 'º</option>'; }).join('');
+    var n = s.players.length;
+    var autoPos = {};
+    s.players.forEach(function(p, idx) { if(p.leftTable && p.bustOrder) autoPos[idx] = n - p.bustOrder + 1; });
+    var remaining = s.players.filter(function(p){ return !p.leftTable; });
+    if(remaining.length === 1) autoPos[s.players.indexOf(remaining[0])] = 1;
+
     var rowsClassico = s.players.map(function(p, i) {
       var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
+      var pre = autoPos[i];
+      var opts = '<option value="">-</option>' + s.players.map(function(pp, pi){ return '<option value="' + (pi+1) + '"' + (pre===(pi+1)?' selected':'') + '>' + (pi+1) + 'º</option>'; }).join('');
       return '<div class="pgm-final-row">' +
-        '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + escHtml(p.name) + '</div>' +
+        '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + escHtml(p.name) + (p.leftTable ? ' <span style="font-size:9px;color:var(--text-dim)">💀' + (p.bustOrder||'') + 'º</span>' : '') + '</div>' +
         '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
-        '<select id="pos-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px">' + posOptions + '</select>' +
+        '<select id="pos-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px">' + opts + '</select>' +
         '</div>';
     }).join('');
 
@@ -2158,7 +2193,7 @@ function openFinishSession() {
       '<div class="pgm-alert"><span>💰</span> Pot total: <strong>' + fmtRaw(totalIn) + '</strong></div>' +
       '<div style="font-size:11px;font-weight:800;color:var(--gold-light);margin-bottom:0.75rem">🏆 ' + payoutInfo + '</div>' +
       '<div class="pgm-section-title">Posição final de cada jogador</div>' +
-      '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-4px 0 10px">Escolha a ordem de eliminação: 1º é quem venceu (sobrou com as fichas), o último número é quem foi eliminado primeiro.</div>' +
+      '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-4px 0 10px">Quem foi marcado como "Eliminado" durante a sessão já vem preenchido — confira e ajuste se precisar. 1º é quem venceu.</div>' +
       '<div class="pgm-final-row header"><div>Jogador</div><div style="text-align:right">Pagou</div><div style="text-align:right">Posição</div></div>' +
       rowsClassico +
       '<div class="pgm-row-btns" style="margin-top:0.75rem">' +
