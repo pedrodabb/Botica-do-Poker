@@ -244,10 +244,12 @@
     .curio-text { font-size: 13px; font-weight: 700; color: var(--cream-dim); line-height: 1.5; }
     .curio-date { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-top: 0.35rem; }
 
-    .player-card { display: flex; align-items: center; gap: 12px; padding: 0.75rem; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 8px; background: var(--panel); }
-    .player-card-avatar { width: 38px; height: 38px; border-radius: 50%; background: rgba(201,168,76,0.12); border: 1px solid var(--border-strong); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; overflow:hidden; cursor:pointer; transition:border-color 0.15s; }
+    .player-card { display: flex; align-items: center; gap: 12px; padding: 0.75rem; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 8px; background: linear-gradient(155deg, rgba(255,255,255,0.05) 0%, var(--felt-mid) 100%); }
+    .player-card-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(140deg, var(--gold-light), var(--gold)); color: #12200f; border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900; flex-shrink: 0; overflow:hidden; cursor:pointer; transition:border-color 0.15s; }
     .player-card-avatar:hover { border-color:var(--gold-light); }
     .player-card-avatar img { width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;display:block;flex-shrink:0; }
+    .pgm-icon-btn-neutral { width:30px; height:30px; border-radius:50%; background:rgba(201,168,76,0.1); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--gold-light); flex-shrink:0; cursor:pointer; line-height:1; }
+    .pgm-icon-btn-neutral:hover { border-color:var(--gold-light); background:rgba(201,168,76,0.18); }
     .pgm-player-avatar { width:28px;height:28px;border-radius:50%;background:rgba(201,168,76,0.12);border:1.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;overflow:hidden;cursor:pointer;vertical-align:middle; }
     .pgm-player-avatar:hover { border-color:var(--gold-light); }
     .pgm-player-avatar img { width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;display:block;flex-shrink:0; }
@@ -964,8 +966,10 @@ function renderJogadores() {
         '<div class="player-card-name">' + escHtml(p.name) + '</div>' +
         '<div class="player-card-sub">' + sub + '</div>' +
       '</div>' +
-      (_adminAuth ? '<button class="pgm-btn pgm-btn-sm" onclick="editRegisteredPlayer('+i+')" title="Editar nome" style="padding:3px 8px;font-size:11px;margin-right:4px">✏️</button>' : '') +
-      (_adminAuth ? '<button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="removeRegisteredPlayer('+i+')" style="padding:3px 8px;font-size:11px">✕</button>' : '') +
+      (_adminAuth ? '<div style="display:flex;gap:6px;flex-shrink:0">' +
+        '<button class="pgm-icon-btn-neutral" onclick="editRegisteredPlayer('+i+')" title="Editar nome">✏️</button>' +
+        '<button class="pgm-icon-btn" onclick="removeRegisteredPlayer('+i+')" title="Remover jogador">✕</button>' +
+      '</div>' : '') +
     '</div>';
   }).join('');
   document.querySelectorAll('.pgm-curio-player-btn').forEach(function(btn) {
@@ -1888,9 +1892,12 @@ function removeNewPlayer(i) { S.newSession.players.splice(i,1); renderNewPlayers
 
 function renderNewPlayers() {
   document.getElementById('players-list-new').innerHTML = S.newSession.players.map((p,i)=>
-    `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:13px;color:var(--cream);font-weight:800;display:flex;align-items:center;gap:8px">${avatarHTML(p.name,'pgm-player-avatar')}${escHtml(p.name)}</span>
-      <button class="pgm-btn pgm-btn-sm pgm-btn-danger" onclick="removeNewPlayer(${i})" style="padding:3px 8px;font-size:11px">✕</button>
+    `<div class="player-card" style="padding:0.5rem 0.6rem">
+      ${avatarHTML(p.name,'player-card-avatar','♟')}
+      <div class="player-card-info" style="flex:1">
+        <div class="player-card-name">${escHtml(p.name)}</div>
+      </div>
+      <button class="pgm-icon-btn" onclick="removeNewPlayer(${i})" title="Remover">✕</button>
     </div>`).join('');
   renderQuickAdd();
 }
