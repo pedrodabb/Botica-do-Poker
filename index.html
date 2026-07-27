@@ -1134,7 +1134,7 @@ function saveCuriosidade() {
   const text = document.getElementById('curio-text').value.trim();
   const cat = CURIO_CATS.find(function(c){ return c.id === _selectedCat; }) || CURIO_CATS[CURIO_CATS.length-1];
   const s = S.activeSession;
-  const sessionLabel = s.num ? 'Sessão ' + s.num : 'Sessão Casual';
+  const sessionLabel = s.num ? 'Sessão ' + s.num : (s.label || 'Sessão Casual');
   const curio = {
     id: Date.now(),
     sessionId: s.num || ('casual-'+s.date),
@@ -2865,7 +2865,7 @@ function showSessionDetail(sessionIndex) {
       }).join('') + '</div>';
   }
 
-  var sessionLabel = s.num ? 'Sessão ' + s.num : 'Casual';
+  var sessionLabel = s.num ? 'Sessão ' + s.num : escHtml(s.label || 'Casual');
   var badgeClass = s.type==='oficial' ? 'pgm-badge-gold' : (s.type==='torneio' ? 'pgm-badge-torneio' : 'pgm-badge-casual');
   var badgeText = s.type==='oficial' ? '🏆 Liga' : (s.type==='torneio' ? '🥊 Torneio' : '🥃 Casual');
   var pot = s.players.reduce(function(a,p){ return a + p.buyin + p.rebuys.reduce(function(r,v){ return r+v; }, 0); }, 0);
