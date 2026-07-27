@@ -250,6 +250,18 @@
     .player-card-avatar img { width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;display:block;flex-shrink:0; }
     .pgm-icon-btn-neutral { width:30px; height:30px; border-radius:50%; background:rgba(201,168,76,0.1); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--gold-light); flex-shrink:0; cursor:pointer; line-height:1; }
     .pgm-icon-btn-neutral:hover { border-color:var(--gold-light); background:rgba(201,168,76,0.18); }
+    .pgm-rcard { position:relative; display:flex; align-items:center; gap:11px; padding:8px 10px; border-radius:14px; margin-bottom:6px; background:linear-gradient(155deg, rgba(255,255,255,0.05) 0%, var(--felt-mid) 100%); border:1px solid var(--border); }
+    .pgm-rpos { width:26px; height:26px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; font-family:'DM Mono',monospace; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-dim); }
+    .pgm-rpos.gold { background:linear-gradient(140deg,#ffe9a8,#d4af37); color:#3a2a06; border-color:transparent; font-size:14px; }
+    .pgm-rpos.silver { background:linear-gradient(140deg,#eef0f2,#b8bec4); color:#2a2e33; border-color:transparent; font-size:14px; }
+    .pgm-rpos.bronze { background:linear-gradient(140deg,#e3a869,#a86a35); color:#3a2408; border-color:transparent; font-size:14px; }
+    .pgm-rname { color:var(--text-on-felt); font-size:13.5px; font-weight:900; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pgm-rval { font-family:'DM Mono',monospace; font-size:13.5px; font-weight:800; flex-shrink:0; }
+    .pgm-rval.pos { color:var(--positive); } .pgm-rval.neg { color:var(--negative); }
+    .pgm-rcard .pgm-player-avatar { width:36px; height:36px; font-size:13px; border:2px solid var(--gold); background:linear-gradient(140deg,var(--gold-light),var(--gold)); }
+    .pgm-rname-block { flex:1; min-width:0; }
+    .pgm-rname-block .pgm-rname { font-size:13.5px; }
+    .pgm-rsub { font-size:10.5px; color:var(--text-dim); font-family:'DM Mono',monospace; margin-top:1px; }
     .pgm-player-avatar { width:28px;height:28px;border-radius:50%;background:rgba(201,168,76,0.12);border:1.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;overflow:hidden;cursor:pointer;vertical-align:middle; }
     .pgm-player-avatar:hover { border-color:var(--gold-light); }
     .pgm-player-avatar img { width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;display:block;flex-shrink:0; }
@@ -2318,6 +2330,12 @@ function finishSession() {
   finishSessionCommon(s);
 }
 
+function pgmRankBadgeHTML(pos) {
+  var medals = ['🥇','🥈','🥉'];
+  var cls = pos===1?'gold':pos===2?'silver':pos===3?'bronze':'';
+  return '<div class="pgm-rpos' + (cls?' '+cls:'') + '">' + (medals[pos-1]||pos) + '</div>';
+}
+
 function finishSessionCommon(s) {
   s.players.forEach(p=>{ if(!S.players.find(r=>r.name.toLowerCase()===p.name.toLowerCase())) S.players.push({name:p.name,createdAt:Date.now()}); });
   const sessaoFinalizada = JSON.parse(JSON.stringify(s));
@@ -2334,15 +2352,16 @@ function finishSessionCommon(s) {
   });
   const isClassicoResult = sessaoFinalizada.tourneyMode === 'classico';
   const displayPos = getDisplayPositions(sorted, function(p){ return isClassicoResult ? p.place : (p.profit||0); });
-  const medals = ['🥇','🥈','🥉'];
   const date = sessaoFinalizada.date ? new Date(sessaoFinalizada.date+'T12:00:00').toLocaleDateString('pt-BR') : '';
   const rowsHTML = sorted.map(function(p,i){
     const pr = p.profit||0;
     const pos = displayPos[i];
     var isWinner = pos === 1 && sorted.length > 1;
-    return '<div ' + (isWinner ? 'class="pgm-winner-row" ' : '') + 'style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;' + (isWinner ? '' : 'border-bottom:1px solid var(--border)') + '">' +
-      '<span style="font-size:14px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[pos-1]||'#'+pos) + ' <strong style="color:var(--cream)">' + p.name + '</strong></span>' +
-      '<span style="font-family:DM Mono,monospace;font-size:14px;color:' + (pr>=0?'var(--positive)':'var(--negative)') + '">' + (pr>=0?'+':'') + 'R$ ' + Math.abs(pr).toFixed(2).replace('.',',') + '</span>' +
+    return '<div class="pgm-rcard' + (isWinner ? ' pgm-winner-row' : '') + '">' +
+      pgmRankBadgeHTML(pos) +
+      avatarHTML(p.name,'pgm-player-avatar','♟') +
+      '<div class="pgm-rname">' + escHtml(p.name) + '</div>' +
+      '<div class="pgm-rval ' + (pr>=0?'pos':'neg') + '">' + (pr>=0?'+':'') + 'R$ ' + Math.abs(pr).toFixed(2).replace('.',',') + '</div>' +
     '</div>';
   }).join('');
 
@@ -2812,10 +2831,6 @@ function showSessionDetail(sessionIndex) {
     return (b.profit||0)-(a.profit||0);
   });
   var displayPos = getDisplayPositions(sorted, function(p){ return isClassico ? p.place : (p.profit||0); });
-  var medals = ['🥇','🥈','🥉'];
-
-  var baseCols = isClassico ? '1fr 65px 65px 75px' : '1fr 90px 90px';
-  var gridCols = baseCols + (_adminAuth ? ' 26px' : '');
 
   var rowsHTML = sorted.map(function(p,i) {
     var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
@@ -2823,15 +2838,18 @@ function showSessionDetail(sessionIndex) {
     var pos = displayPos[i];
     var descartada = window._sessaoDescartada && s._uid && window._sessaoDescartada[p.name] === s._uid;
     var origIdx = s.players.indexOf(p);
-    var delBtn = _adminAuth ? '<button class="pgm-close-btn" onclick="confirmRemovePlayerFromSession(' + sessionIndex + ',' + origIdx + ')" title="Remover jogador desta sessão" style="color:var(--negative);font-size:14px">✕</button>' : '';
-    return '<div class="pgm-final-row" style="grid-template-columns:' + gridCols + ';' + (descartada ? 'opacity:0.55' : '') + '">' +
-      '<div class="pgm-player-name" style="font-size:13px;display:flex;align-items:center;gap:6px">' +
-        avatarHTML(p.name,'pgm-player-avatar','♟') + (medals[pos-1]||('#'+pos)) + ' ' +
-        (descartada ? '<span style="text-decoration:line-through;color:var(--negative)">' + escHtml(p.name) + '</span> <span style="font-size:9px;font-weight:900;color:var(--negative);background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;padding:1px 4px">descartada</span>' : escHtml(p.name)) +
+    var delBtn = _adminAuth ? '<button class="pgm-icon-btn" onclick="confirmRemovePlayerFromSession(' + sessionIndex + ',' + origIdx + ')" title="Remover jogador desta sessão">✕</button>' : '';
+    var nameHTML = descartada
+      ? '<span style="text-decoration:line-through;color:var(--negative)">' + escHtml(p.name) + '</span> <span style="font-size:9px;font-weight:900;color:var(--negative);background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;padding:1px 4px">descartada</span>'
+      : escHtml(p.name);
+    return '<div class="pgm-rcard" style="' + (descartada ? 'opacity:0.55' : '') + '">' +
+      pgmRankBadgeHTML(pos) +
+      avatarHTML(p.name,'pgm-player-avatar','♟') +
+      '<div class="pgm-rname-block">' +
+        '<div class="pgm-rname">' + nameHTML + '</div>' +
+        '<div class="pgm-rsub">Investiu ' + fmtRaw(investido) + '</div>' +
       '</div>' +
-      '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
-      (isClassico ? '<div class="pgm-money neu" style="font-size:11px">' + (p.finalChips||0).toLocaleString('pt-BR') + ' <span style="color:var(--negative);font-size:1.15em">♦</span></div>' : '') +
-      '<div class="pgm-money ' + (pr>=0?'pos':'neg') + '" style="font-size:13px">' + fmtR(pr) + '</div>' +
+      '<div class="pgm-rval ' + (pr>=0?'pos':'neg') + '">' + fmtR(pr) + '</div>' +
       delBtn +
       '</div>';
   }).join('');
@@ -2859,7 +2877,6 @@ function showSessionDetail(sessionIndex) {
     '<span style="font-size:12px;font-weight:700;color:var(--text-dim)">Pot: ' + fmtRaw(pot) + ' · ' + s.players.length + ' jogadores' + (s.duration?' · ⏱️ '+formatDuration(s.duration):'') + '</span>' +
     '<button onclick="showDevolucaoPix(' + sessionIndex + ')" title="Quanto devolver pra cada jogador" style="width:18px;height:18px;border-radius:50%;border:1.5px solid var(--gold-light);background:none;color:var(--gold-light);font-size:11px;font-weight:900;font-style:italic;font-family:Georgia,serif;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;line-height:1;padding:0">i</button>' +
     '</div>' +
-    '<div class="pgm-final-row header" style="grid-template-columns:' + gridCols + '"><div>Jogador</div><div style="text-align:right">Investiu</div>' + (isClassico ? '<div style="text-align:right">Fichas</div>' : '') + '<div style="text-align:right">Lucro</div>' + (_adminAuth ? '<div></div>' : '') + '</div>' +
     rowsHTML + curiosHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
@@ -2889,9 +2906,10 @@ function showDevolucaoPix(sessionIndex) {
 
   var rowsHTML = sorted.map(function(p) {
     var leva = p.finalStack || 0;
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.55rem 0;border-bottom:1px solid var(--border)">' +
-      '<div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;color:var(--cream)">' + avatarHTML(p.name,'pgm-player-avatar','♟') + escHtml(p.name) + '</div>' +
-      '<div style="font-family:\'DM Mono\',monospace;font-size:16px;font-weight:900;color:var(--gold-light)">' + fmtRaw(leva) + '</div>' +
+    return '<div class="pgm-rcard">' +
+      avatarHTML(p.name,'pgm-player-avatar','♟') +
+      '<div class="pgm-rname">' + escHtml(p.name) + '</div>' +
+      '<div class="pgm-rval" style="color:var(--gold-light);font-size:15px">' + fmtRaw(leva) + '</div>' +
     '</div>';
   }).join('');
 
@@ -3015,16 +3033,17 @@ function showSeasonDetail(idx) {
       ? '<span class="pgm-badge pgm-badge-gold" style="font-size:10px">🏆 Oficial</span>'
       : '<span class="pgm-badge pgm-badge-casual" style="font-size:10px">🥃 Casual</span>';
     var sorted = [...s.players].sort(function(a,b){ return (b.profit||0)-(a.profit||0); });
-    var medals2 = ['🥇','🥈','🥉'];
     var dp2 = getDisplayPositions(sorted, function(p){ return p.profit||0; });
     var pot = s.players.reduce(function(a,p){ return a + p.buyin + p.rebuys.reduce(function(r,v){ return r+v; }, 0); }, 0);
 
     var rowsHTML = sorted.map(function(p, i) {
       var pr = p.profit || 0;
       var pos2 = dp2[i];
-      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px">' +
-        '<span style="font-weight:800;color:var(--cream);display:flex;align-items:center;gap:5px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + (medals2[pos2-1]||'') + ' ' + escHtml(p.name) + '</span>' +
-        '<span style="font-family:DM Mono,monospace;color:' + (pr>=0?'var(--positive)':'var(--negative)') + '">' + fmtR(pr) + '</span>' +
+      return '<div class="pgm-rcard" style="padding:6px 8px;margin-bottom:4px">' +
+        pgmRankBadgeHTML(pos2) +
+        avatarHTML(p.name,'pgm-player-avatar','♟') +
+        '<div class="pgm-rname">' + escHtml(p.name) + '</div>' +
+        '<div class="pgm-rval ' + (pr>=0?'pos':'neg') + '">' + fmtR(pr) + '</div>' +
       '</div>';
     }).join('');
 
