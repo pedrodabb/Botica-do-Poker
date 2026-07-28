@@ -992,7 +992,7 @@ function openBlindCalcModal() {
   var cacifeAtual = parseInt(document.getElementById('new-tourney-stack').value) || '';
   var numJogadores = window._blindCalcJogadores || S.newSession.players.length || 4;
   var duracaoTexto = window._blindCalcDuracaoTexto || '00:00';
-  var velAtual = window._blindCalcVel || 'turbo';
+  var velAtual = 'regular';
   window._blindCalcVel = velAtual;
   showModal(
     '<div class="pgm-modal-title">🎲 Calculadora de Blinds <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
@@ -1029,7 +1029,7 @@ function doCalcularBlinds() {
   window._blindCalcJogadores = numJogadores;
   window._blindCalcDuracaoTexto = duracaoTexto;
   var duracaoHoras = d.horas + (d.minutos/60);
-  var vel = window._blindCalcVel || 'turbo';
+  var vel = window._blindCalcVel || 'regular';
   var resultado = calcularEstruturaBlinds(cacife, numJogadores, duracaoHoras, vel);
   renderBlindTable(resultado, cacife, cacifeSugerido, numJogadores, vel);
 }
