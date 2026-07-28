@@ -929,25 +929,28 @@ function formatarDuracao(min) {
   return m + 'min';
 }
 
+function parseDuracaoDigitada(str) {
+  var digits = String(str||'').replace(/\D/g,'');
+  if(!digits) return { horas: 0, minutos: 0 };
+  if(digits.length <= 2) return { horas: 0, minutos: Math.min(59, parseInt(digits,10)) };
+  var minutos = Math.min(59, parseInt(digits.slice(-2),10));
+  var horas = parseInt(digits.slice(0,-2),10);
+  return { horas: horas, minutos: minutos };
+}
+
 function openBlindCalcModal() {
   var cacifeAtual = parseInt(document.getElementById('new-tourney-stack').value) || '';
   var numJogadores = window._blindCalcJogadores || S.newSession.players.length || 4;
-  var horas = window._blindCalcHoras != null ? window._blindCalcHoras : 2;
-  var minutos = window._blindCalcMinutos != null ? window._blindCalcMinutos : 0;
+  var duracaoTexto = window._blindCalcDuracaoTexto || '200';
   var velAtual = window._blindCalcVel || 'turbo';
   window._blindCalcVel = velAtual;
   showModal(
     '<div class="pgm-modal-title">🎲 Calculadora de Blinds <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.5">Não sabe quantas fichas usar? Deixa o cacife em branco que eu sugiro. Preenche o resto e calcula.</div>' +
+    '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.5">Não sabe quantas fichas usar? Deixa o cacife em branco que eu sugiro.</div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Nº de jogadores</label>' +
     '<input type="number" id="blind-calc-jogadores" class="pgm-input" min="2" value="' + numJogadores + '"></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Duração alvo</label>' +
-    '<div style="display:flex;gap:8px;align-items:center">' +
-    '<input type="number" id="blind-calc-horas" class="pgm-input" placeholder="h" min="0" style="width:70px" value="' + horas + '" oninput="atualizarPreviewDuracao()"> <span style="font-size:11px;color:var(--text-dim);font-weight:800">h</span>' +
-    '<input type="number" id="blind-calc-minutos" class="pgm-input" placeholder="min" min="0" max="55" step="5" style="width:70px" value="' + minutos + '" oninput="atualizarPreviewDuracao()"> <span style="font-size:11px;color:var(--text-dim);font-weight:800">min</span>' +
-    '</div>' +
-    '<div id="blind-calc-duracao-preview" style="font-size:10px;color:var(--gold-light);font-weight:800;margin-top:4px">= ' + formatarDuracao(horas*60+minutos) + ' de torneio</div>' +
-    '</div>' +
+    '<input type="text" inputmode="numeric" id="blind-calc-duracao" class="pgm-input" placeholder="Ex: 430 = 4h30" value="' + duracaoTexto + '"></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Velocidade</label>' +
     '<div class="pgm-toggle-group" id="blind-calc-vel-toggle" style="display:flex;gap:6px">' +
     '<button class="pgm-toggle-opt' + (velAtual==='turbo'?' active':'') + '" type="button" data-vel="turbo" onclick="selecionarVelocidadeBlind(\'turbo\')">⚡ Turbo</button>' +
@@ -960,13 +963,6 @@ function openBlindCalcModal() {
   );
 }
 
-function atualizarPreviewDuracao() {
-  var h = parseFloat(document.getElementById('blind-calc-horas').value) || 0;
-  var m = parseFloat(document.getElementById('blind-calc-minutos').value) || 0;
-  var el = document.getElementById('blind-calc-duracao-preview');
-  if(el) el.textContent = '= ' + formatarDuracao(h*60+m) + ' de torneio';
-}
-
 function selecionarVelocidadeBlind(v) {
   window._blindCalcVel = v;
   document.querySelectorAll('#blind-calc-vel-toggle .pgm-toggle-opt').forEach(function(b){ b.classList.toggle('active', b.dataset.vel===v); });
@@ -974,16 +970,15 @@ function selecionarVelocidadeBlind(v) {
 
 function doCalcularBlinds() {
   var numJogadores = parseInt(document.getElementById('blind-calc-jogadores').value) || 4;
-  var horas = parseFloat(document.getElementById('blind-calc-horas').value) || 0;
-  var minutos = parseFloat(document.getElementById('blind-calc-minutos').value) || 0;
-  if(horas <= 0 && minutos <= 0) { showAlert('Informe a duração alvo do torneio.'); return; }
+  var duracaoTexto = document.getElementById('blind-calc-duracao').value;
+  var d = parseDuracaoDigitada(duracaoTexto);
+  if(d.horas <= 0 && d.minutos <= 0) { showAlert('Informe a duração alvo do torneio.'); return; }
   var cacifeInformado = parseInt(document.getElementById('blind-calc-cacife').value) || 0;
   var cacifeSugerido = !cacifeInformado;
   var cacife = cacifeInformado || 10000;
   window._blindCalcJogadores = numJogadores;
-  window._blindCalcHoras = horas;
-  window._blindCalcMinutos = minutos;
-  var duracaoHoras = horas + (minutos/60);
+  window._blindCalcDuracaoTexto = duracaoTexto;
+  var duracaoHoras = d.horas + (d.minutos/60);
   var vel = window._blindCalcVel || 'turbo';
   var resultado = calcularEstruturaBlinds(cacife, numJogadores, duracaoHoras, vel);
   renderBlindTable(resultado, cacife, cacifeSugerido, numJogadores, vel);
