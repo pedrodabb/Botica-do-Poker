@@ -1053,15 +1053,18 @@ function voltarTabelaBlinds() {
 
 function renderBlindTable(resultado, cacife, cacifeSugerido, numJogadores, vel) {
   var velLabel = BLIND_VELOCIDADES[vel].label;
-  var linhas = resultado.niveis.map(function(n) {
-    return '<div style="display:grid;grid-template-columns:28px 1fr 50px 95px 55px;gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
+  var addonBanda = '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin:5px 0;font-size:10px;font-weight:800;color:#7ab8f5;text-align:center">🔵 INTERVALO — ADD-ON DISPONÍVEL (' + cacife.toLocaleString('pt-BR') + ' fichas, opcional)</div>';
+  var linhas = '';
+  resultado.niveis.forEach(function(n, i) {
+    if(i > 0 && n.fase === 'Meio' && resultado.niveis[i-1].fase === 'Início') linhas += addonBanda;
+    linhas += '<div style="display:grid;grid-template-columns:28px 1fr 50px 95px 55px;gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
       '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + n.nivel + '</div>' +
       '<div style="font-size:9px;font-weight:800;color:var(--gold-dim);text-transform:uppercase">' + n.fase + '</div>' +
       '<div style="color:var(--text-dim)">' + n.duracaoMin + 'min</div>' +
       '<div style="font-family:DM Mono,monospace;font-weight:800;color:var(--cream)">' + n.sb.toLocaleString('pt-BR') + '/' + n.bb.toLocaleString('pt-BR') + '</div>' +
       '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + (n.ante ? n.ante.toLocaleString('pt-BR') : '—') + '</div>' +
     '</div>';
-  }).join('');
+  });
   var cacifeLinha = cacifeSugerido
     ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(201,168,76,0.1);border:1px solid var(--border-strong);border-radius:8px;padding:6px 10px;margin-bottom:0.6rem">' +
         '<div style="font-size:11px;font-weight:800;color:var(--gold-light)">💡 Cacife sugerido: ' + cacife.toLocaleString('pt-BR') + ' fichas</div>' +
