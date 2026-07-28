@@ -1060,7 +1060,8 @@ function renderBlindTable(resultado, cacife, cacifeSugerido, numJogadores, vel) 
   var addonBanda = '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin:5px 0;font-size:10px;font-weight:800;color:#7ab8f5;text-align:center">🔵 INTERVALO — ADD-ON DISPONÍVEL (' + cacife.toLocaleString('pt-BR') + ' fichas, opcional)</div>';
   var linhas = '';
   var acumMin = 0;
-  var limiteAddon = resultado.duracaoTotalMin * 0.3;
+  var minutosRebuyPadrao = { turbo: 45, regular: 60, slow: 90 };
+  var limiteAddon = Math.min(minutosRebuyPadrao[vel] || 60, resultado.duracaoTotalMin * 0.6);
   var addonInserido = false;
   resultado.niveis.forEach(function(n, i) {
     if(!addonInserido && i > 0 && acumMin >= limiteAddon) { linhas += addonBanda; addonInserido = true; }
