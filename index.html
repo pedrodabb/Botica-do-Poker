@@ -936,21 +936,25 @@ function calcularEstruturaBlinds(cacife, numJogadores, duracaoHoras, velocidade)
   var idxInicial = 0;
   for(var k0=0; k0<ESCADA_BLINDS.length; k0++) { if(ESCADA_BLINDS[k0][1] >= startingBB) { idxInicial = k0; break; } }
 
-  var rate = Math.pow(targetBB / startingBB, 1/((N-1)||1));
-  var anteDesdeNivel = Math.ceil(N/3);
-  var idxAtual = idxInicial;
   var escadaTrabalho = ESCADA_BLINDS.slice();
+  while(escadaTrabalho[escadaTrabalho.length-1][1] < targetBB) {
+    escadaTrabalho.push(proximoDegrauSintetico(escadaTrabalho[escadaTrabalho.length-1][1]));
+  }
+  var idxFinal = idxInicial;
+  for(var k1=idxInicial; k1<escadaTrabalho.length; k1++) { if(escadaTrabalho[k1][1] >= targetBB) { idxFinal = k1; break; } idxFinal = k1; }
+  if(idxFinal < idxInicial) idxFinal = idxInicial;
+
+  var anteDesdeNivel = Math.ceil(N/3);
+  var idxAnterior = -1;
 
   var niveis = [];
   for(var i=0; i<N; i++) {
     var fase = i<inicioN ? 'Início' : (i<inicioN+meioN ? 'Meio' : 'Fim');
     var duracao = i<inicioN ? durInicio : (i<inicioN+meioN ? durMeio : durFim);
-    var bbBruto = startingBB * Math.pow(rate, i);
-    var minIdx = idxAtual;
-    while(minIdx >= escadaTrabalho.length || escadaTrabalho[escadaTrabalho.length-1][1] < bbBruto) {
-      escadaTrabalho.push(proximoDegrauSintetico(escadaTrabalho[escadaTrabalho.length-1][1]));
-    }
-    idxAtual = indiceEscadaMaisProximo(escadaTrabalho, bbBruto, minIdx);
+    var progresso = N>1 ? i/(N-1) : 1;
+    var idxAtual = Math.round(idxInicial + (idxFinal-idxInicial)*progresso);
+    if(idxAtual < idxAnterior) idxAtual = idxAnterior;
+    idxAnterior = idxAtual;
     var sb = escadaTrabalho[idxAtual][0];
     var bb = escadaTrabalho[idxAtual][1];
     var ante = (i+1 >= anteDesdeNivel) ? arredondarFicha(bb*0.12) : 0;
