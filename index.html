@@ -1059,8 +1059,12 @@ function renderBlindTable(resultado, cacife, cacifeSugerido, numJogadores, vel) 
   var velLabel = BLIND_VELOCIDADES[vel].label;
   var addonBanda = '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin:5px 0;font-size:10px;font-weight:800;color:#7ab8f5;text-align:center">🔵 INTERVALO — ADD-ON DISPONÍVEL (' + cacife.toLocaleString('pt-BR') + ' fichas, opcional)</div>';
   var linhas = '';
+  var acumMin = 0;
+  var limiteAddon = resultado.duracaoTotalMin * 0.3;
+  var addonInserido = false;
   resultado.niveis.forEach(function(n, i) {
-    if(i > 0 && n.fase === 'Meio' && resultado.niveis[i-1].fase === 'Início') linhas += addonBanda;
+    if(!addonInserido && i > 0 && acumMin >= limiteAddon) { linhas += addonBanda; addonInserido = true; }
+    acumMin += n.duracaoMin;
     linhas += '<div style="display:grid;grid-template-columns:28px 1fr 50px 95px 55px;gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
       '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + n.nivel + '</div>' +
       '<div style="font-size:9px;font-weight:800;color:var(--gold-dim);text-transform:uppercase">' + n.fase + '</div>' +
