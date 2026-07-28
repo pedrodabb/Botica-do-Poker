@@ -525,6 +525,7 @@
               </div>
             </div>
             <div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-0.25rem 0 0.75rem">Premiação: % do pot por colocação, separado por / (ex: 70/30 = 1º leva 70%, 2º leva 30%)</div>
+            <button class="pgm-btn pgm-btn-sm" type="button" onclick="openBlindCalcModal()" style="width:100%;margin-bottom:0.75rem">🎲 Calcular estrutura de blinds</button>
           </div>
           <button class="pgm-rules-link" type="button" onclick="showRulesGuide()">ℹ️ Ver regras de pontuação</button>
           <div class="pgm-field" id="casual-name-field" style="display:none">
@@ -859,6 +860,124 @@ function setTourneyMode(tm) {
   });
   var tcf = document.getElementById('tourney-classic-fields');
   if(tcf) tcf.style.display = tm === 'classico' ? 'block' : 'none';
+}
+
+var BLIND_VELOCIDADES = {
+  turbo:   { label: 'Turbo',   nivelBaseMin: 10, fatorFinal: 8  },
+  regular: { label: 'Regular', nivelBaseMin: 15, fatorFinal: 12 },
+  slow:    { label: 'Slow',    nivelBaseMin: 20, fatorFinal: 20 }
+};
+
+function arredondarFicha(valor) {
+  if(valor <= 100) {
+    var miudas = [10,25,50,100];
+    var melhor = miudas[0];
+    miudas.forEach(function(d){ if(Math.abs(d-valor) < Math.abs(melhor-valor)) melhor = d; });
+    return melhor;
+  }
+  var passo;
+  if(valor < 1000) passo = 50;
+  else if(valor < 3000) passo = 100;
+  else if(valor < 10000) passo = 500;
+  else if(valor < 30000) passo = 1000;
+  else passo = 5000;
+  return Math.max(100, Math.round(valor/passo)*passo);
+}
+
+function calcularEstruturaBlinds(cacife, numJogadores, duracaoHoras, velocidade) {
+  var perfil = BLIND_VELOCIDADES[velocidade] || BLIND_VELOCIDADES.regular;
+  var duracaoMin = duracaoHoras * 60;
+  var N = Math.max(6, Math.round(duracaoMin / perfil.nivelBaseMin));
+
+  var inicioN = Math.max(1, Math.round(N * 0.25));
+  var fimN = Math.max(1, Math.round(N * 0.25));
+  var meioN = Math.max(1, N - inicioN - fimN);
+  N = inicioN + meioN + fimN;
+
+  var pesoInicio = 1.0, pesoMeio = 1.4, pesoFim = 0.6;
+  var totalPeso = inicioN*pesoInicio + meioN*pesoMeio + fimN*pesoFim;
+  var baseMin = duracaoMin / totalPeso;
+  var durInicio = Math.max(3, Math.round(baseMin*pesoInicio));
+  var durMeio = Math.max(3, Math.round(baseMin*pesoMeio));
+  var durFim = Math.max(3, Math.round(baseMin*pesoFim));
+
+  var totalChips = cacife * numJogadores;
+  var startingBB = arredondarFicha(cacife / 50);
+  var targetBB = arredondarFicha(totalChips / perfil.fatorFinal);
+  if(targetBB <= startingBB) targetBB = arredondarFicha(startingBB * 8);
+
+  var rate = Math.pow(targetBB / startingBB, 1/((N-1)||1));
+  var anteDesdeNivel = Math.ceil(N/3);
+
+  var niveis = [];
+  for(var i=0; i<N; i++) {
+    var fase = i<inicioN ? 'Início' : (i<inicioN+meioN ? 'Meio' : 'Fim');
+    var duracao = i<inicioN ? durInicio : (i<inicioN+meioN ? durMeio : durFim);
+    var bbBruto = startingBB * Math.pow(rate, i);
+    var bb = arredondarFicha(bbBruto);
+    var sb = arredondarFicha(bb/2);
+    var ante = (i+1 >= anteDesdeNivel) ? arredondarFicha(bb*0.12) : 0;
+    niveis.push({ nivel:i+1, fase:fase, duracaoMin:duracao, sb:sb, bb:bb, ante:ante });
+  }
+  return { niveis: niveis, duracaoTotalMin: niveis.reduce(function(a,n){return a+n.duracaoMin;},0), startingBB:startingBB, targetBB:targetBB };
+}
+
+function openBlindCalcModal() {
+  var cacife = parseInt(document.getElementById('new-tourney-stack').value) || 0;
+  if(!cacife) { showAlert('Preencha o cacife (fichas) antes de calcular.'); return; }
+  var numJogadores = S.newSession.players.length || 2;
+  var velAtual = window._blindCalcVel || 'regular';
+  window._blindCalcVel = velAtual;
+  showModal(
+    '<div class="pgm-modal-title">🎲 Calculadora de Blinds <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem">Cacife ' + cacife.toLocaleString('pt-BR') + ' · ' + numJogadores + ' jogador' + (numJogadores>1?'es':'') + '</div>' +
+    '<div class="pgm-field"><label class="pgm-input-label">Duração alvo (horas)</label>' +
+    '<input type="number" id="blind-calc-horas" class="pgm-input" placeholder="Ex: 4" min="1" step="0.5" value="' + (window._blindCalcHoras||4) + '"></div>' +
+    '<div class="pgm-field"><label class="pgm-input-label">Velocidade</label>' +
+    '<div class="pgm-toggle-group" id="blind-calc-vel-toggle" style="display:flex;gap:6px">' +
+    '<button class="pgm-toggle-opt' + (velAtual==='turbo'?' active':'') + '" type="button" data-vel="turbo" onclick="selecionarVelocidadeBlind(\'turbo\')">⚡ Turbo</button>' +
+    '<button class="pgm-toggle-opt' + (velAtual==='regular'?' active':'') + '" type="button" data-vel="regular" onclick="selecionarVelocidadeBlind(\'regular\')">⚖️ Regular</button>' +
+    '<button class="pgm-toggle-opt' + (velAtual==='slow'?' active':'') + '" type="button" data-vel="slow" onclick="selecionarVelocidadeBlind(\'slow\')">🐢 Slow</button>' +
+    '</div></div>' +
+    '<button class="pgm-btn pgm-btn-success" style="width:100%;margin-top:0.5rem" onclick="doCalcularBlinds(' + cacife + ',' + numJogadores + ')">Calcular</button>'
+  );
+}
+
+function selecionarVelocidadeBlind(v) {
+  window._blindCalcVel = v;
+  document.querySelectorAll('#blind-calc-vel-toggle .pgm-toggle-opt').forEach(function(b){ b.classList.toggle('active', b.dataset.vel===v); });
+}
+
+function doCalcularBlinds(cacife, numJogadores) {
+  var horas = parseFloat((document.getElementById('blind-calc-horas').value||'4').replace(',','.')) || 4;
+  window._blindCalcHoras = horas;
+  var vel = window._blindCalcVel || 'regular';
+  var resultado = calcularEstruturaBlinds(cacife, numJogadores, horas, vel);
+  renderBlindTable(resultado, cacife, numJogadores, horas, vel);
+}
+
+function renderBlindTable(resultado, cacife, numJogadores, horas, vel) {
+  var velLabel = BLIND_VELOCIDADES[vel].label;
+  var linhas = resultado.niveis.map(function(n) {
+    return '<div style="display:grid;grid-template-columns:28px 1fr 50px 95px 55px;gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
+      '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + n.nivel + '</div>' +
+      '<div style="font-size:9px;font-weight:800;color:var(--gold-dim);text-transform:uppercase">' + n.fase + '</div>' +
+      '<div style="color:var(--text-dim)">' + n.duracaoMin + 'min</div>' +
+      '<div style="font-family:DM Mono,monospace;font-weight:800;color:var(--cream)">' + n.sb.toLocaleString('pt-BR') + '/' + n.bb.toLocaleString('pt-BR') + '</div>' +
+      '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + (n.ante ? n.ante.toLocaleString('pt-BR') : '—') + '</div>' +
+    '</div>';
+  }).join('');
+  showModal(
+    '<div class="pgm-modal-title">🎲 Estrutura — ' + velLabel + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">' + resultado.niveis.length + ' níveis · ' + resultado.duracaoTotalMin + ' min (~' + (resultado.duracaoTotalMin/60).toFixed(1) + 'h) · cacife ' + cacife.toLocaleString('pt-BR') + '</div>' +
+    '<div style="display:grid;grid-template-columns:28px 1fr 50px 95px 55px;gap:5px;padding-bottom:4px;border-bottom:1px solid var(--border-strong);font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase">' +
+    '<div>Nv</div><div>Fase</div><div>Tempo</div><div>SB/BB</div><div>Ante</div></div>' +
+    '<div style="max-height:45vh;overflow-y:auto">' + linhas + '</div>' +
+    '<div class="pgm-row-btns" style="margin-top:0.75rem">' +
+    '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="openBlindCalcModal()">← Ajustar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
+    '</div>'
+  );
 }
 
 function setSessionType(t) {
