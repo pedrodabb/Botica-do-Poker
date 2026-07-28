@@ -869,10 +869,10 @@ var BLIND_VELOCIDADES = {
 };
 
 var ESCADA_BLINDS = [
-  [100,200],[150,300],[200,400],[300,600],[400,800],[500,1000],[600,1200],[800,1600],
-  [1000,2000],[1500,3000],[2000,4000],[3000,6000],[4000,8000],[5000,10000],[6000,12000],
-  [8000,16000],[10000,20000],[15000,30000],[20000,40000],[30000,60000],[40000,80000],
-  [50000,100000],[60000,120000],[80000,160000],[100000,200000]
+  [100,200],[150,300],[250,500],[300,600],[400,800],[500,1000],[750,1500],
+  [1000,2000],[1250,2500],[1500,3000],[2000,4000],[2500,5000],[3000,6000],
+  [4000,8000],[5000,10000],[6000,12000],[8000,16000],[10000,20000],[15000,30000],
+  [20000,40000],[30000,60000],[40000,80000],[50000,100000],[75000,150000],[100000,200000]
 ];
 
 function arredondarFicha(valor) {
@@ -1041,10 +1041,12 @@ function renderBlindTable(resultado, cacife, cacifeSugerido, numJogadores, vel) 
         '<button class="pgm-btn pgm-btn-sm" style="font-size:10px;padding:4px 8px" onclick="usarCacifeSugerido(' + cacife + ')">Usar</button>' +
       '</div>'
     : '';
+  var rebuyAddonLinha = '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem;line-height:1.5">🔄 Rebuy e add-on sugeridos: <span style="color:var(--gold-light);font-weight:800">' + cacife.toLocaleString('pt-BR') + ' fichas</span> cada (padrão: igual ao cacife inicial)</div>';
   showModal(
     '<div class="pgm-modal-title">🎲 Estrutura — ' + velLabel + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">' + resultado.niveis.length + ' níveis · ' + formatarDuracao(resultado.duracaoTotalMin) + ' · ' + numJogadores + ' jogadores' + (cacifeSugerido?'':' · cacife '+cacife.toLocaleString('pt-BR')) + '</div>' +
     cacifeLinha +
+    rebuyAddonLinha +
     '<div style="display:grid;grid-template-columns:28px 1fr 50px 95px 55px;gap:5px;padding-bottom:4px;border-bottom:1px solid var(--border-strong);font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase">' +
     '<div>Nv</div><div>Fase</div><div>Tempo</div><div>SB/BB</div><div>Ante</div></div>' +
     '<div style="max-height:40vh;overflow-y:auto">' + linhas + '</div>' +
