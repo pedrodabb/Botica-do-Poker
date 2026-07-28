@@ -891,15 +891,24 @@ function arredondarFicha(valor) {
   return Math.max(100, Math.round(valor/passo)*passo);
 }
 
-function indiceEscadaMaisProximo(bbAlvo, indiceMinimo) {
+function indiceEscadaMaisProximo(lista, bbAlvo, indiceMinimo) {
   var melhorIdx = indiceMinimo;
   var melhorDist = Infinity;
-  for(var k=indiceMinimo; k<ESCADA_BLINDS.length; k++) {
-    var dist = Math.abs(ESCADA_BLINDS[k][1] - bbAlvo);
+  for(var k=indiceMinimo; k<lista.length; k++) {
+    var dist = Math.abs(lista[k][1] - bbAlvo);
     if(dist < melhorDist) { melhorDist = dist; melhorIdx = k; }
-    if(ESCADA_BLINDS[k][1] > bbAlvo * 1.5 && k > indiceMinimo) break;
+    if(lista[k][1] > bbAlvo * 1.5 && k > indiceMinimo) break;
   }
   return melhorIdx;
+}
+
+function proximoDegrauSintetico(ultimoBB) {
+  var bruto = ultimoBB * 1.5;
+  var passo = bruto < 200000 ? 10000 : (bruto < 1000000 ? 50000 : 100000);
+  var bb = Math.round(bruto/passo)*passo;
+  if(bb <= ultimoBB) bb = ultimoBB + passo;
+  var sb = Math.round(bb/2);
+  return [sb, bb];
 }
 
 function calcularEstruturaBlinds(cacife, numJogadores, duracaoHoras, velocidade) {
@@ -930,16 +939,20 @@ function calcularEstruturaBlinds(cacife, numJogadores, duracaoHoras, velocidade)
   var rate = Math.pow(targetBB / startingBB, 1/((N-1)||1));
   var anteDesdeNivel = Math.ceil(N/3);
   var idxAtual = idxInicial;
+  var escadaTrabalho = ESCADA_BLINDS.slice();
 
   var niveis = [];
   for(var i=0; i<N; i++) {
     var fase = i<inicioN ? 'Início' : (i<inicioN+meioN ? 'Meio' : 'Fim');
     var duracao = i<inicioN ? durInicio : (i<inicioN+meioN ? durMeio : durFim);
     var bbBruto = startingBB * Math.pow(rate, i);
-    var minIdx = i===0 ? idxAtual : Math.min(idxAtual+1, ESCADA_BLINDS.length-1);
-    idxAtual = indiceEscadaMaisProximo(bbBruto, minIdx);
-    var sb = ESCADA_BLINDS[idxAtual][0];
-    var bb = ESCADA_BLINDS[idxAtual][1];
+    var minIdx = idxAtual;
+    while(minIdx >= escadaTrabalho.length || escadaTrabalho[escadaTrabalho.length-1][1] < bbBruto) {
+      escadaTrabalho.push(proximoDegrauSintetico(escadaTrabalho[escadaTrabalho.length-1][1]));
+    }
+    idxAtual = indiceEscadaMaisProximo(escadaTrabalho, bbBruto, minIdx);
+    var sb = escadaTrabalho[idxAtual][0];
+    var bb = escadaTrabalho[idxAtual][1];
     var ante = (i+1 >= anteDesdeNivel) ? arredondarFicha(bb*0.12) : 0;
     niveis.push({ nivel:i+1, fase:fase, duracaoMin:duracao, sb:sb, bb:bb, ante:ante });
   }
