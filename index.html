@@ -862,105 +862,306 @@ function setTourneyMode(tm) {
   if(tcf) tcf.style.display = tm === 'classico' ? 'block' : 'none';
 }
 
-var BLIND_VELOCIDADES = {
-  turbo:   { label: 'Turbo',   nivelBaseMin: 10, fatorFinal: 8  },
-  regular: { label: 'Regular', nivelBaseMin: 15, fatorFinal: 12 },
-  slow:    { label: 'Slow',    nivelBaseMin: 20, fatorFinal: 20 }
-};
+/* ===================== CALCULADORA DE TORNEIO =====================
+   Modelo baseado em profundidade de stack (quantos big blinds cada um
+   tem), que é como torneio de verdade é desenhado — não em "a blind
+   dobra a cada X níveis". */
 
-var ESCADA_BLINDS = [
-  [100,200],[150,300],[250,500],[300,600],[400,800],[500,1000],[750,1500],
-  [1000,2000],[1250,2500],[1500,3000],[2000,4000],[2500,5000],[3000,6000],
-  [4000,8000],[5000,10000],[6000,12000],[8000,16000],[10000,20000],[15000,30000],
-  [20000,40000],[30000,60000],[40000,80000],[50000,100000],[75000,150000],[100000,200000]
+/* Fichas que o Pedro tem em casa. O set de torneio é 100/250/500/1000/3000;
+   as miúdas (10/25/50) entram só quando a estrutura precisa de degraus
+   intermediários no começo, e saem no color-up. */
+var FICHAS_INVENTARIO = [
+  { valor: 10,   qtd: 200 },
+  { valor: 25,   qtd: 175 },
+  { valor: 50,   qtd: 75  },
+  { valor: 100,  qtd: 190 },
+  { valor: 250,  qtd: 150 },
+  { valor: 500,  qtd: 120 },
+  { valor: 1000, qtd: 50  },
+  { valor: 3000, qtd: 30  }
 ];
 
-function arredondarFicha(valor) {
-  if(valor <= 100) {
-    var miudas = [10,25,50,100];
-    var melhor = miudas[0];
-    miudas.forEach(function(d){ if(Math.abs(d-valor) < Math.abs(melhor-valor)) melhor = d; });
-    return melhor;
-  }
-  var passo;
-  if(valor < 1000) passo = 50;
-  else if(valor < 3000) passo = 100;
-  else if(valor < 10000) passo = 500;
-  else if(valor < 30000) passo = 1000;
-  else passo = 5000;
-  return Math.max(100, Math.round(valor/passo)*passo);
+/* bbInicio/bbFim = profundidade (stack médio ÷ big blind) no começo e no
+   fim do torneio. Começar fundo = mais jogo; terminar raso = acaba mesmo. */
+var PERFIS_TORNEIO = {
+  turbo:   { label:'Turbo',   nivelMin:12, bbInicio:50,  bbFim:8,  rebuyMin:45 },
+  regular: { label:'Regular', nivelMin:20, bbInicio:75,  bbFim:12, rebuyMin:60 },
+  slow:    { label:'Slow',    nivelMin:30, bbInicio:120, bbFim:18, rebuyMin:90 }
+};
+
+/* Escada de small blinds. A maioria é múltipla de 250 (preferência do
+   Pedro pela ficha de 250); 300/400/600 entram só onde pular direto pro
+   próximo múltiplo de 250 daria um salto grande demais. */
+var ESCADA_SB = [
+  25,50,75,100,150,200,250,300,400,500,750,1000,1250,1500,2000,2500,3000,
+  4000,5000,6000,8000,10000,12500,15000,20000,25000,30000,40000,50000,
+  75000,100000,150000,200000
+];
+
+var CACIFES_REDONDOS = [1500,2000,2500,3000,4000,5000,6000,8000,10000,12000,15000,20000,25000,30000,40000,50000];
+
+function _mdc(a,b){ while(b){ var t=b; b=a%b; a=t; } return a; }
+
+/* Testa se um valor dá pra montar com as fichas em jogo — ex.: com
+   {100,250,500} dá pra fazer 350 (250+100) mas não 150. */
+function criarTesteMontavel(denoms) {
+  var g = denoms.reduce(function(acc,d){ return _mdc(acc,d); }, denoms[0]);
+  var tam = Math.floor(200000/g) + 1;
+  var alcanca = new Uint8Array(tam);
+  alcanca[0] = 1;
+  denoms.forEach(function(d){
+    var passo = d/g;
+    for(var v=passo; v<tam; v++) if(alcanca[v-passo]) alcanca[v] = 1;
+  });
+  return function(valor){
+    if(valor % g !== 0) return false;
+    var i = valor/g;
+    return i < tam ? !!alcanca[i] : true;
+  };
 }
 
-function indiceEscadaMaisProximo(lista, bbAlvo, indiceMinimo) {
-  var melhorIdx = indiceMinimo;
-  var melhorDist = Infinity;
-  for(var k=indiceMinimo; k<lista.length; k++) {
-    var dist = Math.abs(lista[k][1] - bbAlvo);
-    if(dist < melhorDist) { melhorDist = dist; melhorIdx = k; }
-    if(lista[k][1] > bbAlvo * 1.5 && k > indiceMinimo) break;
-  }
-  return melhorIdx;
+function montarEscadaBlinds(denoms) {
+  var montavel = criarTesteMontavel(denoms);
+  var menor = Math.min.apply(null, denoms);
+  var escada = [];
+  ESCADA_SB.forEach(function(sb){
+    if(sb >= menor && montavel(sb) && montavel(sb*2)) escada.push([sb, sb*2]);
+  });
+  return escada;
 }
 
-function proximoDegrauSintetico(ultimoBB) {
-  var bruto = ultimoBB * 1.5;
-  var passo = bruto < 200000 ? 10000 : (bruto < 1000000 ? 50000 : 100000);
-  var bb = Math.round(bruto/passo)*passo;
-  if(bb <= ultimoBB) bb = ultimoBB + passo;
-  var sb = Math.round(bb/2);
-  return [sb, bb];
+/* Stack inicial de cada jogador: mais fichas pequenas (pra pagar blind e
+   trocar) e poucas grandes. */
+function montarStackJogador(cacife, denoms, numJogadores) {
+  var ds = denoms.slice().sort(function(a,b){ return a-b; });
+  var d0 = ds[0];
+  /* teto por ficha: não dá pra dar mais do que o Pedro tem em casa,
+     dividido pelo número de jogadores */
+  var teto = ds.map(function(d){
+    var inv = FICHAS_INVENTARIO.filter(function(f){ return f.valor === d; })[0];
+    return (inv && numJogadores) ? Math.floor(inv.qtd / numJogadores) : 9999;
+  });
+  var pesos = ds.map(function(_,i){ return Math.pow(1.7, i); });
+  var somaPesos = pesos.reduce(function(a,b){ return a+b; }, 0);
+  var comp = ds.map(function(d,i){
+    var q = Math.round(cacife * pesos[i] / somaPesos / d);
+    return { valor:d, qtd:Math.min(teto[i], Math.max(i===0 ? 8 : 0, q)) };
+  });
+  /* fichas cujo valor não é múltiplo da menor (ex.: 250 sobre 100) só
+     fecham conta em quantidades certas — snapa pra esse passo */
+  var passos = comp.map(function(c){ return d0 / _mdc(c.valor, d0); });
+  comp.forEach(function(c,i){
+    if(passos[i] > 1) c.qtd = Math.min(teto[i], Math.max(passos[i], Math.round(c.qtd/passos[i])*passos[i]));
+  });
+
+  function total(){ return comp.reduce(function(a,c){ return a + c.valor*c.qtd; }, 0); }
+  var guarda = 0;
+  while(total() !== cacife && guarda++ < 5000) {
+    var dif = cacife - total(), alvo = null, i;
+    if(dif > 0) {
+      for(i=comp.length-1; i>=0; i--) if(comp[i].valor*passos[i] <= dif && comp[i].qtd + passos[i] <= teto[i]) { alvo = i; break; }
+      if(alvo === null) break;
+      comp[alvo].qtd += passos[alvo];
+    } else {
+      for(i=comp.length-1; i>=0; i--) if(comp[i].valor*passos[i] <= -dif && comp[i].qtd >= passos[i]) { alvo = i; break; }
+      if(alvo === null) break;
+      comp[alvo].qtd -= passos[alvo];
+    }
+  }
+  var lista = comp.filter(function(c){ return c.qtd > 0; });
+  var valor = lista.reduce(function(a,c){ return a + c.valor*c.qtd; }, 0);
+  return {
+    composicao: lista,
+    valor: valor,
+    coube: valor === cacife,
+    fichas: lista.reduce(function(a,c){ return a + c.qtd; }, 0)
+  };
 }
 
-function calcularEstruturaBlinds(cacife, numJogadores, duracaoHoras, velocidade) {
-  var perfil = BLIND_VELOCIDADES[velocidade] || BLIND_VELOCIDADES.regular;
-  var duracaoMin = duracaoHoras * 60;
-  var N = Math.max(6, Math.round(duracaoMin / perfil.nivelBaseMin));
+function conferirFichas(stack, numJogadores) {
+  var faltas = [];
+  stack.composicao.forEach(function(c){
+    var inv = FICHAS_INVENTARIO.filter(function(f){ return f.valor === c.valor; })[0];
+    var precisa = c.qtd * numJogadores;
+    if(inv && precisa > inv.qtd) faltas.push({ valor:c.valor, precisa:precisa, tem:inv.qtd });
+  });
+  return faltas;
+}
 
-  var inicioN = Math.max(1, Math.round(N * 0.25));
-  var fimN = Math.max(1, Math.round(N * 0.25));
-  var meioN = Math.max(1, N - inicioN - fimN);
-  N = inicioN + meioN + fimN;
-
-  var pesoInicio = 1.0, pesoMeio = 1.4, pesoFim = 0.6;
-  var totalPeso = inicioN*pesoInicio + meioN*pesoMeio + fimN*pesoFim;
-  var baseMin = duracaoMin / totalPeso;
-  var durInicio = Math.max(3, Math.round(baseMin*pesoInicio));
-  var durMeio = Math.max(3, Math.round(baseMin*pesoMeio));
-  var durFim = Math.max(3, Math.round(baseMin*pesoFim));
-
-  var totalChips = cacife * numJogadores;
-  var startingBB = arredondarFicha(cacife / 50);
-  var targetBB = arredondarFicha(totalChips / perfil.fatorFinal);
-  if(targetBB <= startingBB) targetBB = arredondarFicha(startingBB * 8);
-
-  var idxInicial = 0;
-  for(var k0=0; k0<ESCADA_BLINDS.length; k0++) { if(ESCADA_BLINDS[k0][1] >= startingBB) { idxInicial = k0; break; } }
-
-  var escadaTrabalho = ESCADA_BLINDS.slice();
-  while(escadaTrabalho[escadaTrabalho.length-1][1] < targetBB) {
-    escadaTrabalho.push(proximoDegrauSintetico(escadaTrabalho[escadaTrabalho.length-1][1]));
+/* Cacife sugerido: a partir da profundidade do perfil e do blind inicial
+   padrão da casa (100/200), escolhendo o valor redondo mais próximo que
+   ainda caiba nas fichas físicas disponíveis. */
+function sugerirCacife(numJogadores, velocidade) {
+  var perfil = PERFIS_TORNEIO[velocidade] || PERFIS_TORNEIO.regular;
+  var alvo = 200 * perfil.bbInicio;
+  var denomsTorneio = FICHAS_INVENTARIO.filter(function(f){ return f.valor >= 100; }).map(function(f){ return f.valor; });
+  var ordenados = CACIFES_REDONDOS.slice().sort(function(a,b){ return Math.abs(a-alvo) - Math.abs(b-alvo); });
+  for(var i=0;i<ordenados.length;i++){
+    var st = montarStackJogador(ordenados[i], denomsTorneio, numJogadores);
+    if(st.coube && !conferirFichas(st, numJogadores).length) return ordenados[i];
   }
-  var idxFinal = idxInicial;
-  for(var k1=idxInicial; k1<escadaTrabalho.length; k1++) { if(escadaTrabalho[k1][1] >= targetBB) { idxFinal = k1; break; } idxFinal = k1; }
-  if(idxFinal < idxInicial) idxFinal = idxInicial;
+  return alvo;
+}
 
-  var anteDesdeNivel = Math.ceil(N/3);
-  var idxAnterior = -1;
-
-  var niveis = [];
-  for(var i=0; i<N; i++) {
-    var fase = i<inicioN ? 'Início' : (i<inicioN+meioN ? 'Meio' : 'Fim');
-    var duracao = i<inicioN ? durInicio : (i<inicioN+meioN ? durMeio : durFim);
-    var progresso = N>1 ? i/(N-1) : 1;
-    var idxAtual = Math.round(idxInicial + (idxFinal-idxInicial)*progresso);
-    if(idxAtual < idxAnterior) idxAtual = idxAnterior;
-    idxAnterior = idxAtual;
-    var sb = escadaTrabalho[idxAtual][0];
-    var bb = escadaTrabalho[idxAtual][1];
-    var ante = (i+1 >= anteDesdeNivel) ? arredondarFicha(bb*0.12) : 0;
-    niveis.push({ nivel:i+1, fase:fase, duracaoMin:duracao, sb:sb, bb:bb, ante:ante });
+/* Fases pela profundidade real, não por contagem de nível: quando o stack
+   médio vale 10 big blinds isso é fim de jogo, não meio. Os limites saem
+   do perfil — o "fundo" de um Slow não é o mesmo de um Turbo. */
+function classificarFases(niveis, perfil) {
+  var limInicio = perfil.bbInicio * 0.55;
+  var limFim = perfil.bbFim * 1.6;
+  niveis.forEach(function(n){
+    n.fase = n.profundidade >= limInicio ? 'Início' : (n.profundidade >= limFim ? 'Meio' : 'Fim');
+  });
+  var L = niveis.length;
+  var minMeio = Math.max(2, Math.round(L * 0.45));
+  function conta(f){ return niveis.filter(function(n){ return n.fase===f; }).length; }
+  if(conta('Início') === 0) niveis[0].fase = 'Início';
+  if(conta('Fim') === 0) niveis[L-1].fase = 'Fim';
+  var guarda = 0, i;
+  while(conta('Meio') < minMeio && guarda++ < L*2) {
+    if(conta('Início') > 1) {
+      for(i=L-1;i>=0;i--) if(niveis[i].fase==='Início'){ niveis[i].fase='Meio'; break; }
+    } else if(conta('Fim') > 1) {
+      for(i=0;i<L;i++) if(niveis[i].fase==='Fim'){ niveis[i].fase='Meio'; break; }
+    } else break;
   }
-  return { niveis: niveis, duracaoTotalMin: niveis.reduce(function(a,n){return a+n.duracaoMin;},0), startingBB:startingBB, targetBB:targetBB };
+}
+
+/* Meio é a fase mais longa, Fim a mais curta (ninguém eliminado fica
+   esperando). Níveis em múltiplos de 5min, como torneio de verdade. */
+function distribuirTempos(niveis, duracaoAlvoMin) {
+  var pesos = { 'Início':1.0, 'Meio':1.5, 'Fim':0.55 };
+  var soma = niveis.reduce(function(a,n){ return a + pesos[n.fase]; }, 0);
+  var base = duracaoAlvoMin / soma;
+  var dur = {};
+  ['Início','Meio','Fim'].forEach(function(f){ dur[f] = Math.max(5, Math.round(base*pesos[f]/5)*5); });
+  function aplicar(){ niveis.forEach(function(n){ n.duracaoMin = dur[n.fase]; }); }
+  function total(){ return niveis.reduce(function(a,n){ return a+n.duracaoMin; },0); }
+  aplicar();
+  var meios = niveis.filter(function(n){ return n.fase==='Meio'; });
+  var guarda = 0;
+  while(guarda++ < 30 && meios.length) {
+    var t = total();
+    if(Math.abs(t - duracaoAlvoMin) <= meios.length * 2.5) break;
+    var passo = t > duracaoAlvoMin ? -5 : 5;
+    if(dur['Meio'] + passo < 5) break;
+    dur['Meio'] += passo;
+    aplicar();
+  }
+  /* ajuste fino: fecha os minutos que sobraram nos níveis do Meio */
+  var g2 = 0;
+  while(meios.length && g2++ < 60) {
+    var dif = duracaoAlvoMin - total();
+    if(Math.abs(dif) < 5) break;
+    var alvo = dif > 0
+      ? meios.reduce(function(a,b){ return a.duracaoMin <= b.duracaoMin ? a : b; })
+      : meios.reduce(function(a,b){ return a.duracaoMin >= b.duracaoMin ? a : b; });
+    if(dif < 0 && alvo.duracaoMin <= 5) break;
+    alvo.duracaoMin += dif > 0 ? 5 : -5;
+  }
+}
+
+function calcularEstruturaTorneio(cfg) {
+  var perfil = PERFIS_TORNEIO[cfg.velocidade] || PERFIS_TORNEIO.regular;
+  var N = Math.max(2, cfg.numJogadores || 4);
+  var duracaoMin = Math.max(30, cfg.duracaoMin || 240);
+  var cacifeSugerido = !cfg.cacife;
+  var cacife = cfg.cacife || sugerirCacife(N, cfg.velocidade);
+
+  /* menor ficha em jogo = small blind do nível 1. Preferência do Pedro é
+     ficar em 100+; só desce pras miúdas quando o cacife é pequeno demais
+     e a blind inicial teria que ser menor que 100. */
+  var sbAlvo = cacife / perfil.bbInicio / 2;
+  var menorFicha = 25;
+  for(var i=FICHAS_INVENTARIO.length-1; i>=0; i--) {
+    if(FICHAS_INVENTARIO[i].valor <= sbAlvo) { menorFicha = FICHAS_INVENTARIO[i].valor; break; }
+  }
+  if(menorFicha > 100) menorFicha = 100;
+  var denoms = FICHAS_INVENTARIO.filter(function(f){ return f.valor >= menorFicha; }).map(function(f){ return f.valor; });
+  var escada = montarEscadaBlinds(denoms);
+  if(escada.length < 4) { menorFicha = 100; denoms = [100,250,500,1000,3000]; escada = montarEscadaBlinds(denoms); }
+
+  var idxIni = 0, melhorDist = Infinity;
+  escada.forEach(function(e,k){ var d = Math.abs(e[0]-sbAlvo); if(d < melhorDist){ melhorDist = d; idxIni = k; } });
+
+  /* rebuy e add-on mais que dobram as fichas em jogo — é o que faz
+     torneio caseiro furar o horário previsto */
+  var fichasBase = cacife * N;
+  var totalFichas = Math.round(fichasBase * (cfg.comRebuy ? 2.2 : 1));
+
+  /* degrau final: o mais PRÓXIMO do alvo (pegar sempre o de baixo fazia o
+     torneio terminar raso demais e nunca acabar de verdade) */
+  var bbFinalAlvo = totalFichas / (2 * perfil.bbFim);
+  var idxFim = idxIni, distFim = Infinity;
+  escada.forEach(function(e,k){
+    var d = Math.abs(e[1] - bbFinalAlvo);
+    if(k > idxIni && d < distFim) { distFim = d; idxFim = k; }
+  });
+  if(idxFim <= idxIni) idxFim = Math.min(escada.length-1, idxIni + 5);
+
+  var L = Math.max(6, Math.min(40, Math.round(duracaoMin / perfil.nivelMin)));
+  /* se sobram menos degraus que níveis, estica um pouco o final pra evitar
+     blind repetida em nível seguido */
+  var extras = 0;
+  while((idxFim - idxIni + 1) < L && idxFim + 1 < escada.length && extras++ < 3) idxFim++;
+
+  var niveis = [], idxAnterior = -1, acumMin = 0;
+  var janelaRebuy = cfg.comRebuy ? perfil.rebuyMin : 0;
+  for(var j=0; j<L; j++) {
+    var prog = L > 1 ? j/(L-1) : 1;
+    /* floor (e não round) na interpolação: quando há mais degraus que
+       níveis, o salto duplo cai no fim do torneio — onde acelerar é
+       desejado — em vez de no meio, que é a fase pra durar mais */
+    var idx = j === L-1 ? idxFim : idxIni + Math.floor((idxFim-idxIni)*prog);
+    if(idx < idxAnterior) idx = idxAnterior;
+    idxAnterior = idx;
+    var jogadoresVivos = Math.max(2, N - (N-2)*prog);
+    /* as fichas de rebuy/add-on não existem no nível 1 — entram ao longo
+       do período de rebuy */
+    var fracRebuy = janelaRebuy ? Math.min(1, acumMin/janelaRebuy) : 1;
+    var fichasEmJogo = fichasBase + (totalFichas - fichasBase) * fracRebuy;
+    acumMin += perfil.nivelMin;
+    niveis.push({
+      nivel: j+1, sb: escada[idx][0], bb: escada[idx][1],
+      profundidade: (fichasEmJogo/jogadoresVivos) / escada[idx][1]
+    });
+  }
+
+  classificarFases(niveis, perfil);
+  distribuirTempos(niveis, duracaoMin);
+
+  /* Ante = 1 big blind pago pelo big blind da mão (BB ante, padrão moderno
+     e o único formato que não exige ficha miúda na mesa) */
+  var primeiroMeio = niveis.findIndex(function(n){ return n.fase !== 'Início'; });
+  var anteDesde = primeiroMeio < 0 ? Math.floor(L/2) : primeiroMeio + 1;
+  niveis.forEach(function(n,k){ n.ante = k >= anteDesde ? n.bb : 0; });
+
+  /* Fim do rebuy / add-on: o último nível em que recomprar ainda dá um
+     stack jogável (~20 big blinds). Depois disso o rebuy vira all-in na
+     mão seguinte e não vale a pena — é justamente por isso que cassino
+     fecha o rebuy cedo, não por acaso. */
+  var addonAposNivel = niveis[0].nivel;
+  niveis.forEach(function(n){ if(cacife / n.bb >= 20) addonAposNivel = n.nivel; });
+  var addonBBValor = Math.round(cacife / niveis[Math.min(L-1, addonAposNivel)].bb);
+
+  var stack = montarStackJogador(cacife, denoms, N);
+  return {
+    addonAposNivel: addonAposNivel,
+    addonBBValor: addonBBValor,
+    niveis: niveis,
+    cacife: cacife,
+    cacifeSugerido: cacifeSugerido,
+    numJogadores: N,
+    velocidade: cfg.velocidade,
+    comRebuy: !!cfg.comRebuy,
+    totalFichas: totalFichas,
+    profundidadeInicial: Math.round(cacife / niveis[0].bb),
+    duracaoTotalMin: niveis.reduce(function(a,n){ return a+n.duracaoMin; }, 0),
+    stack: stack,
+    faltas: conferirFichas(stack, N),
+    menorFicha: menorFicha,
+    rebuyMin: perfil.rebuyMin
+  };
 }
 
 function formatarDuracao(min) {
@@ -988,15 +1189,22 @@ function onDuracaoInput(el) {
   el.value = formatarMascaraDuracao(digits);
 }
 
+var BLIND_VEL_DESC = {
+  turbo:   'Stack raso (~50 BB), níveis curtos. Decisão rápida, bom pra 2 torneios na mesma noite.',
+  regular: 'Stack de ~75 BB, níveis médios. Equilíbrio entre jogo e ritmo.',
+  slow:    'Stack fundo (~120 BB), níveis longos. Muito jogo pós-flop.'
+};
+
 function openBlindCalcModal() {
   var cacifeAtual = parseInt(document.getElementById('new-tourney-stack').value) || '';
   var numJogadores = window._blindCalcJogadores || S.newSession.players.length || 4;
   var duracaoTexto = window._blindCalcDuracaoTexto || '00:00';
   var velAtual = 'regular';
   window._blindCalcVel = velAtual;
+  if(window._blindCalcRebuy === undefined) window._blindCalcRebuy = true;
   showModal(
-    '<div class="pgm-modal-title">🎲 Calculadora de Blinds <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.5">Não sabe quantas fichas usar? Deixa o cacife em branco que eu sugiro.</div>' +
+    '<div class="pgm-modal-title">🎲 Calculadora de Torneio <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.5">Preenche o que você sabe. O cacife e o stack de fichas eu sugiro.</div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Nº de jogadores</label>' +
     '<input type="number" id="blind-calc-jogadores" class="pgm-input" min="2" value="' + numJogadores + '"></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Duração alvo</label>' +
@@ -1006,7 +1214,14 @@ function openBlindCalcModal() {
     '<button class="pgm-toggle-opt' + (velAtual==='turbo'?' active':'') + '" type="button" data-vel="turbo" onclick="selecionarVelocidadeBlind(\'turbo\')">⚡ Turbo</button>' +
     '<button class="pgm-toggle-opt' + (velAtual==='regular'?' active':'') + '" type="button" data-vel="regular" onclick="selecionarVelocidadeBlind(\'regular\')">⚖️ Regular</button>' +
     '<button class="pgm-toggle-opt' + (velAtual==='slow'?' active':'') + '" type="button" data-vel="slow" onclick="selecionarVelocidadeBlind(\'slow\')">🐢 Slow</button>' +
-    '</div></div>' +
+    '</div>' +
+    '<div id="blind-calc-vel-desc" style="font-size:10px;color:var(--gold-light);font-weight:700;margin-top:5px;line-height:1.5">' + BLIND_VEL_DESC[velAtual] + '</div></div>' +
+    '<div class="pgm-field"><label class="pgm-input-label">Vai ter rebuy / add-on?</label>' +
+    '<div class="pgm-toggle-group" id="blind-calc-rebuy-toggle" style="display:flex;gap:6px">' +
+    '<button class="pgm-toggle-opt' + (window._blindCalcRebuy?' active':'') + '" type="button" data-rebuy="1" onclick="selecionarRebuyBlind(true)">Sim</button>' +
+    '<button class="pgm-toggle-opt' + (window._blindCalcRebuy?'':' active') + '" type="button" data-rebuy="0" onclick="selecionarRebuyBlind(false)">Não</button>' +
+    '</div>' +
+    '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px;line-height:1.5">Rebuy e add-on mais que dobram as fichas em jogo — sem contar isso, a blind sobe devagar demais e o torneio não acaba no horário.</div></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Cacife (fichas) — opcional</label>' +
     '<input type="number" id="blind-calc-cacife" class="pgm-input" placeholder="Deixe em branco pra eu sugerir" min="1" value="' + cacifeAtual + '"></div>' +
     '<button class="pgm-btn pgm-btn-success" style="width:100%;margin-top:0.5rem" onclick="doCalcularBlinds()">Calcular</button>'
@@ -1016,6 +1231,15 @@ function openBlindCalcModal() {
 function selecionarVelocidadeBlind(v) {
   window._blindCalcVel = v;
   document.querySelectorAll('#blind-calc-vel-toggle .pgm-toggle-opt').forEach(function(b){ b.classList.toggle('active', b.dataset.vel===v); });
+  var desc = document.getElementById('blind-calc-vel-desc');
+  if(desc) desc.textContent = BLIND_VEL_DESC[v] || '';
+}
+
+function selecionarRebuyBlind(v) {
+  window._blindCalcRebuy = v;
+  document.querySelectorAll('#blind-calc-rebuy-toggle .pgm-toggle-opt').forEach(function(b){
+    b.classList.toggle('active', (b.dataset.rebuy === '1') === v);
+  });
 }
 
 function doCalcularBlinds() {
@@ -1023,77 +1247,102 @@ function doCalcularBlinds() {
   var duracaoTexto = document.getElementById('blind-calc-duracao').value;
   var d = parseDuracaoDigitada(duracaoTexto);
   if(d.horas <= 0 && d.minutos <= 0) { showAlert('Informe a duração alvo do torneio.'); return; }
-  var cacifeInformado = parseInt(document.getElementById('blind-calc-cacife').value) || 0;
-  var cacifeSugerido = !cacifeInformado;
-  var cacife = cacifeInformado || 10000;
   window._blindCalcJogadores = numJogadores;
   window._blindCalcDuracaoTexto = duracaoTexto;
-  var duracaoHoras = d.horas + (d.minutos/60);
-  var vel = window._blindCalcVel || 'regular';
-  var resultado = calcularEstruturaBlinds(cacife, numJogadores, duracaoHoras, vel);
-  renderBlindTable(resultado, cacife, cacifeSugerido, numJogadores, vel);
+  var resultado = calcularEstruturaTorneio({
+    numJogadores: numJogadores,
+    duracaoMin: d.horas*60 + d.minutos,
+    velocidade: window._blindCalcVel || 'regular',
+    cacife: parseInt(document.getElementById('blind-calc-cacife').value) || 0,
+    comRebuy: window._blindCalcRebuy !== false
+  });
+  renderBlindTable(resultado);
 }
 
-function usarCacifeSugerido(cacife) {
+function usarEstruturaTorneio() {
+  var r = window._blindTableUltimoResultado;
+  if(!r) { closeModal(); return; }
   var campo = document.getElementById('new-tourney-stack');
-  if(campo) campo.value = cacife;
+  if(campo) campo.value = r.cacife;
+  S.newSession.estruturaBlinds = {
+    velocidade: r.velocidade, cacife: r.cacife, comRebuy: r.comRebuy,
+    niveis: r.niveis.map(function(n){ return { nivel:n.nivel, fase:n.fase, duracaoMin:n.duracaoMin, sb:n.sb, bb:n.bb, ante:n.ante }; })
+  };
   closeModal();
-  showAlert('Cacife de ' + cacife.toLocaleString('pt-BR') + ' fichas preenchido no formulário.');
+  showAlert('Estrutura salva: cacife de <strong>' + r.cacife.toLocaleString('pt-BR') + '</strong> fichas e ' + r.niveis.length + ' níveis de blind.');
 }
 
 function showAnteInfo() {
   showModal(
     '<div class="pgm-modal-title">💰 O que é Ante? <button class="pgm-close-btn" onclick="voltarTabelaBlinds()">✕</button></div>' +
-    '<div style="font-size:13px;color:var(--cream);line-height:1.7;margin-bottom:1rem">É um valor pequeno que <strong>todo mundo na mesa paga</strong> a cada mão, além do Small e Big Blind (que só os dois jogadores na posição de blind pagam). Serve pra deixar o pot maior desde antes das cartas serem reveladas, incentivando mais gente a entrar na mão — principalmente nas fases finais do torneio, quando ninguém quer só esperar.</div>' +
+    '<div style="font-size:13px;color:var(--cream);line-height:1.7;margin-bottom:0.85rem">É uma aposta obrigatória extra que entra no pot antes das cartas, pra ninguém ficar só esperando mão boa sem pagar nada.</div>' +
+    '<div style="font-size:12.5px;color:var(--cream-dim);line-height:1.7;margin-bottom:1rem">Aqui uso o formato <strong style="color:var(--gold-light)">Big Blind Ante</strong>: quem está no big blind paga <strong>um ante do valor de 1 BB</strong> que vale pela mesa toda — em vez de cada jogador pagar o seu. É o padrão moderno (WSOP usa) e o único que não exige ficha miúda na mesa, já que o ante tem exatamente o mesmo valor da big blind.</div>' +
     '<button class="pgm-btn" style="width:100%" onclick="voltarTabelaBlinds()">Voltar pra tabela</button>'
   );
 }
 
 function voltarTabelaBlinds() {
-  var s = window._blindTableUltimoResultado;
-  if(s) renderBlindTable(s.resultado, s.cacife, s.cacifeSugerido, s.numJogadores, s.vel);
+  if(window._blindTableUltimoResultado) renderBlindTable(window._blindTableUltimoResultado);
   else closeModal();
 }
 
-function renderBlindTable(resultado, cacife, cacifeSugerido, numJogadores, vel) {
-  var velLabel = BLIND_VELOCIDADES[vel].label;
-  var addonBanda = '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin:5px 0;font-size:10px;font-weight:800;color:#7ab8f5;text-align:center">🔵 INTERVALO — ADD-ON DISPONÍVEL (' + cacife.toLocaleString('pt-BR') + ' fichas, opcional)</div>';
-  var linhas = '';
-  var acumMin = 0;
-  var minutosRebuyPadrao = { turbo: 45, regular: 60, slow: 90 };
-  var limiteAddon = Math.min(minutosRebuyPadrao[vel] || 60, resultado.duracaoTotalMin * 0.6);
-  var addonInserido = false;
-  resultado.niveis.forEach(function(n, i) {
-    if(!addonInserido && i > 0 && acumMin >= limiteAddon) { linhas += addonBanda; addonInserido = true; }
+function renderBlindTable(r) {
+  window._blindTableUltimoResultado = r;
+  var velLabel = PERFIS_TORNEIO[r.velocidade].label;
+  var addonBanda = '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin:5px 0;font-size:10px;font-weight:800;color:#7ab8f5;text-align:center;line-height:1.5">🔵 FIM DO REBUY — ADD-ON DISPONÍVEL<br><span style="font-weight:700;opacity:0.85">' + r.cacife.toLocaleString('pt-BR') + ' fichas ≈ ' + r.addonBBValor + ' big blinds</span></div>';
+  var linhas = '', acumMin = 0, minAteAddon = 0;
+  r.niveis.forEach(function(n){ if(n.nivel <= r.addonAposNivel) minAteAddon += n.duracaoMin; });
+  r.niveis.forEach(function(n, i) {
     acumMin += n.duracaoMin;
-    linhas += '<div style="display:grid;grid-template-columns:28px 1fr 50px 95px 55px;gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
+    linhas += '<div style="display:grid;grid-template-columns:24px 1fr 46px 92px 46px;gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
       '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + n.nivel + '</div>' +
       '<div style="font-size:9px;font-weight:800;color:var(--gold-dim);text-transform:uppercase">' + n.fase + '</div>' +
       '<div style="color:var(--text-dim)">' + n.duracaoMin + 'min</div>' +
       '<div style="font-family:DM Mono,monospace;font-weight:800;color:var(--cream)">' + n.sb.toLocaleString('pt-BR') + '/' + n.bb.toLocaleString('pt-BR') + '</div>' +
       '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + (n.ante ? n.ante.toLocaleString('pt-BR') : '—') + '</div>' +
     '</div>';
+    if(r.comRebuy && n.nivel === r.addonAposNivel) linhas += addonBanda;
   });
-  var cacifeLinha = cacifeSugerido
-    ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(201,168,76,0.1);border:1px solid var(--border-strong);border-radius:8px;padding:6px 10px;margin-bottom:0.6rem">' +
-        '<div style="font-size:11px;font-weight:800;color:var(--gold-light)">💡 Cacife sugerido: ' + cacife.toLocaleString('pt-BR') + ' fichas</div>' +
-        '<button class="pgm-btn pgm-btn-sm" style="font-size:10px;padding:4px 8px" onclick="usarCacifeSugerido(' + cacife + ')">Usar</button>' +
+
+  var stackTxt = r.stack.composicao.map(function(c){
+    return '<span style="color:var(--gold-light);font-weight:800">' + c.qtd + '×</span>' + c.valor.toLocaleString('pt-BR');
+  }).join(' · ');
+  var stackBloco =
+    '<div style="background:rgba(201,168,76,0.1);border:1px solid var(--border-strong);border-radius:8px;padding:8px 10px;margin-bottom:0.6rem">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">' +
+        '<div style="font-size:11px;font-weight:900;color:var(--gold-light)">🎯 Stack de cada jogador</div>' +
+        '<div style="font-family:DM Mono,monospace;font-size:12px;font-weight:900;color:var(--cream)">' + r.cacife.toLocaleString('pt-BR') + '</div>' +
+      '</div>' +
+      '<div style="font-family:DM Mono,monospace;font-size:11px;color:var(--cream-dim);line-height:1.6">' + stackTxt + '</div>' +
+      '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:3px">' + r.stack.fichas + ' fichas por jogador · ' + (r.stack.fichas*r.numJogadores) + ' no total</div>' +
+    '</div>';
+
+  var alerta = r.faltas.length
+    ? '<div class="pgm-warn" style="font-size:10.5px;margin-bottom:0.6rem;line-height:1.5">⚠️ Fichas insuficientes: ' +
+        r.faltas.map(function(f){ return f.valor.toLocaleString('pt-BR') + ' (precisa ' + f.precisa + ', tem ' + f.tem + ')'; }).join(' · ') +
       '</div>'
     : '';
-  var rebuyAddonLinha = '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem;line-height:1.5">🔄 Rebuy e add-on sugeridos: <span style="color:var(--gold-light);font-weight:800">' + cacife.toLocaleString('pt-BR') + ' fichas</span> cada (padrão: igual ao cacife inicial)</div>';
-  window._blindTableUltimoResultado = { resultado: resultado, cacife: cacife, cacifeSugerido: cacifeSugerido, numJogadores: numJogadores, vel: vel };
+
+  var rebuyLinha = r.comRebuy
+    ? '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem;line-height:1.5">🔄 Rebuy e add-on de <span style="color:var(--gold-light);font-weight:800">' + r.cacife.toLocaleString('pt-BR') + ' fichas</span> cada (padrão: igual ao cacife). Rebuy aberto até o nível ' + r.addonAposNivel + ' (' + formatarDuracao(minAteAddon) + ' de jogo).</div>'
+    : '';
+
   showModal(
     '<div class="pgm-modal-title">🎲 Estrutura — ' + velLabel + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">' + resultado.niveis.length + ' níveis · ' + formatarDuracao(resultado.duracaoTotalMin) + ' · ' + numJogadores + ' jogadores' + (cacifeSugerido?'':' · cacife '+cacife.toLocaleString('pt-BR')) + '</div>' +
-    cacifeLinha +
-    rebuyAddonLinha +
-    '<div style="display:grid;grid-template-columns:28px 1fr 50px 95px 55px;gap:5px;padding-bottom:4px;border-bottom:1px solid var(--border-strong);font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase">' +
+    '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.5rem">' + r.niveis.length + ' níveis · ' + formatarDuracao(r.duracaoTotalMin) + ' · ' + r.numJogadores + ' jogadores</div>' +
+    '<div style="display:flex;gap:6px;margin-bottom:0.6rem">' +
+      '<div style="flex:1;background:rgba(255,255,255,0.04);border-radius:6px;padding:5px 8px"><div style="font-size:9px;color:var(--text-dim);font-weight:800;text-transform:uppercase">Profundidade</div><div style="font-family:DM Mono,monospace;font-size:13px;font-weight:900;color:var(--gold-light)">' + r.profundidadeInicial + ' BB</div></div>' +
+      '<div style="flex:1;background:rgba(255,255,255,0.04);border-radius:6px;padding:5px 8px"><div style="font-size:9px;color:var(--text-dim);font-weight:800;text-transform:uppercase">Fichas em jogo</div><div style="font-family:DM Mono,monospace;font-size:13px;font-weight:900;color:var(--cream)">' + r.totalFichas.toLocaleString('pt-BR') + '</div></div>' +
+    '</div>' +
+    alerta + stackBloco + rebuyLinha +
+    '<div style="display:grid;grid-template-columns:24px 1fr 46px 92px 46px;gap:5px;padding-bottom:4px;border-bottom:1px solid var(--border-strong);font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase">' +
     '<div>Nv</div><div>Fase</div><div>Tempo</div><div>SB/BB</div>' +
     '<div style="display:flex;align-items:center;gap:3px">Ante' +
     '<button onclick="showAnteInfo()" title="O que é ante?" style="width:14px;height:14px;border-radius:50%;border:1.3px solid var(--gold-light);background:none;color:var(--gold-light);font-size:8px;font-weight:900;font-style:italic;font-family:Georgia,serif;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;line-height:1;padding:0">i</button>' +
     '</div></div>' +
-    '<div style="max-height:40vh;overflow-y:auto">' + linhas + '</div>' +
-    '<div class="pgm-row-btns" style="margin-top:0.75rem">' +
+    '<div style="max-height:34vh;overflow-y:auto">' + linhas + '</div>' +
+    '<button class="pgm-btn pgm-btn-success" style="width:100%;margin-top:0.75rem" onclick="usarEstruturaTorneio()">✓ Usar esta estrutura</button>' +
+    '<div class="pgm-row-btns" style="margin-top:6px">' +
     '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="openBlindCalcModal()">← Ajustar</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
     '</div>'
