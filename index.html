@@ -868,6 +868,13 @@ var BLIND_VELOCIDADES = {
   slow:    { label: 'Slow',    nivelBaseMin: 20, fatorFinal: 20 }
 };
 
+var ESCADA_BLINDS = [
+  [100,200],[150,300],[200,400],[300,600],[400,800],[500,1000],[600,1200],[800,1600],
+  [1000,2000],[1500,3000],[2000,4000],[3000,6000],[4000,8000],[5000,10000],[6000,12000],
+  [8000,16000],[10000,20000],[15000,30000],[20000,40000],[30000,60000],[40000,80000],
+  [50000,100000],[60000,120000],[80000,160000],[100000,200000]
+];
+
 function arredondarFicha(valor) {
   if(valor <= 100) {
     var miudas = [10,25,50,100];
@@ -882,6 +889,17 @@ function arredondarFicha(valor) {
   else if(valor < 30000) passo = 1000;
   else passo = 5000;
   return Math.max(100, Math.round(valor/passo)*passo);
+}
+
+function indiceEscadaMaisProximo(bbAlvo, indiceMinimo) {
+  var melhorIdx = indiceMinimo;
+  var melhorDist = Infinity;
+  for(var k=indiceMinimo; k<ESCADA_BLINDS.length; k++) {
+    var dist = Math.abs(ESCADA_BLINDS[k][1] - bbAlvo);
+    if(dist < melhorDist) { melhorDist = dist; melhorIdx = k; }
+    if(ESCADA_BLINDS[k][1] > bbAlvo * 1.5 && k > indiceMinimo) break;
+  }
+  return melhorIdx;
 }
 
 function calcularEstruturaBlinds(cacife, numJogadores, duracaoHoras, velocidade) {
@@ -906,16 +924,22 @@ function calcularEstruturaBlinds(cacife, numJogadores, duracaoHoras, velocidade)
   var targetBB = arredondarFicha(totalChips / perfil.fatorFinal);
   if(targetBB <= startingBB) targetBB = arredondarFicha(startingBB * 8);
 
+  var idxInicial = 0;
+  for(var k0=0; k0<ESCADA_BLINDS.length; k0++) { if(ESCADA_BLINDS[k0][1] >= startingBB) { idxInicial = k0; break; } }
+
   var rate = Math.pow(targetBB / startingBB, 1/((N-1)||1));
   var anteDesdeNivel = Math.ceil(N/3);
+  var idxAtual = idxInicial;
 
   var niveis = [];
   for(var i=0; i<N; i++) {
     var fase = i<inicioN ? 'Início' : (i<inicioN+meioN ? 'Meio' : 'Fim');
     var duracao = i<inicioN ? durInicio : (i<inicioN+meioN ? durMeio : durFim);
     var bbBruto = startingBB * Math.pow(rate, i);
-    var bb = arredondarFicha(bbBruto);
-    var sb = arredondarFicha(bb/2);
+    var minIdx = i===0 ? idxAtual : Math.min(idxAtual+1, ESCADA_BLINDS.length-1);
+    idxAtual = indiceEscadaMaisProximo(bbBruto, minIdx);
+    var sb = ESCADA_BLINDS[idxAtual][0];
+    var bb = ESCADA_BLINDS[idxAtual][1];
     var ante = (i+1 >= anteDesdeNivel) ? arredondarFicha(bb*0.12) : 0;
     niveis.push({ nivel:i+1, fase:fase, duracaoMin:duracao, sb:sb, bb:bb, ante:ante });
   }
