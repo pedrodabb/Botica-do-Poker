@@ -922,25 +922,49 @@ function calcularEstruturaBlinds(cacife, numJogadores, duracaoHoras, velocidade)
   return { niveis: niveis, duracaoTotalMin: niveis.reduce(function(a,n){return a+n.duracaoMin;},0), startingBB:startingBB, targetBB:targetBB };
 }
 
+function formatarDuracao(min) {
+  var h = Math.floor(min/60), m = Math.round(min%60);
+  if(h && m) return h + 'h' + (m<10?'0':'') + m + 'min';
+  if(h) return h + 'h';
+  return m + 'min';
+}
+
 function openBlindCalcModal() {
-  var cacife = parseInt(document.getElementById('new-tourney-stack').value) || 0;
-  if(!cacife) { showAlert('Preencha o cacife (fichas) antes de calcular.'); return; }
-  var numJogadores = S.newSession.players.length || 2;
-  var velAtual = window._blindCalcVel || 'regular';
+  var cacifeAtual = parseInt(document.getElementById('new-tourney-stack').value) || '';
+  var numJogadores = window._blindCalcJogadores || S.newSession.players.length || 4;
+  var horas = window._blindCalcHoras != null ? window._blindCalcHoras : 2;
+  var minutos = window._blindCalcMinutos != null ? window._blindCalcMinutos : 0;
+  var velAtual = window._blindCalcVel || 'turbo';
   window._blindCalcVel = velAtual;
   showModal(
     '<div class="pgm-modal-title">🎲 Calculadora de Blinds <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem">Cacife ' + cacife.toLocaleString('pt-BR') + ' · ' + numJogadores + ' jogador' + (numJogadores>1?'es':'') + '</div>' +
-    '<div class="pgm-field"><label class="pgm-input-label">Duração alvo (horas)</label>' +
-    '<input type="number" id="blind-calc-horas" class="pgm-input" placeholder="Ex: 4" min="1" step="0.5" value="' + (window._blindCalcHoras||4) + '"></div>' +
+    '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.5">Não sabe quantas fichas usar? Deixa o cacife em branco que eu sugiro. Preenche o resto e calcula.</div>' +
+    '<div class="pgm-field"><label class="pgm-input-label">Nº de jogadores</label>' +
+    '<input type="number" id="blind-calc-jogadores" class="pgm-input" min="2" value="' + numJogadores + '"></div>' +
+    '<div class="pgm-field"><label class="pgm-input-label">Duração alvo</label>' +
+    '<div style="display:flex;gap:8px;align-items:center">' +
+    '<input type="number" id="blind-calc-horas" class="pgm-input" placeholder="h" min="0" style="width:70px" value="' + horas + '" oninput="atualizarPreviewDuracao()"> <span style="font-size:11px;color:var(--text-dim);font-weight:800">h</span>' +
+    '<input type="number" id="blind-calc-minutos" class="pgm-input" placeholder="min" min="0" max="55" step="5" style="width:70px" value="' + minutos + '" oninput="atualizarPreviewDuracao()"> <span style="font-size:11px;color:var(--text-dim);font-weight:800">min</span>' +
+    '</div>' +
+    '<div id="blind-calc-duracao-preview" style="font-size:10px;color:var(--gold-light);font-weight:800;margin-top:4px">= ' + formatarDuracao(horas*60+minutos) + ' de torneio</div>' +
+    '</div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Velocidade</label>' +
     '<div class="pgm-toggle-group" id="blind-calc-vel-toggle" style="display:flex;gap:6px">' +
     '<button class="pgm-toggle-opt' + (velAtual==='turbo'?' active':'') + '" type="button" data-vel="turbo" onclick="selecionarVelocidadeBlind(\'turbo\')">⚡ Turbo</button>' +
     '<button class="pgm-toggle-opt' + (velAtual==='regular'?' active':'') + '" type="button" data-vel="regular" onclick="selecionarVelocidadeBlind(\'regular\')">⚖️ Regular</button>' +
     '<button class="pgm-toggle-opt' + (velAtual==='slow'?' active':'') + '" type="button" data-vel="slow" onclick="selecionarVelocidadeBlind(\'slow\')">🐢 Slow</button>' +
     '</div></div>' +
-    '<button class="pgm-btn pgm-btn-success" style="width:100%;margin-top:0.5rem" onclick="doCalcularBlinds(' + cacife + ',' + numJogadores + ')">Calcular</button>'
+    '<div class="pgm-field"><label class="pgm-input-label">Cacife (fichas) — opcional</label>' +
+    '<input type="number" id="blind-calc-cacife" class="pgm-input" placeholder="Deixe em branco pra eu sugerir" min="1" value="' + cacifeAtual + '"></div>' +
+    '<button class="pgm-btn pgm-btn-success" style="width:100%;margin-top:0.5rem" onclick="doCalcularBlinds()">Calcular</button>'
   );
+}
+
+function atualizarPreviewDuracao() {
+  var h = parseFloat(document.getElementById('blind-calc-horas').value) || 0;
+  var m = parseFloat(document.getElementById('blind-calc-minutos').value) || 0;
+  var el = document.getElementById('blind-calc-duracao-preview');
+  if(el) el.textContent = '= ' + formatarDuracao(h*60+m) + ' de torneio';
 }
 
 function selecionarVelocidadeBlind(v) {
@@ -948,15 +972,31 @@ function selecionarVelocidadeBlind(v) {
   document.querySelectorAll('#blind-calc-vel-toggle .pgm-toggle-opt').forEach(function(b){ b.classList.toggle('active', b.dataset.vel===v); });
 }
 
-function doCalcularBlinds(cacife, numJogadores) {
-  var horas = parseFloat((document.getElementById('blind-calc-horas').value||'4').replace(',','.')) || 4;
+function doCalcularBlinds() {
+  var numJogadores = parseInt(document.getElementById('blind-calc-jogadores').value) || 4;
+  var horas = parseFloat(document.getElementById('blind-calc-horas').value) || 0;
+  var minutos = parseFloat(document.getElementById('blind-calc-minutos').value) || 0;
+  if(horas <= 0 && minutos <= 0) { showAlert('Informe a duração alvo do torneio.'); return; }
+  var cacifeInformado = parseInt(document.getElementById('blind-calc-cacife').value) || 0;
+  var cacifeSugerido = !cacifeInformado;
+  var cacife = cacifeInformado || 10000;
+  window._blindCalcJogadores = numJogadores;
   window._blindCalcHoras = horas;
-  var vel = window._blindCalcVel || 'regular';
-  var resultado = calcularEstruturaBlinds(cacife, numJogadores, horas, vel);
-  renderBlindTable(resultado, cacife, numJogadores, horas, vel);
+  window._blindCalcMinutos = minutos;
+  var duracaoHoras = horas + (minutos/60);
+  var vel = window._blindCalcVel || 'turbo';
+  var resultado = calcularEstruturaBlinds(cacife, numJogadores, duracaoHoras, vel);
+  renderBlindTable(resultado, cacife, cacifeSugerido, numJogadores, vel);
 }
 
-function renderBlindTable(resultado, cacife, numJogadores, horas, vel) {
+function usarCacifeSugerido(cacife) {
+  var campo = document.getElementById('new-tourney-stack');
+  if(campo) campo.value = cacife;
+  closeModal();
+  showAlert('Cacife de ' + cacife.toLocaleString('pt-BR') + ' fichas preenchido no formulário.');
+}
+
+function renderBlindTable(resultado, cacife, cacifeSugerido, numJogadores, vel) {
   var velLabel = BLIND_VELOCIDADES[vel].label;
   var linhas = resultado.niveis.map(function(n) {
     return '<div style="display:grid;grid-template-columns:28px 1fr 50px 95px 55px;gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
@@ -967,12 +1007,19 @@ function renderBlindTable(resultado, cacife, numJogadores, horas, vel) {
       '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + (n.ante ? n.ante.toLocaleString('pt-BR') : '—') + '</div>' +
     '</div>';
   }).join('');
+  var cacifeLinha = cacifeSugerido
+    ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(201,168,76,0.1);border:1px solid var(--border-strong);border-radius:8px;padding:6px 10px;margin-bottom:0.6rem">' +
+        '<div style="font-size:11px;font-weight:800;color:var(--gold-light)">💡 Cacife sugerido: ' + cacife.toLocaleString('pt-BR') + ' fichas</div>' +
+        '<button class="pgm-btn pgm-btn-sm" style="font-size:10px;padding:4px 8px" onclick="usarCacifeSugerido(' + cacife + ')">Usar</button>' +
+      '</div>'
+    : '';
   showModal(
     '<div class="pgm-modal-title">🎲 Estrutura — ' + velLabel + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">' + resultado.niveis.length + ' níveis · ' + resultado.duracaoTotalMin + ' min (~' + (resultado.duracaoTotalMin/60).toFixed(1) + 'h) · cacife ' + cacife.toLocaleString('pt-BR') + '</div>' +
+    '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">' + resultado.niveis.length + ' níveis · ' + formatarDuracao(resultado.duracaoTotalMin) + ' · ' + numJogadores + ' jogadores' + (cacifeSugerido?'':' · cacife '+cacife.toLocaleString('pt-BR')) + '</div>' +
+    cacifeLinha +
     '<div style="display:grid;grid-template-columns:28px 1fr 50px 95px 55px;gap:5px;padding-bottom:4px;border-bottom:1px solid var(--border-strong);font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase">' +
     '<div>Nv</div><div>Fase</div><div>Tempo</div><div>SB/BB</div><div>Ante</div></div>' +
-    '<div style="max-height:45vh;overflow-y:auto">' + linhas + '</div>' +
+    '<div style="max-height:40vh;overflow-y:auto">' + linhas + '</div>' +
     '<div class="pgm-row-btns" style="margin-top:0.75rem">' +
     '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="openBlindCalcModal()">← Ajustar</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
