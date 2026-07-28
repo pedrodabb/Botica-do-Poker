@@ -1037,6 +1037,20 @@ function usarCacifeSugerido(cacife) {
   showAlert('Cacife de ' + cacife.toLocaleString('pt-BR') + ' fichas preenchido no formulário.');
 }
 
+function showAnteInfo() {
+  showModal(
+    '<div class="pgm-modal-title">💰 O que é Ante? <button class="pgm-close-btn" onclick="voltarTabelaBlinds()">✕</button></div>' +
+    '<div style="font-size:13px;color:var(--cream);line-height:1.7;margin-bottom:1rem">É um valor pequeno que <strong>todo mundo na mesa paga</strong> a cada mão, além do Small e Big Blind (que só os dois jogadores na posição de blind pagam). Serve pra deixar o pot maior desde antes das cartas serem reveladas, incentivando mais gente a entrar na mão — principalmente nas fases finais do torneio, quando ninguém quer só esperar.</div>' +
+    '<button class="pgm-btn" style="width:100%" onclick="voltarTabelaBlinds()">Voltar pra tabela</button>'
+  );
+}
+
+function voltarTabelaBlinds() {
+  var s = window._blindTableUltimoResultado;
+  if(s) renderBlindTable(s.resultado, s.cacife, s.cacifeSugerido, s.numJogadores, s.vel);
+  else closeModal();
+}
+
 function renderBlindTable(resultado, cacife, cacifeSugerido, numJogadores, vel) {
   var velLabel = BLIND_VELOCIDADES[vel].label;
   var linhas = resultado.niveis.map(function(n) {
@@ -1055,13 +1069,17 @@ function renderBlindTable(resultado, cacife, cacifeSugerido, numJogadores, vel) 
       '</div>'
     : '';
   var rebuyAddonLinha = '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem;line-height:1.5">🔄 Rebuy e add-on sugeridos: <span style="color:var(--gold-light);font-weight:800">' + cacife.toLocaleString('pt-BR') + ' fichas</span> cada (padrão: igual ao cacife inicial)</div>';
+  window._blindTableUltimoResultado = { resultado: resultado, cacife: cacife, cacifeSugerido: cacifeSugerido, numJogadores: numJogadores, vel: vel };
   showModal(
     '<div class="pgm-modal-title">🎲 Estrutura — ' + velLabel + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">' + resultado.niveis.length + ' níveis · ' + formatarDuracao(resultado.duracaoTotalMin) + ' · ' + numJogadores + ' jogadores' + (cacifeSugerido?'':' · cacife '+cacife.toLocaleString('pt-BR')) + '</div>' +
     cacifeLinha +
     rebuyAddonLinha +
     '<div style="display:grid;grid-template-columns:28px 1fr 50px 95px 55px;gap:5px;padding-bottom:4px;border-bottom:1px solid var(--border-strong);font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase">' +
-    '<div>Nv</div><div>Fase</div><div>Tempo</div><div>SB/BB</div><div>Ante</div></div>' +
+    '<div>Nv</div><div>Fase</div><div>Tempo</div><div>SB/BB</div>' +
+    '<div style="display:flex;align-items:center;gap:3px">Ante' +
+    '<button onclick="showAnteInfo()" title="O que é ante?" style="width:14px;height:14px;border-radius:50%;border:1.3px solid var(--gold-light);background:none;color:var(--gold-light);font-size:8px;font-weight:900;font-style:italic;font-family:Georgia,serif;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;line-height:1;padding:0">i</button>' +
+    '</div></div>' +
     '<div style="max-height:40vh;overflow-y:auto">' + linhas + '</div>' +
     '<div class="pgm-row-btns" style="margin-top:0.75rem">' +
     '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="openBlindCalcModal()">← Ajustar</button>' +
