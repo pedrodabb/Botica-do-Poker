@@ -317,8 +317,7 @@
 
     .pgm-row-btns { display: flex; gap: 8px; margin-top: 0.75rem; flex-wrap: wrap; }
     .pgm-flex-between { display: flex; justify-content: space-between; align-items: center; }
-    .pgm-tab-content { display: none; } .pgm-tab-content.active { display: block; animation: pgmTabIn 0.22s ease-out; }
-    @keyframes pgmTabIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .pgm-tab-content { display: none; } .pgm-tab-content.active { display: block; }
     @keyframes pgmTimerPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
     .pgm-winner-row { position: relative; background: linear-gradient(90deg, rgba(255,215,0,0.12), rgba(201,168,76,0.05)) !important; border: 1px solid rgba(255,215,0,0.35) !important; border-radius: 12px; padding: 0.5rem 0.6rem !important; animation: pgmWinnerGlow 2.5s ease-in-out infinite; }
     @keyframes pgmWinnerGlow { 0%, 100% { box-shadow: 0 0 8px rgba(255,215,0,0.15); } 50% { box-shadow: 0 0 18px rgba(255,215,0,0.35); } }
