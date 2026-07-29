@@ -1200,13 +1200,25 @@ function classificarFases(niveis, perfil, cacife) {
     n.fase = atual;
   });
   var L = niveis.length;
-  var minMeio = Math.max(2, Math.round(L * 0.45));
   function conta(f){ return niveis.filter(function(n){ return n.fase===f; }).length; }
   if(conta('Início') === 0 && !niveis[0].fimForcado) niveis[0].fase = 'Início';
+
+  /* Início precisa de pelo menos 2 níveis — o Pedro achou estranho o
+     torneio "já começar no meio" quando só 1 nível cabia na proporção. */
+  var minInicio = Math.min(2, L);
+  var gI = 0, i;
+  while(conta('Início') < minInicio && gI++ < L) {
+    var proximo = -1;
+    for(i=0;i<L;i++) if(niveis[i].fase !== 'Início'){ proximo = i; break; }
+    if(proximo < 0 || niveis[proximo].fimForcado) break;
+    niveis[proximo].fase = 'Início';
+  }
+
+  var minMeio = Math.max(2, Math.round(L * 0.45));
   if(conta('Fim') === 0) niveis[L-1].fase = 'Fim';
-  var guarda = 0, i;
+  var guarda = 0;
   while(conta('Meio') < minMeio && guarda++ < L*2) {
-    if(conta('Início') > 1) {
+    if(conta('Início') > minInicio) {
       for(i=L-1;i>=0;i--) if(niveis[i].fase==='Início'){ niveis[i].fase='Meio'; break; }
     } else if(conta('Fim') > 1) {
       var achou = false;
@@ -1216,20 +1228,24 @@ function classificarFases(niveis, perfil, cacife) {
   }
 }
 
-/* Meio é a fase mais longa, Fim a mais curta (ninguém eliminado fica
-   esperando). Dentro de cada fase, níveis com salto de blind maior ganham
-   mais tempo — é o que faz o Meio realmente parecer mais devagar nos
-   degraus grandes, em vez de todo nível levar o mesmo tempo fixo mesmo
-   quando o blind mais que dobrou. Níveis em múltiplos de 5min, como
-   torneio de verdade. */
+/* Regra explícita e repetida do Pedro: nenhum nível pode durar menos de
+   10min nem mais de 30min — acima disso "fica chato". Alvo por fase:
+   Início ~15min (só pra aquecer), Meio ~22min (ele quer 20-25, mais perto
+   de 25 em torneios longos — o próprio peso maior da fase já empurra pra
+   lá quando sobra tempo), Fim ~15min (rápido, pra quem já foi eliminado
+   não esperar 1h à toa). Dentro de cada fase, nível com salto de blind
+   maior ainda ganha uma fatia maior do orçamento — mas sempre dentro da
+   janela 10-30. Múltiplos de 5min, como torneio de verdade. */
+var MIN_NIVEL_MIN = 10, MAX_NIVEL_MIN = 30;
+var ALVO_MIN_FASE = { 'Início': 15, 'Meio': 22, 'Fim': 15 };
+
 function distribuirTempos(niveis, duracaoAlvoMin) {
-  var pesosFase = { 'Início':1.0, 'Meio':1.5, 'Fim':0.55 };
   var contaFase = { 'Início':0, 'Meio':0, 'Fim':0 };
   niveis.forEach(function(n){ contaFase[n.fase]++; });
-  var somaPeso = ['Início','Meio','Fim'].reduce(function(a,f){ return a + pesosFase[f]*contaFase[f]; }, 0) || 1;
+  var somaPeso = ['Início','Meio','Fim'].reduce(function(a,f){ return a + ALVO_MIN_FASE[f]*contaFase[f]; }, 0) || 1;
   var minutoPorPeso = duracaoAlvoMin / somaPeso;
   var totalFase = {};
-  ['Início','Meio','Fim'].forEach(function(f){ totalFase[f] = minutoPorPeso * pesosFase[f] * contaFase[f]; });
+  ['Início','Meio','Fim'].forEach(function(f){ totalFase[f] = minutoPorPeso * ALVO_MIN_FASE[f] * contaFase[f]; });
 
   ['Início','Meio','Fim'].forEach(function(f){
     var ns = niveis.filter(function(n){ return n.fase===f; });
@@ -1241,24 +1257,41 @@ function distribuirTempos(niveis, duracaoAlvoMin) {
     });
     var somaSaltos = saltos.reduce(function(a,b){ return a+b; }, 0);
     ns.forEach(function(n,i){
-      n.duracaoMin = Math.max(5, Math.round(totalFase[f]*saltos[i]/somaSaltos/5)*5);
+      var min = Math.round(totalFase[f]*saltos[i]/somaSaltos/5)*5;
+      n.duracaoMin = Math.max(MIN_NIVEL_MIN, Math.min(MAX_NIVEL_MIN, min));
     });
+  });
+
+  /* nos últimos níveis (no máx. 4, dentro do Fim) trava em 15min — regra
+     explícita: gente já eliminada não pode ficar esperando 1h à toa.
+     `_fimRapido` marca esses níveis pra nunca serem AUMENTADOS de novo no
+     ajuste fino abaixo (diminuir continua liberado, isso não fura a
+     regra). Sem essa marca o ajuste fino devolvia minuto pra eles quando
+     o Meio já tava todo no teto de 30. */
+  var fimNiveis = niveis.filter(function(n){ return n.fase === 'Fim'; });
+  fimNiveis.slice(-Math.min(4, fimNiveis.length)).forEach(function(n){
+    n.duracaoMin = Math.min(n.duracaoMin, 15);
+    n._fimRapido = true;
   });
 
   function total(){ return niveis.reduce(function(a,n){ return a+n.duracaoMin; },0); }
   /* ajuste fino: sobra/falta de minutos vai pro Meio (fase mais longa,
-     absorve melhor sem distorcer o ritmo) */
+     absorve melhor sem distorcer o ritmo) — nunca furando a janela 10-30
+     nem reinflando os níveis finais travados */
   var meios = niveis.filter(function(n){ return n.fase==='Meio'; });
   var alvo = meios.length ? meios : niveis;
   var guarda = 0;
-  while(guarda++ < 60) {
+  while(guarda++ < 80) {
     var dif = duracaoAlvoMin - total();
     if(Math.abs(dif) < 5) break;
+    function elegivel(n){ return dif > 0 ? (!n._fimRapido && n.duracaoMin < MAX_NIVEL_MIN) : n.duracaoMin > MIN_NIVEL_MIN; }
+    var candidatos = alvo.filter(elegivel);
+    if(!candidatos.length) candidatos = niveis.filter(elegivel);
+    if(!candidatos.length) break;
     var el = dif > 0
-      ? alvo.reduce(function(a,b){ return a.duracaoMin <= b.duracaoMin ? a : b; })
-      : alvo.reduce(function(a,b){ return a.duracaoMin >= b.duracaoMin ? a : b; });
-    if(dif < 0 && el.duracaoMin <= 5) break;
-    el.duracaoMin += dif > 0 ? 5 : -5;
+      ? candidatos.reduce(function(a,b){ return a.duracaoMin <= b.duracaoMin ? a : b; })
+      : candidatos.reduce(function(a,b){ return a.duracaoMin >= b.duracaoMin ? a : b; });
+    el.duracaoMin = Math.max(MIN_NIVEL_MIN, Math.min(MAX_NIVEL_MIN, el.duracaoMin + (dif > 0 ? 5 : -5)));
   }
 }
 
@@ -1372,19 +1405,17 @@ function calcularEstruturaTorneio(cfg) {
   var anteDesde = primeiroMeio < 0 ? Math.floor(L/2) : primeiroMeio + 1;
   niveis.forEach(function(n,k){ n.ante = (comAnte && k >= anteDesde) ? n.sb : 0; });
 
-  /* Fim do rebuy / add-on: um nível antes do fim da fase Meio (não o
-     último) — o Pedro achou o último nível do Meio tarde demais. Ainda
-     nunca no Início (ninguém perdeu o cacife ainda pra precisar recomprar)
-     e sempre "do meio pro fim". Se o Meio só tem 1 nível, fica nele mesmo
-     — não dá pra recuar sem cair no Início. */
-  var idxsMeio = [];
-  niveis.forEach(function(n,k){ if(n.fase === 'Meio') idxsMeio.push(k); });
-  /* recua 2 níveis do fim do Meio (não mais 1) — o Pedro achou que ainda
-     tava tardio mesmo depois do primeiro ajuste. Nunca sai do Meio. */
-  var idxAddon = idxsMeio.length
-    ? idxsMeio[Math.max(0, idxsMeio.length - 3)]
-    : Math.max(0, Math.floor(L/2));
-  var addonAposNivel = niveis[idxAddon].nivel;
+  /* Fim do rebuy / add-on: depois de tentar ancorar pela fase (último
+     nível do Meio, depois penúltimo, depois 2 antes do fim) e o Pedro
+     seguir achando cedo demais em cada ajuste, a referência virou direto
+     uma fração do total de níveis — ~58% do caminho (exemplo dele: 12
+     níveis, add-on depois do 7º). Nem no Início (trava no primeiro nível
+     que não é Início), nem muito perto do fim (nunca nos 2 últimos). */
+  var addonAposNivel = Math.round(L * 0.58);
+  var primeiroNaoInicio = niveis.findIndex(function(n){ return n.fase !== 'Início'; });
+  var nivelMinimo = primeiroNaoInicio >= 0 ? niveis[primeiroNaoInicio].nivel : 1;
+  addonAposNivel = Math.max(nivelMinimo, Math.min(L - 2, addonAposNivel));
+  var idxAddon = addonAposNivel - 1;
   var addonBBValor = Math.round(valorRebuy / niveis[idxAddon].bb);
 
   /* mesmo denoms usado no blind ladder acima — stack e small blind sempre
