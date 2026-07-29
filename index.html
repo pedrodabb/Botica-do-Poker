@@ -551,7 +551,7 @@
               </div>
             </div>
             <div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-0.25rem 0 0.75rem">Premiação: % do pot por colocação, separado por / (ex: 70/30 = 1º leva 70%, 2º leva 30%)</div>
-            <button class="pgm-btn pgm-btn-sm" type="button" onclick="openBlindCalcModal()" style="width:100%;margin-bottom:0.75rem">🎲 Calcular estrutura de blinds</button>
+            <button class="pgm-btn pgm-btn-sm" type="button" onclick="openBlindCalcModal()" style="width:100%;margin-bottom:0.75rem">🧮 Calcular estrutura de blinds</button>
           </div>
           <button class="pgm-rules-link" type="button" onclick="showRulesGuide()">ℹ️ Ver regras de pontuação</button>
           <div class="pgm-field" id="casual-name-field" style="display:none">
@@ -918,6 +918,17 @@ var PERFIS_TORNEIO = {
   slow:    { label:'Slow',    nivelMin:30, bbInicio:120, bbFim:18, rebuyMin:90, ajusteMin:20  }
 };
 
+/* Cada rebuy extra permitido pesa menos que o anterior — nem todo mundo
+   rebuya a segunda ou terceira vez. maxRebuys=1 dá o mesmo total de antes
+   (1,2× cheio / 0,6× meio), então o padrão não muda em nada. */
+var REBUY_EXTRA_POR_RODADA = [1.2, 0.5, 0.3, 0.2];
+function calcExtraRebuy(maxRebuys, valorRebuyModo) {
+  var n = maxRebuys === 'ilimitado' ? REBUY_EXTRA_POR_RODADA.length : Math.max(1, Math.min(REBUY_EXTRA_POR_RODADA.length, maxRebuys));
+  var soma = 0;
+  for (var i=0; i<n; i++) soma += REBUY_EXTRA_POR_RODADA[i];
+  return valorRebuyModo === 'meio' ? soma * 0.5 : soma;
+}
+
 /* Cores das fichas físicas do Pedro (confirmadas por ele em 2026-07-28).
    [fundo, borda, texto, aro-extra opcional pra ficha com 2 cores de faixa].
    O valor 100 soma dois conjuntos reais (verde escuro + azul claro "novas
@@ -1220,7 +1231,11 @@ function calcularEstruturaTorneio(cfg) {
   /* o tempo digitado é estimativa: Turbo puxa pra trás, Slow pra frente */
   var duracaoPedida = Math.max(30, cfg.duracaoMin || 240);
   var duracaoMin = Math.max(30, duracaoPedida + (perfil.ajusteMin || 0));
-  var optsStack = { modo: modoRegras, reservaRebuy: cfg.comRebuy ? 1.5 : 1 };
+  /* modo personalizado usa o inventário inteiro pro stack inicial, sem
+     reservar fichas de antemão pro rebuy — na prática, fichas de recompra
+     saem do que já voltou pra mesa de gente que estourou, não de uma
+     reserva parada na caixa. Modo oficial mantém a reserva realista. */
+  var optsStack = { modo: modoRegras, reservaRebuy: modoRegras === 'oficial' ? (cfg.comRebuy ? 1.5 : 1) : 1 };
   var cacifeSugerido = !cfg.cacife;
   var cacife = cfg.cacife || sugerirCacife(N, cfg.velocidade, optsStack);
 
@@ -1246,13 +1261,23 @@ function calcularEstruturaTorneio(cfg) {
      é a mesma lógica, só com a metade do incremento por recompra. */
   var valorRebuyModo = cfg.rebuyValor === 'meio' ? 'meio' : 'cheio';
   var valorRebuy = valorRebuyModo === 'meio' ? Math.round(cacife/2) : cacife;
+  /* número máximo de rebuys só é escolhível no modo personalizado — no
+     oficial fica travado em 1 (o padrão "clássico" de sempre) */
+  var maxRebuys = modoRegras === 'personalizado' ? (cfg.maxRebuys || 1) : 1;
   var fichasBase = cacife * N;
-  var extraRebuy = cfg.comRebuy ? (valorRebuyModo === 'meio' ? 0.6 : 1.2) : 0;
+  var extraRebuy = cfg.comRebuy ? calcExtraRebuy(maxRebuys, valorRebuyModo) : 0;
   var totalFichas = Math.round(fichasBase * (1 + extraRebuy));
+
+  /* com ante, cada mão custa mais que só SB+BB — a mesma profundidade em
+     BB "aperta" mais cedo na prática. Por isso o alvo de fundo do fim de
+     jogo sobe ~15% quando o ante tá ativo: sem isso, desligar o ante não
+     mudava nada na estrutura, só sumia uma coluna da tabela. */
+  var comAnte = cfg.comAnte !== false;
+  var bbFimAlvo = perfil.bbFim * (comAnte ? 1.15 : 1);
 
   /* degrau final: o mais PRÓXIMO do alvo (pegar sempre o de baixo fazia o
      torneio terminar raso demais e nunca acabar de verdade) */
-  var bbFinalAlvo = totalFichas / (2 * perfil.bbFim);
+  var bbFinalAlvo = totalFichas / (2 * bbFimAlvo);
   var idxFim = idxIni, distFim = Infinity;
   escada.forEach(function(e,k){
     var d = Math.abs(e[1] - bbFinalAlvo);
@@ -1291,11 +1316,14 @@ function calcularEstruturaTorneio(cfg) {
   classificarFases(niveis, perfil);
   distribuirTempos(niveis, duracaoMin);
 
-  /* Ante = 1 big blind pago pelo big blind da mão (BB ante, padrão moderno
-     e o único formato que não exige ficha miúda na mesa) */
+  /* Ante = meio da big blind (a small blind), pago só por quem está no big
+     blind, valendo pela mesa toda — reduzido do valor cheio (1 BB) porque
+     o Pedro achou apelão. Continua sem exigir ficha miúda: o valor já
+     existe na mesa como a própria small blind. Pré-selecionável (comAnte);
+     desligado, nenhum nível cobra ante. */
   var primeiroMeio = niveis.findIndex(function(n){ return n.fase !== 'Início'; });
   var anteDesde = primeiroMeio < 0 ? Math.floor(L/2) : primeiroMeio + 1;
-  niveis.forEach(function(n,k){ n.ante = k >= anteDesde ? n.bb : 0; });
+  niveis.forEach(function(n,k){ n.ante = (comAnte && k >= anteDesde) ? n.sb : 0; });
 
   /* Fim do rebuy / add-on: um nível antes do fim da fase Meio (não o
      último) — o Pedro achou o último nível do Meio tarde demais. Ainda
@@ -1321,8 +1349,10 @@ function calcularEstruturaTorneio(cfg) {
     velocidade: cfg.velocidade,
     modoRegras: modoRegras,
     comRebuy: !!cfg.comRebuy,
+    comAnte: comAnte,
     valorRebuyModo: valorRebuyModo,
     valorRebuy: valorRebuy,
+    maxRebuys: maxRebuys,
     totalFichas: totalFichas,
     profundidadeInicial: Math.round(cacife / niveis[0].bb),
     duracaoPedidaMin: duracaoPedida,
@@ -1382,8 +1412,12 @@ function openBlindCalcModal() {
   window._blindCalcModo = modoAtual;
   var valorRebuyAtual = window._blindCalcValorRebuy || 'cheio';
   window._blindCalcValorRebuy = valorRebuyAtual;
+  var maxRebuysAtual = window._blindCalcMaxRebuys || 1;
+  window._blindCalcMaxRebuys = maxRebuysAtual;
+  if(window._blindCalcAnte === undefined) window._blindCalcAnte = true;
+  var mostraMaxRebuys = window._blindCalcRebuy && modoAtual === 'personalizado';
   showModal(
-    '<div class="pgm-modal-title">🎲 Calculadora de Torneio <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-modal-title">🧮 Calculadora de Torneio <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.5">Preenche o que você sabe. O cacife e o stack de fichas eu sugiro.</div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Nº de jogadores</label>' +
     '<input type="number" id="blind-calc-jogadores" class="pgm-input" min="2" value="' + numJogadores + '"></div>' +
@@ -1397,6 +1431,12 @@ function openBlindCalcModal() {
     '<button class="pgm-toggle-opt' + (velAtual==='slow'?' active':'') + '" type="button" data-vel="slow" onclick="selecionarVelocidadeBlind(\'slow\')">🐢 Slow</button>' +
     '</div>' +
     '<div id="blind-calc-vel-desc" style="font-size:10px;color:var(--gold-light);font-weight:700;margin-top:5px;line-height:1.5">' + BLIND_VEL_DESC[velAtual] + '</div></div>' +
+    '<div class="pgm-field"><label class="pgm-input-label">Vai ter ante?</label>' +
+    '<div class="pgm-toggle-group" id="blind-calc-ante-toggle" style="display:flex;gap:6px">' +
+    '<button class="pgm-toggle-opt' + (window._blindCalcAnte?' active':'') + '" type="button" data-ante="1" onclick="selecionarAnteBlind(true)">Sim</button>' +
+    '<button class="pgm-toggle-opt' + (window._blindCalcAnte?'':' active') + '" type="button" data-ante="0" onclick="selecionarAnteBlind(false)">Não</button>' +
+    '</div>' +
+    '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px;line-height:1.5">Ante de meio da big blind, pago só por quem tá no big blind, a partir do Meio do torneio. Com ante ligado o jogo aperta mais rápido, então o fim de jogo chega um pouco antes.</div></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Estilo de fichas</label>' +
     '<div class="pgm-toggle-group" id="blind-calc-modo-toggle" style="display:flex;gap:6px">' +
     '<button class="pgm-toggle-opt' + (modoAtual==='personalizado'?' active':'') + '" type="button" data-modo="personalizado" onclick="selecionarModoBlind(\'personalizado\')">🔧 Personalizada</button>' +
@@ -1415,6 +1455,13 @@ function openBlindCalcModal() {
     '<button class="pgm-toggle-opt' + (valorRebuyAtual==='meio'?' active':'') + '" type="button" data-valorrebuy="meio" onclick="selecionarValorRebuyBlind(\'meio\')">Meio</button>' +
     '</div>' +
     '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px;line-height:1.5">Cheio = vale o cacife inteiro. Meio = vale metade — infla menos as fichas em jogo.</div></div>' +
+    '<div class="pgm-field" id="blind-calc-maxrebuys-field" style="display:' + (mostraMaxRebuys?'block':'none') + '"><label class="pgm-input-label">Máximo de rebuys por jogador</label>' +
+    '<div class="pgm-toggle-group" id="blind-calc-maxrebuys-toggle" style="display:flex;gap:6px">' +
+    [1,2,3,'ilimitado'].map(function(v){
+      return '<button class="pgm-toggle-opt' + (maxRebuysAtual===v?' active':'') + '" type="button" data-maxrebuys="' + v + '" onclick="selecionarMaxRebuysBlind(' + (v==='ilimitado'?"'ilimitado'":v) + ')">' + (v==='ilimitado'?'∞':v) + '</button>';
+    }).join('') +
+    '</div>' +
+    '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px;line-height:1.5">Só no estilo Personalizada. Cada rebuy a mais pesa menos que o anterior nas fichas em jogo — nem todo mundo recompra várias vezes.</div></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Cacife (fichas) — opcional</label>' +
     '<input type="number" id="blind-calc-cacife" class="pgm-input" placeholder="Deixe em branco pra eu sugerir" min="1" value="' + cacifeAtual + '"></div>' +
     '<button class="pgm-btn pgm-btn-success" style="width:100%;margin-top:0.5rem" onclick="doCalcularBlinds()">Calcular</button>'
@@ -1433,6 +1480,12 @@ function selecionarModoBlind(m) {
   document.querySelectorAll('#blind-calc-modo-toggle .pgm-toggle-opt').forEach(function(b){ b.classList.toggle('active', b.dataset.modo===m); });
   var desc = document.getElementById('blind-calc-modo-desc');
   if(desc) desc.textContent = BLIND_MODO_DESC[m] || '';
+  atualizaVisibilidadeMaxRebuys();
+}
+
+function atualizaVisibilidadeMaxRebuys() {
+  var campo = document.getElementById('blind-calc-maxrebuys-field');
+  if(campo) campo.style.display = (window._blindCalcRebuy && window._blindCalcModo === 'personalizado') ? 'block' : 'none';
 }
 
 function toggleQuadro(btn) {
@@ -1447,11 +1500,24 @@ function selecionarRebuyBlind(v) {
   });
   var campo = document.getElementById('blind-calc-valorrebuy-field');
   if(campo) campo.style.display = v ? 'block' : 'none';
+  atualizaVisibilidadeMaxRebuys();
 }
 
 function selecionarValorRebuyBlind(v) {
   window._blindCalcValorRebuy = v;
   document.querySelectorAll('#blind-calc-valorrebuy-toggle .pgm-toggle-opt').forEach(function(b){ b.classList.toggle('active', b.dataset.valorrebuy===v); });
+}
+
+function selecionarMaxRebuysBlind(v) {
+  window._blindCalcMaxRebuys = v;
+  document.querySelectorAll('#blind-calc-maxrebuys-toggle .pgm-toggle-opt').forEach(function(b){ b.classList.toggle('active', b.dataset.maxrebuys===String(v)); });
+}
+
+function selecionarAnteBlind(v) {
+  window._blindCalcAnte = v;
+  document.querySelectorAll('#blind-calc-ante-toggle .pgm-toggle-opt').forEach(function(b){
+    b.classList.toggle('active', (b.dataset.ante === '1') === v);
+  });
 }
 
 function doCalcularBlinds() {
@@ -1468,7 +1534,9 @@ function doCalcularBlinds() {
     modoRegras: window._blindCalcModo || 'personalizado',
     cacife: parseInt(document.getElementById('blind-calc-cacife').value) || 0,
     comRebuy: window._blindCalcRebuy !== false,
-    rebuyValor: window._blindCalcValorRebuy || 'cheio'
+    rebuyValor: window._blindCalcValorRebuy || 'cheio',
+    maxRebuys: window._blindCalcMaxRebuys || 1,
+    comAnte: window._blindCalcAnte !== false
   });
   renderBlindTable(resultado);
 }
@@ -1480,7 +1548,7 @@ function usarEstruturaTorneio() {
   if(campo) campo.value = r.cacife;
   S.newSession.estruturaBlinds = {
     velocidade: r.velocidade, cacife: r.cacife, comRebuy: r.comRebuy,
-    valorRebuyModo: r.valorRebuyModo, valorRebuy: r.valorRebuy,
+    comAnte: r.comAnte, valorRebuyModo: r.valorRebuyModo, valorRebuy: r.valorRebuy, maxRebuys: r.maxRebuys,
     modoRegras: r.modoRegras, addonAposNivel: r.addonAposNivel,
     stack: r.stack.composicao.map(function(c){ return { valor:c.valor, qtd:c.qtd }; }),
     niveis: r.niveis.map(function(n){ return { nivel:n.nivel, fase:n.fase, duracaoMin:n.duracaoMin, sb:n.sb, bb:n.bb, ante:n.ante }; })
@@ -1493,7 +1561,7 @@ function showAnteInfo() {
   showModal(
     '<div class="pgm-modal-title">💰 O que é Ante? <button class="pgm-close-btn" onclick="voltarTabelaBlinds()">✕</button></div>' +
     '<div style="font-size:13px;color:var(--cream);line-height:1.7;margin-bottom:0.85rem">É uma aposta obrigatória extra que entra no pot antes das cartas, pra ninguém ficar só esperando mão boa sem pagar nada.</div>' +
-    '<div style="font-size:12.5px;color:var(--cream-dim);line-height:1.7;margin-bottom:1rem">Aqui uso o formato <strong style="color:var(--gold-light)">Big Blind Ante</strong>: quem está no big blind paga <strong>um ante do valor de 1 BB</strong> que vale pela mesa toda — em vez de cada jogador pagar o seu. É o padrão moderno (WSOP usa) e o único que não exige ficha miúda na mesa, já que o ante tem exatamente o mesmo valor da big blind.</div>' +
+    '<div style="font-size:12.5px;color:var(--cream-dim);line-height:1.7;margin-bottom:1rem">Aqui uso uma versão reduzida do <strong style="color:var(--gold-light)">Big Blind Ante</strong>: quem está no big blind paga <strong>um ante do valor da small blind (meio da BB)</strong> que vale pela mesa toda — em vez de cada jogador pagar o seu, e sem pesar tanto no pot quanto o ante cheio (1 BB) do padrão original (WSOP usa o cheio). Continua sem exigir ficha miúda: o valor já existe na mesa como a própria small blind.</div>' +
     '<button class="pgm-btn" style="width:100%" onclick="voltarTabelaBlinds()">Voltar pra tabela</button>'
   );
 }
@@ -1507,16 +1575,17 @@ function renderBlindTable(r) {
   window._blindTableUltimoResultado = r;
   var velLabel = PERFIS_TORNEIO[r.velocidade].label;
   var addonBanda = '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin:5px 0;font-size:10px;font-weight:800;color:#7ab8f5;text-align:center;line-height:1.5">🔵 FIM DO REBUY — ADD-ON DISPONÍVEL<br><span style="font-weight:700;opacity:0.85">' + r.valorRebuy.toLocaleString('pt-BR') + ' fichas ≈ ' + r.addonBBValor + ' big blinds</span></div>';
+  var colsNiveis = r.comAnte ? '24px 1fr 46px 92px 46px' : '24px 1fr 46px 92px';
   var linhas = '', acumMin = 0, minAteAddon = 0;
   r.niveis.forEach(function(n){ if(n.nivel <= r.addonAposNivel) minAteAddon += n.duracaoMin; });
   r.niveis.forEach(function(n, i) {
     acumMin += n.duracaoMin;
-    linhas += '<div style="display:grid;grid-template-columns:24px 1fr 46px 92px 46px;gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
+    linhas += '<div style="display:grid;grid-template-columns:' + colsNiveis + ';gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
       '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + n.nivel + '</div>' +
       '<div style="font-size:9px;font-weight:800;color:var(--gold-dim);text-transform:uppercase">' + n.fase + '</div>' +
       '<div style="color:var(--text-dim)">' + n.duracaoMin + 'min</div>' +
       '<div style="font-family:DM Mono,monospace;font-weight:800;color:var(--cream)">' + n.sb.toLocaleString('pt-BR') + '/' + n.bb.toLocaleString('pt-BR') + '</div>' +
-      '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + (n.ante ? n.ante.toLocaleString('pt-BR') : '—') + '</div>' +
+      (r.comAnte ? '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + (n.ante ? n.ante.toLocaleString('pt-BR') : '—') + '</div>' : '') +
     '</div>';
     if(r.comRebuy && n.nivel === r.addonAposNivel) linhas += addonBanda;
   });
@@ -1547,7 +1616,10 @@ function renderBlindTable(r) {
     titulo: '🔄 Rebuy e add-on',
     resumo: 'até nv ' + r.addonAposNivel,
     corpo: '<div style="font-size:11.5px;color:var(--cream-dim);font-weight:700;line-height:1.7">Rebuy e add-on de <strong style="color:var(--gold-light)">' + r.valorRebuy.toLocaleString('pt-BR') + ' fichas</strong> cada — valor <strong style="color:var(--gold-light)">' + (r.valorRebuyModo === 'meio' ? 'Meio (metade do cacife)' : 'Cheio (igual ao cacife)') + '</strong>.</div>' +
-      '<div style="font-size:11.5px;color:var(--cream-dim);font-weight:700;line-height:1.7;margin-top:7px">Fica aberto até o fim do nível <strong style="color:var(--gold-light)">' + r.addonAposNivel + '</strong>, ou seja <strong style="color:var(--gold-light)">' + formatarDuracao(minAteAddon) + '</strong> de jogo — perto da virada do meio pro fim do torneio.</div>'
+      '<div style="font-size:11.5px;color:var(--cream-dim);font-weight:700;line-height:1.7;margin-top:7px">Fica aberto até o fim do nível <strong style="color:var(--gold-light)">' + r.addonAposNivel + '</strong>, ou seja <strong style="color:var(--gold-light)">' + formatarDuracao(minAteAddon) + '</strong> de jogo — perto da virada do meio pro fim do torneio.</div>' +
+      (r.modoRegras === 'personalizado'
+        ? '<div style="font-size:11.5px;color:var(--cream-dim);font-weight:700;line-height:1.7;margin-top:7px">Máximo de <strong style="color:var(--gold-light)">' + (r.maxRebuys === 'ilimitado' ? 'rebuys ilimitados' : (r.maxRebuys + (r.maxRebuys===1?' rebuy':' rebuys'))) + '</strong> por jogador.</div>'
+        : '')
   }) : '';
 
   var quadroNiveis = quadroHTML({
@@ -1555,11 +1627,11 @@ function renderBlindTable(r) {
     resumo: r.niveis.length + ' níveis',
     aberto: true,
     largo: true,
-    corpo: '<div style="display:grid;grid-template-columns:24px 1fr 46px 92px 46px;gap:5px;padding-bottom:4px;border-bottom:1px solid var(--border-strong);font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase">' +
+    corpo: '<div style="display:grid;grid-template-columns:' + colsNiveis + ';gap:5px;padding-bottom:4px;border-bottom:1px solid var(--border-strong);font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase">' +
       '<div>Nv</div><div>Fase</div><div>Tempo</div><div>SB/BB</div>' +
-      '<div style="display:flex;align-items:center;gap:3px">Ante' +
+      (r.comAnte ? '<div style="display:flex;align-items:center;gap:3px">Ante' +
       '<button onclick="showAnteInfo()" title="O que é ante?" style="width:14px;height:14px;border-radius:50%;border:1.3px solid var(--gold-light);background:none;color:var(--gold-light);font-size:8px;font-weight:900;font-style:italic;font-family:Georgia,serif;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;line-height:1;padding:0">i</button>' +
-      '</div></div>' +
+      '</div>' : '') + '</div>' +
       '<div style="max-height:34vh;overflow-y:auto">' + linhas + '</div>'
   });
 
@@ -1574,7 +1646,7 @@ function renderBlindTable(r) {
     ' <span style="color:var(--gold-dim)">(' + (deltaTempo > 0 ? '+' : '−') + Math.abs(deltaTempo) + 'min vs. estimado)</span>';
 
   showModal(
-    '<div class="pgm-modal-title">🎲 Estrutura — ' + velLabel + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-modal-title">🧮 Estrutura — ' + velLabel + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem;line-height:1.5">' + r.niveis.length + ' níveis · ' + formatarDuracao(r.duracaoTotalMin) + notaTempo + ' · ' + r.numJogadores + ' jogadores</div>' +
     '<div style="display:flex;gap:6px;margin-bottom:0.6rem">' +
       '<div style="flex:1;background:rgba(255,255,255,0.04);border-radius:8px;padding:6px 9px"><div style="font-size:9px;color:var(--text-dim);font-weight:800;text-transform:uppercase">Profundidade</div><div style="font-family:DM Mono,monospace;font-size:13px;font-weight:900;color:var(--gold-light)">' + r.profundidadeInicial + ' BB</div></div>' +
