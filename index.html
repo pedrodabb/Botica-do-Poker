@@ -1034,6 +1034,41 @@ function fecharStackComposto(comp, teto, passos, dif) {
    tinha teto nenhum e passava de 150 fichas em cenários de cacife alto. */
 var ALVO_FICHAS_STACK = 45;
 
+/* Reserva mínima por denominação durante o refino — sem isso o algoritmo
+   drenava as fichas grandes pras pequenas até sumirem do stack (mais
+   ficha de menos denominações, não mais ficha VARIADA). O Pedro quer
+   diversidade: pelo menos ~4 de cada denominação do meio (250, 500...) e
+   pelo menos 1 da maior (ex.: 1000), não só 100/250/500 igual antes. */
+var RESERVA_MIN_DIVERSIDADE = 4;
+
+/* Garante um mínimo de cada denominação principal ANTES do refino de
+   contagem — sem isso, o refino (que sempre busca o maior ganho de
+   fichas por troca) drenava 250/500/1000 quase inteiros pra 100, e o
+   stack acabava só com 2-3 denominações mesmo tendo "muita ficha".
+   Pedro pediu explicitamente: pelo menos ~4 de 250 e 500, pelo menos 1
+   de 1000. Puxa o que falta da ficha mais miúda (ds[0]), que é sempre a
+   que sobra mais. */
+var METAS_DIVERSIDADE = { 250:4, 500:4, 1000:1 };
+function garantirDiversidade(comp, ds, teto) {
+  Object.keys(METAS_DIVERSIDADE).forEach(function(valorStr){
+    var valor = Number(valorStr);
+    var i = ds.indexOf(valor);
+    if(i < 1) return;
+    var minimo = METAS_DIVERSIDADE[valor];
+    var guarda = 0;
+    while(comp[i].qtd < minimo && guarda++ < 20) {
+      var mmc = ds[i]*ds[0]/_mdc(ds[i], ds[0]);
+      var poe = mmc/ds[i], tira = mmc/ds[0];
+      /* nunca esvazia a ficha mais miúda pra financiar as outras — ela
+         também precisa sobrar, senão "diversificar" vira só trocar de
+         gargalo (bug real: 4x250+4x500+2x1000+1x3000, zero de 100). */
+      if(comp[0].qtd - tira < RESERVA_MIN_DIVERSIDADE || comp[i].qtd + poe > teto[i]) break;
+      comp[0].qtd -= tira;
+      comp[i].qtd += poe;
+    }
+  });
+}
+
 function refinarParaMuitasFichas(comp, ds, teto) {
   var trocas = [];
   for(var i=ds.length-1; i>0; i--) {
@@ -1050,7 +1085,8 @@ function refinarParaMuitasFichas(comp, ds, teto) {
     mudou = false;
     for(var k=0; k<trocas.length; k++) {
       var t = trocas[k];
-      if(comp[t.i].qtd >= t.tira && comp[t.j].qtd + t.poe <= teto[t.j]) {
+      var reserva = (t.i === ds.length-1) ? 1 : RESERVA_MIN_DIVERSIDADE;
+      if(comp[t.i].qtd - t.tira >= reserva && comp[t.j].qtd + t.poe <= teto[t.j]) {
         comp[t.i].qtd -= t.tira;
         comp[t.j].qtd += t.poe;
         mudou = true;
@@ -1109,7 +1145,10 @@ function montarStackJogador(cacife, denoms, numJogadores, opts) {
 
   /* só troca por fichas menores se a conta já fechou exata — refinar um
      stack que não bateu o cacife só espalharia o erro */
-  if(opts.modo !== 'oficial' && total() === cacife) refinarParaMuitasFichas(comp, ds, teto);
+  if(opts.modo !== 'oficial' && total() === cacife) {
+    garantirDiversidade(comp, ds, teto);
+    refinarParaMuitasFichas(comp, ds, teto);
+  }
 
   var lista = comp.filter(function(c){ return c.qtd > 0; });
   var valor = lista.reduce(function(a,c){ return a + c.valor*c.qtd; }, 0);
@@ -1396,14 +1435,19 @@ function calcularEstruturaTorneio(cfg) {
   classificarFases(niveis, perfil, cacife);
   distribuirTempos(niveis, duracaoMin);
 
-  /* Ante = meio da big blind (a small blind), pago só por quem está no big
-     blind, valendo pela mesa toda — reduzido do valor cheio (1 BB) porque
-     o Pedro achou apelão. Continua sem exigir ficha miúda: o valor já
-     existe na mesa como a própria small blind. Pré-selecionável (comAnte);
+  /* Ante = metade da small blind (um quarto da big blind) — reduzido de
+     novo em 2026-07-29, o Pedro achou o valor anterior (a small blind
+     inteira) ainda alto demais. Arredonda pra baixo pra ficha que
+     realmente existe no jogo (nunca inventa denominação nova, sempre
+     pagável com o que já está na mesa). Pré-selecionável (comAnte);
      desligado, nenhum nível cobra ante. */
   var primeiroMeio = niveis.findIndex(function(n){ return n.fase !== 'Início'; });
   var anteDesde = primeiroMeio < 0 ? Math.floor(L/2) : primeiroMeio + 1;
-  niveis.forEach(function(n,k){ n.ante = (comAnte && k >= anteDesde) ? n.sb : 0; });
+  niveis.forEach(function(n,k){
+    if(!comAnte || k < anteDesde) { n.ante = 0; return; }
+    var candidatos = denoms.filter(function(d){ return d <= n.sb/2; });
+    n.ante = candidatos.length ? Math.max.apply(null, candidatos) : Math.min.apply(null, denoms);
+  });
 
   /* Fim do rebuy / add-on: depois de tentar ancorar pela fase (último
      nível do Meio, depois penúltimo, depois 2 antes do fim) e o Pedro
@@ -1489,7 +1533,7 @@ var ICON_CALCULADORA = '<svg width="17" height="17" viewBox="0 0 24 24" fill="no
 
 function openBlindCalcModal() {
   var cacifeAtual = parseInt(document.getElementById('new-tourney-stack').value) || '';
-  var numJogadores = window._blindCalcJogadores || S.newSession.players.length || 4;
+  var numJogadores = window._blindCalcJogadores || '';
   var duracaoTexto = window._blindCalcDuracaoTexto || '00:00';
   var velAtual = 'regular';
   window._blindCalcVel = velAtual;
@@ -1520,7 +1564,7 @@ function openBlindCalcModal() {
     '<button class="pgm-toggle-opt' + (window._blindCalcAnte?' active':'') + '" type="button" data-ante="1" onclick="selecionarAnteBlind(true)">Sim</button>' +
     '<button class="pgm-toggle-opt' + (window._blindCalcAnte?'':' active') + '" type="button" data-ante="0" onclick="selecionarAnteBlind(false)">Não</button>' +
     '</div>' +
-    '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px;line-height:1.5">Ante de meio da big blind, pago só por quem tá no big blind, a partir do Meio do torneio. Com ante ligado o jogo aperta mais rápido, então o fim de jogo chega um pouco antes.</div></div>' +
+    '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px;line-height:1.5">Ante de ~1/4 da big blind, pago só por quem tá no big blind, a partir do Meio do torneio. Com ante ligado o jogo aperta mais rápido, então o fim de jogo chega um pouco antes.</div></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Estilo de fichas</label>' +
     '<div class="pgm-toggle-group" id="blind-calc-modo-toggle" style="display:flex;gap:6px">' +
     '<button class="pgm-toggle-opt' + (modoAtual==='personalizado'?' active':'') + '" type="button" data-modo="personalizado" onclick="selecionarModoBlind(\'personalizado\')">🔧 Personalizada</button>' +
@@ -1592,7 +1636,8 @@ function selecionarAnteBlind(v) {
 }
 
 function doCalcularBlinds() {
-  var numJogadores = parseInt(document.getElementById('blind-calc-jogadores').value) || 4;
+  var numJogadores = parseInt(document.getElementById('blind-calc-jogadores').value) || 0;
+  if(numJogadores < 2) { showAlert('Informe o número de jogadores.'); return; }
   var duracaoTexto = document.getElementById('blind-calc-duracao').value;
   var d = parseDuracaoDigitada(duracaoTexto);
   if(d.horas <= 0 && d.minutos <= 0) { showAlert('Informe o tempo estimado do torneio.'); return; }
@@ -1631,7 +1676,7 @@ function showAnteInfo() {
   showModal(
     '<div class="pgm-modal-title">💰 O que é Ante? <button class="pgm-close-btn" onclick="voltarTabelaBlinds()">✕</button></div>' +
     '<div style="font-size:13px;color:var(--cream);line-height:1.7;margin-bottom:0.85rem">É uma aposta obrigatória extra que entra no pot antes das cartas, pra ninguém ficar só esperando mão boa sem pagar nada.</div>' +
-    '<div style="font-size:12.5px;color:var(--cream-dim);line-height:1.7;margin-bottom:1rem">Aqui uso uma versão reduzida do <strong style="color:var(--gold-light)">Big Blind Ante</strong>: quem está no big blind paga <strong>um ante do valor da small blind (meio da BB)</strong> que vale pela mesa toda — em vez de cada jogador pagar o seu, e sem pesar tanto no pot quanto o ante cheio (1 BB) do padrão original (WSOP usa o cheio). Continua sem exigir ficha miúda: o valor já existe na mesa como a própria small blind.</div>' +
+    '<div style="font-size:12.5px;color:var(--cream-dim);line-height:1.7;margin-bottom:1rem">Aqui uso uma versão bem reduzida do <strong style="color:var(--gold-light)">Big Blind Ante</strong>: quem está no big blind paga <strong>um ante de mais ou menos um quarto da BB</strong> (metade da small blind) que vale pela mesa toda — em vez de cada jogador pagar o seu, e bem mais leve que o ante cheio (1 BB) do padrão original (WSOP usa o cheio). O valor sempre arredonda pra uma ficha que já existe no jogo, nunca inventa denominação nova.</div>' +
     '<button class="pgm-btn" style="width:100%" onclick="voltarTabelaBlinds()">Voltar pra tabela</button>'
   );
 }
