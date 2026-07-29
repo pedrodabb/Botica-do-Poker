@@ -1220,36 +1220,33 @@ function sugerirCacife(numJogadores, velocidade, opts) {
   return alvo;
 }
 
-/* Fases pela profundidade real, não por contagem de nível: quando o stack
-   médio vale 10 big blinds isso é fim de jogo, não meio. Os limites saem
-   do perfil — o "fundo" de um Slow não é o mesmo de um Turbo.
-   Além da proporção, tem um piso ABSOLUTO: o Pedro considera fim de jogo
-   a partir de BB 1.000, direto em ficha, não só em proporção — a não ser
-   num cacife fundo (15k+), onde BB 1.000 ainda é cedo de verdade. Níveis
-   forçados assim (`fimForcado`) nunca voltam pra Meio no reequilíbrio
-   abaixo, senão a regra vira decoração.
-   IMPORTANTE: profundidade não é estritamente decrescente — durante a
-   janela de rebuy as fichas em jogo crescem mais rápido que o blind, então
-   ela pode SUBIR de um nível pro próximo (bug real: com maxRebuys alto a
-   fase pulava Meio→Início→Meio→Fim fora de ordem, e o add-on saía
-   absurdamente cedo por causa disso). A fase só pode ANDAR PRA FRENTE
-   (Início→Meio→Fim), nunca regredir, não importa o que a proporção diga
-   num nível isolado. */
+/* Fases por PROFUNDIDADE SIMPLES: cacife original ÷ blind atual, ignorando
+   inflação de rebuy e sobra de jogadores eliminados — "quantos BB meu
+   buy-in original compraria nesse blind". É exatamente como o Pedro
+   pensa nisso ("6mil fichas, bb de 1000 já é fim; 15mil, ainda não") e,
+   por ser só cacife/bb (cacife é constante, bb só sobe), é estritamente
+   decrescente por construção — sem o efeito de "subir de novo" que a
+   profundidade inflada (`n.profundidade`, usada só pra exibição/stats)
+   tinha durante a janela de rebuy.
+   Ajustado em 2026-07-29: existiu uma versão anterior com piso fixo
+   ("BB≥1000 é sempre Fim") que o Pedro rejeitou por não fazer sentido em
+   cacife alto — e uma tentativa de multiplicar a profundidade inflada
+   que, por incluir a inflação do rebuy, espremia a fase Meio quase a
+   zero. cacife/bb resolve as duas coisas de uma vez, sem regra fixa. */
 function classificarFases(niveis, perfil, cacife) {
   var limInicio = perfil.bbInicio * 0.55;
-  var limFim = perfil.bbFim * 1.6;
-  var limFimAbsoluto = (cacife && cacife >= 15000) ? Infinity : 1000;
+  var limFim = perfil.bbFim;
   var ordem = { 'Início':0, 'Meio':1, 'Fim':2 };
   var atual = 'Início';
   niveis.forEach(function(n){
-    if(n.bb >= limFimAbsoluto) { n.fase = 'Fim'; n.fimForcado = true; atual = 'Fim'; return; }
-    var sugestao = n.profundidade >= limInicio ? 'Início' : (n.profundidade >= limFim ? 'Meio' : 'Fim');
+    var profSimples = cacife / n.bb;
+    var sugestao = profSimples >= limInicio ? 'Início' : (profSimples >= limFim ? 'Meio' : 'Fim');
     if(ordem[sugestao] > ordem[atual]) atual = sugestao;
     n.fase = atual;
   });
   var L = niveis.length;
   function conta(f){ return niveis.filter(function(n){ return n.fase===f; }).length; }
-  if(conta('Início') === 0 && !niveis[0].fimForcado) niveis[0].fase = 'Início';
+  if(conta('Início') === 0) niveis[0].fase = 'Início';
 
   /* Início precisa de pelo menos 2 níveis — o Pedro achou estranho o
      torneio "já começar no meio" quando só 1 nível cabia na proporção. */
@@ -1258,20 +1255,23 @@ function classificarFases(niveis, perfil, cacife) {
   while(conta('Início') < minInicio && gI++ < L) {
     var proximo = -1;
     for(i=0;i<L;i++) if(niveis[i].fase !== 'Início'){ proximo = i; break; }
-    if(proximo < 0 || niveis[proximo].fimForcado) break;
+    if(proximo < 0) break;
     niveis[proximo].fase = 'Início';
   }
 
-  var minMeio = Math.max(2, Math.round(L * 0.45));
+  /* piso do Meio caiu de 45% pra 20% dos níveis — com a profundidade
+     simples (cacife/bb) a classificação natural já é bem mais rigorosa
+     sobre quando é Fim de verdade, e um piso de 45% brigava com isso,
+     empurrando níveis de volta pro Meio que a métrica nova já tinha
+     acertado como Fim (ex.: BB 1.000 num cacife de 6.000). */
+  var minMeio = Math.max(1, Math.round(L * 0.2));
   if(conta('Fim') === 0) niveis[L-1].fase = 'Fim';
   var guarda = 0;
   while(conta('Meio') < minMeio && guarda++ < L*2) {
     if(conta('Início') > minInicio) {
       for(i=L-1;i>=0;i--) if(niveis[i].fase==='Início'){ niveis[i].fase='Meio'; break; }
     } else if(conta('Fim') > 1) {
-      var achou = false;
-      for(i=0;i<L;i++) if(niveis[i].fase==='Fim' && !niveis[i].fimForcado){ niveis[i].fase='Meio'; achou=true; break; }
-      if(!achou) break;
+      for(i=0;i<L;i++) if(niveis[i].fase==='Fim'){ niveis[i].fase='Meio'; break; }
     } else break;
   }
 }
