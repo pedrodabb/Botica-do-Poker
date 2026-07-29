@@ -1179,14 +1179,25 @@ function sugerirCacife(numJogadores, velocidade, opts) {
    a partir de BB 1.000, direto em ficha, não só em proporção — a não ser
    num cacife fundo (15k+), onde BB 1.000 ainda é cedo de verdade. Níveis
    forçados assim (`fimForcado`) nunca voltam pra Meio no reequilíbrio
-   abaixo, senão a regra vira decoração. */
+   abaixo, senão a regra vira decoração.
+   IMPORTANTE: profundidade não é estritamente decrescente — durante a
+   janela de rebuy as fichas em jogo crescem mais rápido que o blind, então
+   ela pode SUBIR de um nível pro próximo (bug real: com maxRebuys alto a
+   fase pulava Meio→Início→Meio→Fim fora de ordem, e o add-on saía
+   absurdamente cedo por causa disso). A fase só pode ANDAR PRA FRENTE
+   (Início→Meio→Fim), nunca regredir, não importa o que a proporção diga
+   num nível isolado. */
 function classificarFases(niveis, perfil, cacife) {
   var limInicio = perfil.bbInicio * 0.55;
   var limFim = perfil.bbFim * 1.6;
   var limFimAbsoluto = (cacife && cacife >= 15000) ? Infinity : 1000;
+  var ordem = { 'Início':0, 'Meio':1, 'Fim':2 };
+  var atual = 'Início';
   niveis.forEach(function(n){
-    if(n.bb >= limFimAbsoluto) { n.fase = 'Fim'; n.fimForcado = true; return; }
-    n.fase = n.profundidade >= limInicio ? 'Início' : (n.profundidade >= limFim ? 'Meio' : 'Fim');
+    if(n.bb >= limFimAbsoluto) { n.fase = 'Fim'; n.fimForcado = true; atual = 'Fim'; return; }
+    var sugestao = n.profundidade >= limInicio ? 'Início' : (n.profundidade >= limFim ? 'Meio' : 'Fim');
+    if(ordem[sugestao] > ordem[atual]) atual = sugestao;
+    n.fase = atual;
   });
   var L = niveis.length;
   var minMeio = Math.max(2, Math.round(L * 0.45));
