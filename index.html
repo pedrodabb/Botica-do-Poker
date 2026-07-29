@@ -1174,24 +1174,33 @@ function sugerirCacife(numJogadores, velocidade, opts) {
 
 /* Fases pela profundidade real, não por contagem de nível: quando o stack
    médio vale 10 big blinds isso é fim de jogo, não meio. Os limites saem
-   do perfil — o "fundo" de um Slow não é o mesmo de um Turbo. */
-function classificarFases(niveis, perfil) {
+   do perfil — o "fundo" de um Slow não é o mesmo de um Turbo.
+   Além da proporção, tem um piso ABSOLUTO: o Pedro considera fim de jogo
+   a partir de BB 1.000, direto em ficha, não só em proporção — a não ser
+   num cacife fundo (15k+), onde BB 1.000 ainda é cedo de verdade. Níveis
+   forçados assim (`fimForcado`) nunca voltam pra Meio no reequilíbrio
+   abaixo, senão a regra vira decoração. */
+function classificarFases(niveis, perfil, cacife) {
   var limInicio = perfil.bbInicio * 0.55;
   var limFim = perfil.bbFim * 1.6;
+  var limFimAbsoluto = (cacife && cacife >= 15000) ? Infinity : 1000;
   niveis.forEach(function(n){
+    if(n.bb >= limFimAbsoluto) { n.fase = 'Fim'; n.fimForcado = true; return; }
     n.fase = n.profundidade >= limInicio ? 'Início' : (n.profundidade >= limFim ? 'Meio' : 'Fim');
   });
   var L = niveis.length;
   var minMeio = Math.max(2, Math.round(L * 0.45));
   function conta(f){ return niveis.filter(function(n){ return n.fase===f; }).length; }
-  if(conta('Início') === 0) niveis[0].fase = 'Início';
+  if(conta('Início') === 0 && !niveis[0].fimForcado) niveis[0].fase = 'Início';
   if(conta('Fim') === 0) niveis[L-1].fase = 'Fim';
   var guarda = 0, i;
   while(conta('Meio') < minMeio && guarda++ < L*2) {
     if(conta('Início') > 1) {
       for(i=L-1;i>=0;i--) if(niveis[i].fase==='Início'){ niveis[i].fase='Meio'; break; }
     } else if(conta('Fim') > 1) {
-      for(i=0;i<L;i++) if(niveis[i].fase==='Fim'){ niveis[i].fase='Meio'; break; }
+      var achou = false;
+      for(i=0;i<L;i++) if(niveis[i].fase==='Fim' && !niveis[i].fimForcado){ niveis[i].fase='Meio'; achou=true; break; }
+      if(!achou) break;
     } else break;
   }
 }
@@ -1340,7 +1349,7 @@ function calcularEstruturaTorneio(cfg) {
     });
   }
 
-  classificarFases(niveis, perfil);
+  classificarFases(niveis, perfil, cacife);
   distribuirTempos(niveis, duracaoMin);
 
   /* Ante = meio da big blind (a small blind), pago só por quem está no big
