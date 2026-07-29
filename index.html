@@ -1150,13 +1150,23 @@ function notasConjunto(stack, numJogadores) {
 /* Cacife sugerido: a partir da profundidade do perfil e do blind inicial
    padrão da casa (100/200), escolhendo o valor redondo mais próximo que
    ainda caiba nas fichas físicas disponíveis. */
+/* headroom só pra busca de sugestão — não é o reservaRebuy real do stack.
+   Sem isso o alvo (200×bbInicio) sempre cabia com folga em qualquer N até
+   uns 10 jogadores, e a sugestão saía sempre igual (15.000 pra Regular,
+   não importa se eram 2 ou 10 jogadores). Pedindo que a busca só aceite
+   cacifes que usem no máximo ~1/3 do estoque de cada ficha, mais gente na
+   mesa força um cacife menor de verdade — o mesmo estoque físico dividido
+   por mais gente sobra menos por jogador. */
+var HEADROOM_SUGESTAO = 3;
+
 function sugerirCacife(numJogadores, velocidade, opts) {
   var perfil = PERFIS_TORNEIO[velocidade] || PERFIS_TORNEIO.regular;
   var alvo = 200 * perfil.bbInicio;
   var denomsTorneio = FICHAS_INVENTARIO.filter(function(f){ return f.valor >= 100; }).map(function(f){ return f.valor; });
+  var optsBusca = { modo: (opts && opts.modo) || 'personalizado', reservaRebuy: HEADROOM_SUGESTAO };
   var ordenados = CACIFES_REDONDOS.slice().sort(function(a,b){ return Math.abs(a-alvo) - Math.abs(b-alvo); });
   for(var i=0;i<ordenados.length;i++){
-    var st = montarStackJogador(ordenados[i], denomsTorneio, numJogadores, opts);
+    var st = montarStackJogador(ordenados[i], denomsTorneio, numJogadores, optsBusca);
     if(st.coube && !conferirFichas(st, numJogadores).length) return ordenados[i];
   }
   return alvo;
