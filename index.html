@@ -1049,6 +1049,11 @@ var RESERVA_MIN_DIVERSIDADE = 4;
    de 1000. Puxa o que falta da ficha mais miúda (ds[0]), que é sempre a
    que sobra mais. */
 var METAS_DIVERSIDADE = { 250:4, 500:4, 1000:1 };
+
+/* Cacife mínimo pra ficha de 3000 entrar no stack — abaixo disso ela come
+   uma fatia grande demais do valor total num chip só, sobrando pouco
+   espaço pra diversidade nas fichas menores. */
+var CACIFE_MIN_FICHA_3000 = 12000;
 function garantirDiversidade(comp, ds, teto) {
   Object.keys(METAS_DIVERSIDADE).forEach(function(valorStr){
     var valor = Number(valorStr);
@@ -1354,7 +1359,13 @@ function calcularEstruturaTorneio(cfg) {
      que nenhuma ficha do stack paga (bug real: stack só com 100/250/500,
      small blind saindo em 50). Só desce pras miúdas junto — ladder E
      stack — se 100+ sozinho não fechar o cacife exato. */
-  var denoms100 = FICHAS_INVENTARIO.filter(function(f){ return f.valor >= 100; }).map(function(f){ return f.valor; });
+  /* a ficha de 3000 só entra em cacifes grandes (12k+) — num cacife
+     modesto ela sozinha comia uma fatia grande demais do stack (ex.:
+     1x3000 num cacife de 8000 é quase metade do valor num chip só),
+     sobrando pouco espaço pra ter mais 100/250/500. */
+  var denoms100 = FICHAS_INVENTARIO.filter(function(f){
+    return f.valor >= 100 && (f.valor < 3000 || cacife >= CACIFE_MIN_FICHA_3000);
+  }).map(function(f){ return f.valor; });
   var stack100 = montarStackJogador(cacife, denoms100, N, optsStack);
   var usa100Only = stack100.coube && !conferirFichas(stack100, N).length;
 
