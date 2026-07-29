@@ -1333,8 +1333,10 @@ function calcularEstruturaTorneio(cfg) {
      — não dá pra recuar sem cair no Início. */
   var idxsMeio = [];
   niveis.forEach(function(n,k){ if(n.fase === 'Meio') idxsMeio.push(k); });
-  var idxAddon = idxsMeio.length >= 2 ? idxsMeio[idxsMeio.length - 2]
-    : idxsMeio.length === 1 ? idxsMeio[0]
+  /* recua 2 níveis do fim do Meio (não mais 1) — o Pedro achou que ainda
+     tava tardio mesmo depois do primeiro ajuste. Nunca sai do Meio. */
+  var idxAddon = idxsMeio.length
+    ? idxsMeio[Math.max(0, idxsMeio.length - 3)]
     : Math.max(0, Math.floor(L/2));
   var addonAposNivel = niveis[idxAddon].nivel;
   var addonBBValor = Math.round(valorRebuy / niveis[idxAddon].bb);
