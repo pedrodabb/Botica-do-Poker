@@ -729,6 +729,10 @@
 <div id="pgm-modal" style="display:none"></div>
 
 <script>
+/* REGRA DE ESTILO PERMANENTE: nunca usar o emoji de caveira (💀) pra nada
+   neste arquivo — nem "eliminado", nem erro, nem qualquer outro contexto.
+   Trocado por "Saiu da mesa" em todo o app em 2026-07-29 (Pedro pediu
+   explicitamente pra tirar). */
 const S = {
   season: 1,
   sessions: [],
@@ -2934,7 +2938,7 @@ function renderActiveSession() {
     const isClassico = s.tourneyMode === 'classico';
     const metaHTML = saiu
       ? (isClassico
-          ? `💀 ${p.bustOrder||''}º eliminado`
+          ? `Saiu da mesa · ${p.bustOrder||''}º`
           : `<span style="color:${(p.finalStack-(p.buyin+rt))>=0?'var(--positive)':'var(--negative)'}">Saiu · ${(p.finalStack-(p.buyin+rt))>=0?'+':''}R$ ${Math.abs(p.finalStack-(p.buyin+rt)).toFixed(2).replace('.',',')}</span>`)
       : `${fmtRaw(p.buyin+rt)}${rt>0?` <span class="pgm-rebuy-tag">${p.rebuys.length} rebuy${p.rebuys.length>1?'s':''}</span>`:''}`;
     const actionsHTML = saiu ? '' : `
@@ -2994,10 +2998,10 @@ function openEliminarModal(idx) {
   const rt = (p.rebuys||[]).reduce((a,r)=>a+r,0);
   const investido = p.buyin + rt;
   showModal(
-    '<div class="pgm-modal-title">💀 ' + escHtml(p.name) + ' foi eliminado? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div style="font-size:12px;color:var(--text-dim);margin-bottom:0.75rem">Investiu: ' + fmtRaw(investido) + '. A posição final é calculada automaticamente pela ordem de eliminação ao encerrar a mesa.</div>' +
+    '<div class="pgm-modal-title">× ' + escHtml(p.name) + ' saiu da mesa? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="font-size:12px;color:var(--text-dim);margin-bottom:0.75rem">Investiu: ' + fmtRaw(investido) + '. A posição final é calculada automaticamente pela ordem de saída ao encerrar a mesa.</div>' +
     '<div class="pgm-row-btns">' +
-    '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="confirmEliminarClassico(' + idx + ')">Sim, eliminado</button>' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="confirmEliminarClassico(' + idx + ')">Sim, saiu da mesa</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Voltar</button>' +
     '</div>'
   );
@@ -3021,7 +3025,7 @@ function openPlayerActionsMenu(idx) {
   showModal(
     '<div class="pgm-modal-title">' + escHtml(p.name) + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div class="pgm-row-btns" style="flex-direction:column">' +
-    '<button class="pgm-btn" style="width:100%" onclick="closeModal();' + (isClassico ? 'openEliminarModal(' + idx + ')' : 'openLeftTableModal(' + idx + ')') + '">' + (isClassico ? '💀 Eliminado' : 'Saiu da mesa') + '</button>' +
+    '<button class="pgm-btn" style="width:100%" onclick="closeModal();' + (isClassico ? 'openEliminarModal(' + idx + ')' : 'openLeftTableModal(' + idx + ')') + '">Saiu da mesa</button>' +
     '<button class="pgm-btn pgm-btn-danger" style="width:100%" onclick="closeModal();confirmRemoveFromTable(' + idx + ')">Remover (adicionado por engano)</button>' +
     '</div>'
   );
@@ -3183,7 +3187,7 @@ function openFinishSession() {
       var pre = autoPos[i];
       var opts = '<option value="">-</option>' + s.players.map(function(pp, pi){ return '<option value="' + (pi+1) + '"' + (pre===(pi+1)?' selected':'') + '>' + (pi+1) + 'º</option>'; }).join('');
       return '<div class="pgm-final-row">' +
-        '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + escHtml(p.name) + (p.leftTable ? ' <span style="font-size:9px;color:var(--text-dim)">💀' + (p.bustOrder||'') + 'º</span>' : '') + '</div>' +
+        '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px">' + avatarHTML(p.name,'pgm-player-avatar','♟') + escHtml(p.name) + (p.leftTable ? ' <span style="font-size:9px;color:var(--text-dim)">' + (p.bustOrder||'') + 'º</span>' : '') + '</div>' +
         '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
         '<select id="pos-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px">' + opts + '</select>' +
         '</div>';
@@ -3194,7 +3198,7 @@ function openFinishSession() {
       '<div class="pgm-alert"><span>💰</span> Pot total: <strong>' + fmtRaw(totalIn) + '</strong></div>' +
       '<div style="font-size:11px;font-weight:800;color:var(--gold-light);margin-bottom:0.75rem">🏆 ' + payoutInfo + '</div>' +
       '<div class="pgm-section-title">Posição final de cada jogador</div>' +
-      '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-4px 0 10px">Quem foi marcado como "Eliminado" durante a sessão já vem preenchido — confira e ajuste se precisar. 1º é quem venceu.</div>' +
+      '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-4px 0 10px">Quem foi marcado como "Saiu da mesa" durante a sessão já vem preenchido — confira e ajuste se precisar. 1º é quem venceu.</div>' +
       '<div class="pgm-final-row header"><div>Jogador</div><div style="text-align:right">Pagou</div><div style="text-align:right">Posição</div></div>' +
       rowsClassico +
       '<div class="pgm-row-btns" style="margin-top:0.75rem">' +
