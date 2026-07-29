@@ -1029,6 +1029,11 @@ function fecharStackComposto(comp, teto, passos, dif) {
    cheio de ficha, então maximizamos a contagem sem mudar uma ficha do
    cacife nem estourar o que ele tem em casa. Só roda no modo personalizado
    — em "regras oficiais" o stack fica na distribuição enxuta padrão. */
+/* ~45 fichas por jogador (faixa 40-50 pedida pelo Pedro) — "bastante ficha"
+   não é sinônimo de "o máximo que o inventário aguenta". Antes disso não
+   tinha teto nenhum e passava de 150 fichas em cenários de cacife alto. */
+var ALVO_FICHAS_STACK = 45;
+
 function refinarParaMuitasFichas(comp, ds, teto) {
   var trocas = [];
   for(var i=ds.length-1; i>0; i--) {
@@ -1039,8 +1044,9 @@ function refinarParaMuitasFichas(comp, ds, teto) {
     }
   }
   trocas.sort(function(x,y){ return y.ganho - x.ganho; });
+  function totalFichas(){ return comp.reduce(function(a,c){ return a+c.qtd; }, 0); }
   var guarda = 0, mudou = true;
-  while(mudou && guarda++ < 500) {
+  while(mudou && guarda++ < 500 && totalFichas() < ALVO_FICHAS_STACK) {
     mudou = false;
     for(var k=0; k<trocas.length; k++) {
       var t = trocas[k];
@@ -1341,7 +1347,14 @@ function calcularEstruturaTorneio(cfg) {
   var addonAposNivel = niveis[idxAddon].nivel;
   var addonBBValor = Math.round(valorRebuy / niveis[idxAddon].bb);
 
-  var stack = montarStackJogador(cacife, denoms, N, optsStack);
+  /* o stack físico prioriza 100+ mesmo quando o blind precisou descer pras
+     miúdas (25/50) — são coisas diferentes: a escada de blind pode precisar
+     de degrau fino num cacife baixo, mas o Pedro não quer o stack cheio de
+     ficha de 25 por causa disso. Só cai pras miúdas se 100+ sozinho não
+     fechar o cacife exato ou não couber no inventário. */
+  var denomsStackPref = FICHAS_INVENTARIO.filter(function(f){ return f.valor >= 100; }).map(function(f){ return f.valor; });
+  var stack = montarStackJogador(cacife, denomsStackPref, N, optsStack);
+  if(!stack.coube || conferirFichas(stack, N).length) stack = montarStackJogador(cacife, denoms, N, optsStack);
   return {
     addonAposNivel: addonAposNivel,
     addonBBValor: addonBBValor,
