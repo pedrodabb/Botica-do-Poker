@@ -1278,44 +1278,30 @@ function classificarFases(niveis, perfil, cacife) {
 
 /* Regra explícita e repetida do Pedro: nenhum nível pode durar menos de
    10min nem mais de 30min — acima disso "fica chato". Alvo por fase:
-   Início ~15min (só pra aquecer), Meio ~22min (ele quer 20-25, mais perto
-   de 25 em torneios longos — o próprio peso maior da fase já empurra pra
-   lá quando sobra tempo), Fim ~15min (rápido, pra quem já foi eliminado
-   não esperar 1h à toa). Dentro de cada fase, nível com salto de blind
-   maior ainda ganha uma fatia maior do orçamento — mas sempre dentro da
-   janela 10-30. Múltiplos de 5min, como torneio de verdade. */
+   Início 20min, Meio 25min, Fim 15min — **fixo dentro da fase**, não mais
+   pesado por salto de blind (essa variação — 15,25,30,25,15 — deixava o
+   tempo "bagunçado" segundo o Pedro; ele quer previsibilidade: mesmo
+   tempo pra todo nível da mesma fase, só variando entre fases). Múltiplos
+   de 5min, como torneio de verdade. */
 var MIN_NIVEL_MIN = 10, MAX_NIVEL_MIN = 30;
-var ALVO_MIN_FASE = { 'Início': 15, 'Meio': 22, 'Fim': 15 };
+var ALVO_MIN_FASE = { 'Início': 20, 'Meio': 25, 'Fim': 15 };
 
 function distribuirTempos(niveis, duracaoAlvoMin) {
   var contaFase = { 'Início':0, 'Meio':0, 'Fim':0 };
   niveis.forEach(function(n){ contaFase[n.fase]++; });
   var somaPeso = ['Início','Meio','Fim'].reduce(function(a,f){ return a + ALVO_MIN_FASE[f]*contaFase[f]; }, 0) || 1;
-  var minutoPorPeso = duracaoAlvoMin / somaPeso;
-  var totalFase = {};
-  ['Início','Meio','Fim'].forEach(function(f){ totalFase[f] = minutoPorPeso * ALVO_MIN_FASE[f] * contaFase[f]; });
-
+  var escala = duracaoAlvoMin / somaPeso;
+  var durFase = {};
   ['Início','Meio','Fim'].forEach(function(f){
-    var ns = niveis.filter(function(n){ return n.fase===f; });
-    if(!ns.length) return;
-    var saltos = ns.map(function(n){
-      var k = niveis.indexOf(n);
-      var anteriorBB = k>0 ? niveis[k-1].bb : n.bb;
-      return Math.max(1, n.bb/anteriorBB);
-    });
-    var somaSaltos = saltos.reduce(function(a,b){ return a+b; }, 0);
-    ns.forEach(function(n,i){
-      var min = Math.round(totalFase[f]*saltos[i]/somaSaltos/5)*5;
-      n.duracaoMin = Math.max(MIN_NIVEL_MIN, Math.min(MAX_NIVEL_MIN, min));
-    });
+    durFase[f] = Math.max(MIN_NIVEL_MIN, Math.min(MAX_NIVEL_MIN, Math.round(ALVO_MIN_FASE[f]*escala/5)*5));
   });
+  function aplicar(){ niveis.forEach(function(n){ if(!n._fimRapido) n.duracaoMin = durFase[n.fase]; }); }
+  aplicar();
 
   /* nos últimos níveis (no máx. 4, dentro do Fim) trava em 15min — regra
      explícita: gente já eliminada não pode ficar esperando 1h à toa.
-     `_fimRapido` marca esses níveis pra nunca serem AUMENTADOS de novo no
-     ajuste fino abaixo (diminuir continua liberado, isso não fura a
-     regra). Sem essa marca o ajuste fino devolvia minuto pra eles quando
-     o Meio já tava todo no teto de 30. */
+     `_fimRapido` marca esses níveis pra nunca serem sobrescritos de novo
+     pelo valor fixo da fase no ajuste fino abaixo. */
   var fimNiveis = niveis.filter(function(n){ return n.fase === 'Fim'; });
   fimNiveis.slice(-Math.min(4, fimNiveis.length)).forEach(function(n){
     n.duracaoMin = Math.min(n.duracaoMin, 15);
@@ -1323,23 +1309,24 @@ function distribuirTempos(niveis, duracaoAlvoMin) {
   });
 
   function total(){ return niveis.reduce(function(a,n){ return a+n.duracaoMin; },0); }
-  /* ajuste fino: sobra/falta de minutos vai pro Meio (fase mais longa,
-     absorve melhor sem distorcer o ritmo) — nunca furando a janela 10-30
-     nem reinflando os níveis finais travados */
-  var meios = niveis.filter(function(n){ return n.fase==='Meio'; });
-  var alvo = meios.length ? meios : niveis;
+  /* ajuste fino: o valor fixo por fase quase sempre fecha a duração pedida
+     sozinho (é só matemática de escala), mas o arredondamento pro múltiplo
+     de 5 mais próximo pode deixar uma sobra pequena. Em vez de mudar a
+     fase inteira de uma vez (isso pulava o total aos saltos de "L×5min" e
+     ficava oscilando sem nunca acertar), ajusta nível a nível — só o
+     mínimo de níveis pra fechar exato, o resto continua padronizado. */
+  var meios = niveis.filter(function(n){ return n.fase==='Meio' && !n._fimRapido; });
+  var inicios = niveis.filter(function(n){ return n.fase==='Início' && !n._fimRapido; });
+  var fimLivres = niveis.filter(function(n){ return n.fase==='Fim' && !n._fimRapido; });
+  var ordemAjuste = meios.concat(inicios, fimLivres);
   var guarda = 0;
-  while(guarda++ < 80) {
+  while(guarda++ < 60) {
     var dif = duracaoAlvoMin - total();
     if(Math.abs(dif) < 5) break;
-    function elegivel(n){ return dif > 0 ? (!n._fimRapido && n.duracaoMin < MAX_NIVEL_MIN) : n.duracaoMin > MIN_NIVEL_MIN; }
-    var candidatos = alvo.filter(elegivel);
-    if(!candidatos.length) candidatos = niveis.filter(elegivel);
-    if(!candidatos.length) break;
-    var el = dif > 0
-      ? candidatos.reduce(function(a,b){ return a.duracaoMin <= b.duracaoMin ? a : b; })
-      : candidatos.reduce(function(a,b){ return a.duracaoMin >= b.duracaoMin ? a : b; });
-    el.duracaoMin = Math.max(MIN_NIVEL_MIN, Math.min(MAX_NIVEL_MIN, el.duracaoMin + (dif > 0 ? 5 : -5)));
+    var passo = dif > 0 ? 5 : -5;
+    var alvo = ordemAjuste.filter(function(n){ var v = n.duracaoMin + passo; return v >= MIN_NIVEL_MIN && v <= MAX_NIVEL_MIN; })[0];
+    if(!alvo) break;
+    alvo.duracaoMin += passo;
   }
 }
 
@@ -1419,36 +1406,53 @@ function calcularEstruturaTorneio(cfg) {
   });
   if(idxFim <= idxIni) idxFim = Math.min(escada.length-1, idxIni + 5);
 
-  var L = Math.max(6, Math.min(40, Math.round(duracaoMin / perfil.nivelMin)));
-  /* se sobram menos degraus que níveis, estica um pouco o final pra evitar
-     blind repetida em nível seguido */
-  var extras = 0;
-  while((idxFim - idxIni + 1) < L && idxFim + 1 < escada.length && extras++ < 3) idxFim++;
+  /* Quantidade de níveis (L) precisa ser recalculada se o resultado ficar
+     curto do tempo pedido — bug real: com os últimos níveis do Fim
+     travados em ≤15min (regra de cima) e o teto de 30min por nível, um L
+     pequeno não tinha minutos suficientes pra alcançar torneios longos
+     (ex.: Slow 4h sugeria só 9 níveis, e o máximo que dava pra somar com
+     esses travamentos era 210min — 50min curto dos 260 pedidos). Em vez
+     de furar o teto/piso, a saída é ter mais níveis: tenta o L nominal
+     primeiro, e só aumenta se sobrar tempo sem lugar pra ir. */
+  var L, niveis;
+  var extraNiveis = 0;
+  while(true) {
+    L = Math.max(6, Math.min(40, Math.round(duracaoMin / perfil.nivelMin) + extraNiveis));
+    /* se sobram menos degraus que níveis, estica um pouco o final pra
+       evitar blind repetida em nível seguido */
+    var idxFimUso = idxFim, extras = 0;
+    while((idxFimUso - idxIni + 1) < L && idxFimUso + 1 < escada.length && extras++ < 3) idxFimUso++;
 
-  var niveis = [], idxAnterior = -1, acumMin = 0;
-  var janelaRebuy = cfg.comRebuy ? perfil.rebuyMin : 0;
-  for(var j=0; j<L; j++) {
-    var prog = L > 1 ? j/(L-1) : 1;
-    /* floor (e não round) na interpolação: quando há mais degraus que
-       níveis, o salto duplo cai no fim do torneio — onde acelerar é
-       desejado — em vez de no meio, que é a fase pra durar mais */
-    var idx = j === L-1 ? idxFim : idxIni + Math.floor((idxFim-idxIni)*prog);
-    if(idx < idxAnterior) idx = idxAnterior;
-    idxAnterior = idx;
-    var jogadoresVivos = Math.max(2, N - (N-2)*prog);
-    /* as fichas de rebuy/add-on não existem no nível 1 — entram ao longo
-       do período de rebuy */
-    var fracRebuy = janelaRebuy ? Math.min(1, acumMin/janelaRebuy) : 1;
-    var fichasEmJogo = fichasBase + (totalFichas - fichasBase) * fracRebuy;
-    acumMin += perfil.nivelMin;
-    niveis.push({
-      nivel: j+1, sb: escada[idx][0], bb: escada[idx][1],
-      profundidade: (fichasEmJogo/jogadoresVivos) / escada[idx][1]
-    });
+    niveis = [];
+    var idxAnterior = -1, acumMin = 0;
+    var janelaRebuy = cfg.comRebuy ? perfil.rebuyMin : 0;
+    for(var j=0; j<L; j++) {
+      var prog = L > 1 ? j/(L-1) : 1;
+      /* floor (e não round) na interpolação: quando há mais degraus que
+         níveis, o salto duplo cai no fim do torneio — onde acelerar é
+         desejado — em vez de no meio, que é a fase pra durar mais */
+      var idx = j === L-1 ? idxFimUso : idxIni + Math.floor((idxFimUso-idxIni)*prog);
+      if(idx < idxAnterior) idx = idxAnterior;
+      idxAnterior = idx;
+      var jogadoresVivos = Math.max(2, N - (N-2)*prog);
+      /* as fichas de rebuy/add-on não existem no nível 1 — entram ao longo
+         do período de rebuy */
+      var fracRebuy = janelaRebuy ? Math.min(1, acumMin/janelaRebuy) : 1;
+      var fichasEmJogo = fichasBase + (totalFichas - fichasBase) * fracRebuy;
+      acumMin += perfil.nivelMin;
+      niveis.push({
+        nivel: j+1, sb: escada[idx][0], bb: escada[idx][1],
+        profundidade: (fichasEmJogo/jogadoresVivos) / escada[idx][1]
+      });
+    }
+
+    classificarFases(niveis, perfil, cacife);
+    distribuirTempos(niveis, duracaoMin);
+
+    var totalAtingido = niveis.reduce(function(a,n){ return a+n.duracaoMin; }, 0);
+    if(totalAtingido >= duracaoMin - 15 || L >= 40 || extraNiveis > 40) break;
+    extraNiveis++;
   }
-
-  classificarFases(niveis, perfil, cacife);
-  distribuirTempos(niveis, duracaoMin);
 
   /* Ante = metade da small blind (um quarto da big blind) — reduzido de
      novo em 2026-07-29, o Pedro achou o valor anterior (a small blind
