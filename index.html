@@ -1257,18 +1257,28 @@ function calcularEstruturaTorneio(cfg) {
   var cacifeSugerido = !cfg.cacife;
   var cacife = cfg.cacife || sugerirCacife(N, cfg.velocidade, optsStack);
 
+  /* checa CEDO se dá pra montar o stack só com 100+ — se der, o blind
+     também tem que começar em 100+, senão o nível 1 pede um small blind
+     que nenhuma ficha do stack paga (bug real: stack só com 100/250/500,
+     small blind saindo em 50). Só desce pras miúdas junto — ladder E
+     stack — se 100+ sozinho não fechar o cacife exato. */
+  var denoms100 = FICHAS_INVENTARIO.filter(function(f){ return f.valor >= 100; }).map(function(f){ return f.valor; });
+  var stack100 = montarStackJogador(cacife, denoms100, N, optsStack);
+  var usa100Only = stack100.coube && !conferirFichas(stack100, N).length;
+
   /* menor ficha em jogo = small blind do nível 1. Preferência do Pedro é
      ficar em 100+; só desce pras miúdas quando o cacife é pequeno demais
-     e a blind inicial teria que ser menor que 100. */
+     e a blind inicial teria que ser menor que 100 (E o stack também
+     precisar dessas miúdas pra fechar — ver usa100Only acima). */
   var sbAlvo = cacife / perfil.bbInicio / 2;
   var menorFicha = 25;
   for(var i=FICHAS_INVENTARIO.length-1; i>=0; i--) {
     if(FICHAS_INVENTARIO[i].valor <= sbAlvo) { menorFicha = FICHAS_INVENTARIO[i].valor; break; }
   }
-  if(menorFicha > 100) menorFicha = 100;
-  var denoms = FICHAS_INVENTARIO.filter(function(f){ return f.valor >= menorFicha; }).map(function(f){ return f.valor; });
+  if(menorFicha > 100 || usa100Only) menorFicha = 100;
+  var denoms = usa100Only ? denoms100 : FICHAS_INVENTARIO.filter(function(f){ return f.valor >= menorFicha; }).map(function(f){ return f.valor; });
   var escada = montarEscadaBlinds(denoms);
-  if(escada.length < 4) { menorFicha = 100; denoms = [100,250,500,1000,3000]; escada = montarEscadaBlinds(denoms); }
+  if(escada.length < 4) { menorFicha = 100; denoms = [100,250,500,1000,3000]; escada = montarEscadaBlinds(denoms); usa100Only = true; }
 
   var idxIni = 0, melhorDist = Infinity;
   escada.forEach(function(e,k){ var d = Math.abs(e[0]-sbAlvo); if(d < melhorDist){ melhorDist = d; idxIni = k; } });
@@ -1357,14 +1367,9 @@ function calcularEstruturaTorneio(cfg) {
   var addonAposNivel = niveis[idxAddon].nivel;
   var addonBBValor = Math.round(valorRebuy / niveis[idxAddon].bb);
 
-  /* o stack físico prioriza 100+ mesmo quando o blind precisou descer pras
-     miúdas (25/50) — são coisas diferentes: a escada de blind pode precisar
-     de degrau fino num cacife baixo, mas o Pedro não quer o stack cheio de
-     ficha de 25 por causa disso. Só cai pras miúdas se 100+ sozinho não
-     fechar o cacife exato ou não couber no inventário. */
-  var denomsStackPref = FICHAS_INVENTARIO.filter(function(f){ return f.valor >= 100; }).map(function(f){ return f.valor; });
-  var stack = montarStackJogador(cacife, denomsStackPref, N, optsStack);
-  if(!stack.coube || conferirFichas(stack, N).length) stack = montarStackJogador(cacife, denoms, N, optsStack);
+  /* mesmo denoms usado no blind ladder acima — stack e small blind sempre
+     consistentes (ver usa100Only lá em cima). */
+  var stack = usa100Only ? stack100 : montarStackJogador(cacife, denoms, N, optsStack);
   return {
     addonAposNivel: addonAposNivel,
     addonBBValor: addonBBValor,
