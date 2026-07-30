@@ -556,7 +556,7 @@
                 <input type="text" inputmode="numeric" id="new-tourney-payout" class="pgm-input" placeholder="Ex: 70/30" oninput="maskPayoutOninput(this)">
               </div>
             </div>
-            <div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-0.25rem 0 0.75rem">Premiação: % do pot por colocação. Digite separado por vírgula (ex: 70,30) que a / entra sozinha — 1º leva 70%, 2º leva 30%</div>
+            <div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-0.25rem 0 0.75rem">Premiação: % do pot por colocação. Digite só os números (ex: 7030) que a / entra sozinha a cada dois dígitos — 1º leva 70%, 2º leva 30%</div>
             <button class="pgm-btn pgm-btn-sm" type="button" onclick="openBlindCalcModal()" style="width:100%;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:center;gap:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line><path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path></svg> Calcular estrutura de blinds</button>
           </div>
           <button class="pgm-rules-link" type="button" onclick="showRulesGuide()">ℹ️ Ver regras de pontuação</button>
@@ -856,8 +856,9 @@ function maskMoedaOninput(el) {
 }
 
 function maskPayoutOninput(el) {
-  var v = el.value.replace(/[,\s]+/g, '/').replace(/[^\d/]/g, '').replace(/\/{2,}/g, '/');
-  el.value = v;
+  var digits = el.value.replace(/\D/g, '');
+  var grupos = digits.match(/.{1,2}/g) || [];
+  el.value = grupos.join('/');
 }
 
 function parseMoedaBR(str) {
