@@ -922,11 +922,14 @@ var PERFIS_TORNEIO = {
   slow:    { label:'Slow',    nivelMin:30, bbInicio:120, bbFim:18, rebuyMin:90, ajusteMin:20  }
 };
 
-/* Cada rebuy extra permitido pesa menos que o anterior — nem todo mundo
-   rebuya a segunda ou terceira vez. maxRebuys=1 dá o mesmo total de antes
-   (1,2×), então o padrão não muda em nada. Cheio/Meio saiu daqui — quem
-   decide é o admin na hora da recompra, já com a sessão em andamento
-   (ver openRebuyModal). O planejamento da estrutura assume valor cheio. */
+/* Cada rebuy extra pesa menos que o anterior — nem todo mundo rebuya a
+   segunda ou terceira vez. O seletor de "máximo de rebuys" foi removido
+   do formulário (o Pedro viu na prática um jogador com 5 rebuys — não
+   existe limite real, então escolher um número era só complexidade sem
+   ganho); o planejamento agora sempre assume 'ilimitado' (soma as 4
+   rodadas = 2,2×, igual ao valor original de antes desse seletor
+   existir). Cheio/Meio saiu daqui — quem decide é o admin na hora da
+   recompra, já com a sessão em andamento (ver openRebuyModal). */
 var REBUY_EXTRA_POR_RODADA = [1.2, 0.5, 0.3, 0.2];
 function calcExtraRebuy(maxRebuys) {
   var n = maxRebuys === 'ilimitado' ? REBUY_EXTRA_POR_RODADA.length : Math.max(1, Math.min(REBUY_EXTRA_POR_RODADA.length, maxRebuys));
@@ -1389,9 +1392,10 @@ function calcularEstruturaTorneio(cfg) {
      cheio (o admin pode dar Meio na hora, ao vivo — ver openRebuyModal;
      dar menos fichas do que o planejado só deixa uma folga a mais). */
   var valorRebuy = cacife;
-  /* número máximo de rebuys só é escolhível no modo personalizado — no
-     oficial fica travado em 1 (o padrão "clássico" de sempre) */
-  var maxRebuys = modoRegras === 'personalizado' ? (cfg.maxRebuys || 1) : 1;
+  /* personalizado sempre assume rebuys ilimitados (reflete a prática real
+     — não existe limite de verdade); oficial fica travado em 1 (o padrão
+     "clássico" de sempre) */
+  var maxRebuys = modoRegras === 'personalizado' ? 'ilimitado' : 1;
   var fichasBase = cacife * N;
   var extraRebuy = cfg.comRebuy ? calcExtraRebuy(maxRebuys) : 0;
   var totalFichas = Math.round(fichasBase * (1 + extraRebuy));
@@ -1566,10 +1570,7 @@ function openBlindCalcModal() {
   if(window._blindCalcRebuy === undefined) window._blindCalcRebuy = true;
   var modoAtual = window._blindCalcModo || 'personalizado';
   window._blindCalcModo = modoAtual;
-  var maxRebuysAtual = window._blindCalcMaxRebuys || 1;
-  window._blindCalcMaxRebuys = maxRebuysAtual;
   if(window._blindCalcAnte === undefined) window._blindCalcAnte = true;
-  var mostraMaxRebuys = window._blindCalcRebuy && modoAtual === 'personalizado';
   showModal(
     '<div class="pgm-modal-title">' + ICON_CALCULADORA + ' Calculadora de Torneio <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.5">Preenche o que você sabe. O cacife e o stack de fichas eu sugiro.</div>' +
@@ -1603,13 +1604,6 @@ function openBlindCalcModal() {
     '<button class="pgm-toggle-opt' + (window._blindCalcRebuy?'':' active') + '" type="button" data-rebuy="0" onclick="selecionarRebuyBlind(false)">Não</button>' +
     '</div>' +
     '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px;line-height:1.5">Rebuy e add-on mais que dobram as fichas em jogo — sem contar isso, a blind sobe devagar demais e o torneio não acaba no horário. O valor (Meio ou Inteiro) é escolhido na hora da recompra, já com a sessão em andamento.</div></div>' +
-    '<div class="pgm-field" id="blind-calc-maxrebuys-field" style="display:' + (mostraMaxRebuys?'block':'none') + '"><label class="pgm-input-label">Máximo de rebuys por jogador</label>' +
-    '<div class="pgm-toggle-group" id="blind-calc-maxrebuys-toggle" style="display:flex;gap:6px">' +
-    [1,2,3,'ilimitado'].map(function(v){
-      return '<button class="pgm-toggle-opt' + (maxRebuysAtual===v?' active':'') + '" type="button" data-maxrebuys="' + v + '" onclick="selecionarMaxRebuysBlind(' + (v==='ilimitado'?"'ilimitado'":v) + ')">' + (v==='ilimitado'?'∞':v) + '</button>';
-    }).join('') +
-    '</div>' +
-    '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px;line-height:1.5">Só no estilo Personalizada. Cada rebuy a mais pesa menos que o anterior nas fichas em jogo — nem todo mundo recompra várias vezes.</div></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Cacife (fichas) — opcional</label>' +
     '<input type="number" id="blind-calc-cacife" class="pgm-input" placeholder="Deixe em branco pra eu sugerir" min="1" value="' + cacifeAtual + '"></div>' +
     '<button class="pgm-btn pgm-btn-success" style="width:100%;margin-top:0.5rem" onclick="doCalcularBlinds()">Calcular</button>'
@@ -1628,12 +1622,6 @@ function selecionarModoBlind(m) {
   document.querySelectorAll('#blind-calc-modo-toggle .pgm-toggle-opt').forEach(function(b){ b.classList.toggle('active', b.dataset.modo===m); });
   var desc = document.getElementById('blind-calc-modo-desc');
   if(desc) desc.textContent = BLIND_MODO_DESC[m] || '';
-  atualizaVisibilidadeMaxRebuys();
-}
-
-function atualizaVisibilidadeMaxRebuys() {
-  var campo = document.getElementById('blind-calc-maxrebuys-field');
-  if(campo) campo.style.display = (window._blindCalcRebuy && window._blindCalcModo === 'personalizado') ? 'block' : 'none';
 }
 
 function toggleQuadro(btn) {
@@ -1646,12 +1634,6 @@ function selecionarRebuyBlind(v) {
   document.querySelectorAll('#blind-calc-rebuy-toggle .pgm-toggle-opt').forEach(function(b){
     b.classList.toggle('active', (b.dataset.rebuy === '1') === v);
   });
-  atualizaVisibilidadeMaxRebuys();
-}
-
-function selecionarMaxRebuysBlind(v) {
-  window._blindCalcMaxRebuys = v;
-  document.querySelectorAll('#blind-calc-maxrebuys-toggle .pgm-toggle-opt').forEach(function(b){ b.classList.toggle('active', b.dataset.maxrebuys===String(v)); });
 }
 
 function selecionarAnteBlind(v) {
@@ -1676,7 +1658,6 @@ function doCalcularBlinds() {
     modoRegras: window._blindCalcModo || 'personalizado',
     cacife: parseInt(document.getElementById('blind-calc-cacife').value) || 0,
     comRebuy: window._blindCalcRebuy !== false,
-    maxRebuys: window._blindCalcMaxRebuys || 1,
     comAnte: window._blindCalcAnte !== false
   });
   renderBlindTable(resultado);
@@ -1779,9 +1760,7 @@ function renderBlindTable(r) {
     resumo: 'até nv ' + r.addonAposNivel,
     corpo: '<div style="font-size:11.5px;color:var(--cream-dim);font-weight:700;line-height:1.7">Rebuy e add-on de até <strong style="color:var(--gold-light)">' + r.valorRebuy.toLocaleString('pt-BR') + ' fichas</strong> (valor cheio). Na hora da recompra, na sessão ativa, dá pra marcar se foi Meio ou Inteiro.</div>' +
       '<div style="font-size:11.5px;color:var(--cream-dim);font-weight:700;line-height:1.7;margin-top:7px">Fica aberto até o fim do nível <strong style="color:var(--gold-light)">' + r.addonAposNivel + '</strong>, ou seja <strong style="color:var(--gold-light)">' + formatarDuracao(minAteAddon) + '</strong> de jogo — perto da virada do meio pro fim do torneio.</div>' +
-      (r.modoRegras === 'personalizado'
-        ? '<div style="font-size:11.5px;color:var(--cream-dim);font-weight:700;line-height:1.7;margin-top:7px">Máximo de <strong style="color:var(--gold-light)">' + (r.maxRebuys === 'ilimitado' ? 'rebuys ilimitados' : (r.maxRebuys + (r.maxRebuys===1?' rebuy':' rebuys'))) + '</strong> por jogador.</div>'
-        : '')
+      '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:7px;line-height:1.5">Sem limite de quantas vezes recomprar — na prática ninguém controla isso à risca.</div>'
   }) : '';
 
   var quadroNiveis = quadroHTML({
