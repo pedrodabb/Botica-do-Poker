@@ -547,10 +547,10 @@
               </div>
               <div class="pgm-field">
                 <label class="pgm-input-label">Premiação (%)</label>
-                <input type="text" id="new-tourney-payout" class="pgm-input" placeholder="Ex: 70/30">
+                <input type="text" inputmode="numeric" id="new-tourney-payout" class="pgm-input" placeholder="Ex: 70/30" oninput="maskPayoutOninput(this)">
               </div>
             </div>
-            <div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-0.25rem 0 0.75rem">Premiação: % do pot por colocação, separado por / (ex: 70/30 = 1º leva 70%, 2º leva 30%)</div>
+            <div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-0.25rem 0 0.75rem">Premiação: % do pot por colocação. Digite separado por vírgula (ex: 70,30) que a / entra sozinha — 1º leva 70%, 2º leva 30%</div>
             <button class="pgm-btn pgm-btn-sm" type="button" onclick="openBlindCalcModal()" style="width:100%;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:center;gap:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line><path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path></svg> Calcular estrutura de blinds</button>
           </div>
           <button class="pgm-rules-link" type="button" onclick="showRulesGuide()">ℹ️ Ver regras de pontuação</button>
@@ -840,6 +840,11 @@ function maskMoedaOninput(el) {
   if(!digits) { el.value = ''; return; }
   var num = parseInt(digits, 10) / 100;
   el.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function maskPayoutOninput(el) {
+  var v = el.value.replace(/[,\s]+/g, '/').replace(/[^\d/]/g, '').replace(/\/{2,}/g, '/');
+  el.value = v;
 }
 
 function parseMoedaBR(str) {
@@ -3024,6 +3029,11 @@ function renderBlindTimerBlock() {
      pausado (são coisas diferentes: um é "quanto tempo a mesa tá aberta",
      o outro é "quanto falta pro próximo blind"). */
   if(!window._blindTimerInterval) window._blindTimerInterval = setInterval(atualizarBlindTimerDisplay, 1000);
+  if(window._blindTimerSessionUid !== s._uid) {
+    window._blindTimerSessionUid = s._uid;
+    window._blindTimerUltimoNivel = undefined;
+    window._blindTimerAvisoTocado = false;
+  }
   if(!container) {
     container = document.createElement('div');
     container.id = 'active-blind-timer';
@@ -3056,10 +3066,17 @@ function atualizarBlindTimerDisplay() {
   var atual = calcNivelBlindAtual(s);
   if(!atual) return;
 
-  if(window._blindTimerUltimoNivel !== undefined && window._blindTimerUltimoNivel !== atual.idx) {
+  var primeiraChamada = window._blindTimerUltimoNivel === undefined;
+  if(!primeiraChamada && window._blindTimerUltimoNivel !== atual.idx) {
     tocarAlertaNivel();
+    window._blindTimerAvisoTocado = false;
   }
   window._blindTimerUltimoNivel = atual.idx;
+
+  if(!primeiraChamada && !window._blindTimerAvisoTocado && atual.proximo && atual.restanteMin <= 2) {
+    window._blindTimerAvisoTocado = true;
+    tocarAvisoLeve();
+  }
 
   var min = Math.floor(atual.restanteMin);
   var seg = Math.floor((atual.restanteMin - min) * 60);
@@ -3125,6 +3142,21 @@ function tocarAlertaNivel() {
     });
   } catch(e) {}
   if(navigator.vibrate) { try { navigator.vibrate([200,100,200,100,200]); } catch(e) {} }
+}
+
+function tocarAvisoLeve() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 660;
+    gain.gain.setValueAtTime(0.001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.26);
+  } catch(e) {}
+  if(navigator.vibrate) { try { navigator.vibrate(120); } catch(e) {} }
 }
 
 var _wakeLock = null;
