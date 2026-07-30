@@ -2890,7 +2890,7 @@ function startSession() {
   var label = (labelEl && labelEl.value.trim()) ? labelEl.value.trim() : (type==='torneio' ? 'Torneio' : null);
   var num   = type==='oficial' ? oficialCount+1 : null;
 
-  var tourneyMode = null, startingStack = null, payout = null;
+  var tourneyMode = null, startingStack = null, payout = null, estruturaBlinds = null;
   if(type === 'torneio') {
     tourneyMode = S.newSession.tourneyMode || 'classico';
     if(tourneyMode === 'classico') {
@@ -2901,12 +2901,18 @@ function startSession() {
       if(!payout.length) { showAlert('Informe a premiação (ex: 70/30).'); return; }
       var soma = payout.reduce(function(a,b){ return a+b; }, 0);
       if(Math.abs(soma - 100) > 0.01) { showAlert('A premiação deve somar 100% (atual: ' + soma + '%).'); return; }
+      /* estrutura de blinds aceita na calculadora ("✓ Usar esta estrutura")
+         vira o timer ao vivo — se o admin não usou a calculadora, o
+         torneio funciona igual antes, só sem o timer de blinds. */
+      estruturaBlinds = S.newSession.estruturaBlinds || null;
     }
   }
 
   S.activeSession = { _uid: 's'+Date.now()+Math.random().toString(36).slice(2,8), num: num, type: type, date: date, buyin: buyin, rebuy: rebuy,
     tourneyMode: tourneyMode, startingStack: startingStack, payout: payout,
     label: label, curiosidades: [], startedAt: Date.now(), pausedAt: null, totalPaused: 0,
+    estruturaBlinds: estruturaBlinds,
+    blindTimerStartedAt: estruturaBlinds ? Date.now() : null, blindTimerPausedAt: null, blindTimerTotalPaused: 0,
     players: S.newSession.players.map(function(p){ return { _uid: 'p'+Date.now()+Math.random().toString(36).slice(2,8), name: p.name, buyin: buyin, rebuys: [], finalStack: null }; }) };
   S.newSession = { type: 'oficial', players: [] };
   if(labelEl) labelEl.value = '';
@@ -2970,7 +2976,170 @@ function renderActiveSession() {
       <div class="pgm-pcard-actions">${actionsHTML}</div>
     </div>`;
   }).join('');
+  renderBlindTimerBlock();
 }
+
+/* Timer ao vivo de blinds — lê a estrutura aceita na calculadora
+   ("estruturaBlinds") e avança nível sozinho. O nível "atual" é sempre
+   CALCULADO a partir de um único timestamp sincronizado
+   (blindTimerStartedAt), nunca um contador que precisa ser incrementado
+   via escrita — assim cada aparelho computa o mesmo nível de forma
+   independente, sem risco de dois dispositivos "avançarem" o nível ao
+   mesmo tempo (o problema clássico de estado compartilhado concorrente).
+   Pular manualmente de nível (moverNivelBlind) só reposiciona esse
+   timestamp, mesma lógica — nunca incrementa um índice à parte. */
+function calcNivelBlindAtual(s) {
+  var eb = s.estruturaBlinds;
+  if(!eb || !eb.niveis || !eb.niveis.length || !s.blindTimerStartedAt) return null;
+  var agora = s.blindTimerPausedAt || Date.now();
+  var elapsedMin = ((agora - s.blindTimerStartedAt) - (s.blindTimerTotalPaused||0)) / 60000;
+  var acumulado = 0;
+  for(var i=0; i<eb.niveis.length; i++) {
+    var n = eb.niveis[i];
+    if(elapsedMin < acumulado + n.duracaoMin || i === eb.niveis.length-1) {
+      return {
+        idx: i, nivel: n,
+        restanteMin: Math.max(0, (acumulado + n.duracaoMin) - elapsedMin),
+        duracaoFaseMin: n.duracaoMin,
+        proximo: eb.niveis[i+1] || null
+      };
+    }
+    acumulado += n.duracaoMin;
+  }
+  return null;
+}
+
+function renderBlindTimerBlock() {
+  var s = S.activeSession;
+  var container = document.getElementById('active-blind-timer');
+  if(!s || s.tourneyMode !== 'classico' || !s.estruturaBlinds) {
+    if(container) container.style.display = 'none';
+    liberarWakeLock();
+    if(window._blindTimerInterval) { clearInterval(window._blindTimerInterval); window._blindTimerInterval = null; }
+    return;
+  }
+  /* intervalo PRÓPRIO, independente do timer geral da sessão — o timer de
+     blind tem sua própria pausa (blindTimerPausedAt), então precisa
+     continuar contando mesmo se o cronômetro geral da sessão estiver
+     pausado (são coisas diferentes: um é "quanto tempo a mesa tá aberta",
+     o outro é "quanto falta pro próximo blind"). */
+  if(!window._blindTimerInterval) window._blindTimerInterval = setInterval(atualizarBlindTimerDisplay, 1000);
+  if(!container) {
+    container = document.createElement('div');
+    container.id = 'active-blind-timer';
+    container.className = 'pgm-card';
+    container.style.cssText = 'margin-top:0.75rem';
+    var anchor = document.getElementById('active-classico-info');
+    var cardPai = anchor ? anchor.closest('.pgm-card') : document.getElementById('active-pot').closest('.pgm-card');
+    if(cardPai && cardPai.parentNode) cardPai.parentNode.insertBefore(container, cardPai.nextSibling);
+  }
+  container.style.display = 'block';
+  container.innerHTML =
+    '<div class="pgm-flex-between" style="margin-bottom:0.5rem">' +
+      '<div class="pgm-card-title" style="font-size:13px">🎲 Blinds ao vivo</div>' +
+      '<button onclick="toggleBlindTimer()" id="blind-timer-toggle-btn" style="background:none;border:none;color:var(--gold-light);cursor:pointer;font-size:18px;padding:0">' + (s.blindTimerPausedAt ? '▶️' : '⏸️') + '</button>' +
+    '</div>' +
+    '<div id="blind-timer-corpo"></div>' +
+    '<div class="pgm-row-btns" style="margin-top:0.5rem">' +
+      '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="moverNivelBlind(-1)">◀ Nível anterior</button>' +
+      '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="moverNivelBlind(1)">Próximo nível ▶</button>' +
+    '</div>';
+  atualizarBlindTimerDisplay();
+  if(!s.blindTimerPausedAt) pedirWakeLock();
+}
+
+function atualizarBlindTimerDisplay() {
+  var s = S.activeSession;
+  if(!s || s.tourneyMode !== 'classico' || !s.estruturaBlinds) return;
+  var corpo = document.getElementById('blind-timer-corpo');
+  if(!corpo) return;
+  var atual = calcNivelBlindAtual(s);
+  if(!atual) return;
+
+  if(window._blindTimerUltimoNivel !== undefined && window._blindTimerUltimoNivel !== atual.idx) {
+    tocarAlertaNivel();
+  }
+  window._blindTimerUltimoNivel = atual.idx;
+
+  var min = Math.floor(atual.restanteMin);
+  var seg = Math.floor((atual.restanteMin - min) * 60);
+  var pct = atual.duracaoFaseMin ? Math.max(0, Math.min(100, 100 - (atual.restanteMin/atual.duracaoFaseMin*100))) : 0;
+
+  corpo.innerHTML =
+    '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">' +
+      '<div style="font-size:10px;font-weight:900;color:var(--gold-dim);text-transform:uppercase">Nível ' + (atual.idx+1) + ' · ' + atual.nivel.fase + '</div>' +
+      '<div style="font-family:DM Mono,monospace;font-size:20px;font-weight:900;color:var(--gold-light)">' + min + ':' + (seg<10?'0':'') + seg + '</div>' +
+    '</div>' +
+    '<div style="font-family:DM Mono,monospace;font-size:22px;font-weight:900;color:var(--cream)">' + atual.nivel.sb.toLocaleString('pt-BR') + ' / ' + atual.nivel.bb.toLocaleString('pt-BR') +
+      (atual.nivel.ante ? '<span style="font-size:12px;color:var(--text-dim);font-weight:700"> · ante ' + atual.nivel.ante.toLocaleString('pt-BR') + '</span>' : '') +
+    '</div>' +
+    '<div class="pgm-pot-bar" style="margin-top:6px"><div class="pgm-pot-fill" style="width:' + pct + '%"></div></div>' +
+    (atual.proximo ? '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px">Próximo: ' + atual.proximo.sb.toLocaleString('pt-BR') + '/' + atual.proximo.bb.toLocaleString('pt-BR') + '</div>' : '<div style="font-size:10px;color:var(--gold-light);font-weight:800;margin-top:5px">Último nível</div>');
+}
+
+function toggleBlindTimer() {
+  var s = S.activeSession;
+  if(!s || !s.estruturaBlinds) return;
+  var btn = document.getElementById('blind-timer-toggle-btn');
+  if(s.blindTimerPausedAt) {
+    s.blindTimerTotalPaused = (s.blindTimerTotalPaused||0) + (Date.now() - s.blindTimerPausedAt);
+    s.blindTimerPausedAt = null;
+    if(btn) btn.textContent = '⏸️';
+    pedirWakeLock();
+  } else {
+    s.blindTimerPausedAt = Date.now();
+    if(btn) btn.textContent = '▶️';
+    liberarWakeLock();
+  }
+  savePatch({ 'activeSession/blindTimerPausedAt': s.blindTimerPausedAt, 'activeSession/blindTimerTotalPaused': s.blindTimerTotalPaused });
+  atualizarBlindTimerDisplay();
+}
+
+function moverNivelBlind(delta) {
+  var s = S.activeSession;
+  if(!s || !s.estruturaBlinds) return;
+  var atual = calcNivelBlindAtual(s);
+  if(!atual) return;
+  var alvo = Math.max(0, Math.min(s.estruturaBlinds.niveis.length-1, atual.idx + delta));
+  var somaAnterior = 0;
+  for(var i=0;i<alvo;i++) somaAnterior += s.estruturaBlinds.niveis[i].duracaoMin;
+  var agora = s.blindTimerPausedAt || Date.now();
+  s.blindTimerStartedAt = agora - somaAnterior*60000;
+  s.blindTimerTotalPaused = 0;
+  savePatch({ 'activeSession/blindTimerStartedAt': s.blindTimerStartedAt, 'activeSession/blindTimerTotalPaused': s.blindTimerTotalPaused });
+  atualizarBlindTimerDisplay();
+}
+
+function tocarAlertaNivel() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.18, 0.36].forEach(function(t){
+      var osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.001, ctx.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.15);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.16);
+    });
+  } catch(e) {}
+  if(navigator.vibrate) { try { navigator.vibrate([200,100,200,100,200]); } catch(e) {} }
+}
+
+var _wakeLock = null;
+function pedirWakeLock() {
+  if(!('wakeLock' in navigator)) return;
+  navigator.wakeLock.request('screen').then(function(wl){ _wakeLock = wl; }).catch(function(){});
+}
+function liberarWakeLock() {
+  if(_wakeLock) { try { _wakeLock.release(); } catch(e) {} _wakeLock = null; }
+}
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible' && S.activeSession && S.activeSession.blindTimerStartedAt && !S.activeSession.blindTimerPausedAt) {
+    pedirWakeLock();
+  }
+});
 
 function openLeftTableModal(idx) {
   const s = S.activeSession;
