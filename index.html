@@ -212,6 +212,12 @@
     .pgm-btn-purple { background: var(--curio-bg); border-color: var(--curio-border); color: var(--curio-light); }
     .pgm-btn-purple:hover { background: rgba(124,111,194,0.18); }
 
+    .pgm-play-btn { width: 34px; height: 34px; min-width: 34px; border-radius: 50%; border: none; cursor: pointer; background: linear-gradient(160deg, var(--gold-light), var(--gold)); color: var(--felt); display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; box-shadow: 0 3px 10px -3px rgba(201,168,76,0.55); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .pgm-play-btn:hover { transform: scale(1.06); box-shadow: 0 4px 14px -3px rgba(201,168,76,0.7); }
+    .pgm-play-btn:active { transform: scale(0.94); }
+    .pgm-play-btn svg { display: block; }
+    .pgm-play-btn-sm { width: 28px; height: 28px; min-width: 28px; }
+
     .pgm-input { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 10px; color: var(--cream); font-family: 'DM Mono', monospace; font-size: 14px; padding: 0.55rem 0.75rem; width: 100%; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
     .pgm-input:focus { border-color: var(--gold); }
     .pgm-input::placeholder { color: var(--text-dim); }
@@ -594,7 +600,7 @@
             Pot: <span id="active-pot" style="color:var(--gold-light);font-family:'DM Mono',monospace">R$ 0</span>
           </div>
           <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;padding-top:0.45rem;border-top:1px solid var(--border)">
-            <button onclick="toggleSessionTimer()" id="timer-toggle-btn" style="background:none;border:none;color:var(--gold-light);cursor:pointer;font-size:19px;width:34px;height:34px;min-width:34px;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0">⏸️</button>
+            <button onclick="toggleSessionTimer()" id="timer-toggle-btn" class="pgm-play-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg></button>
             <span id="active-timer" style="color:var(--gold-light);font-family:'DM Mono',monospace;font-size:13px;font-weight:800">⏱️ 00:00:00</span>
           </div>
           <div class="pgm-pot-bar" style="margin-top:0.5rem;margin-bottom:0"><div id="active-pot-bar" class="pgm-pot-fill" style="width:0%"></div></div>
@@ -834,6 +840,12 @@ function initFirebaseSync() {
 }
 function fmtR(v) { return (v>=0?'+':'−')+'R$ '+Math.abs(v).toFixed(2).replace('.',','); }
 function fmtRaw(v) { return 'R$ '+Math.abs(v).toFixed(2).replace('.',','); }
+
+function iconePlayPause(pausado) {
+  return pausado
+    ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="margin-left:2px"><path d="M8 5v14l11-7z"/></svg>'
+    : '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+}
 
 function maskMoedaOninput(el) {
   var digits = el.value.replace(/\D/g, '');
@@ -2005,11 +2017,11 @@ function toggleSessionTimer() {
   if(s.pausedAt) {
     s.totalPaused = (s.totalPaused||0) + (Date.now() - s.pausedAt);
     s.pausedAt = null;
-    if(btn) btn.textContent = '⏸️';
+    if(btn) btn.innerHTML = iconePlayPause(false);
     startSessionTimer();
   } else {
     s.pausedAt = Date.now();
-    if(btn) btn.textContent = '▶️';
+    if(btn) btn.innerHTML = iconePlayPause(true);
     stopSessionTimer();
     updateSessionTimerDisplay();
   }
@@ -3047,7 +3059,7 @@ function renderBlindTimerBlock() {
   container.innerHTML =
     '<div class="pgm-flex-between" style="margin-bottom:0.5rem">' +
       '<div class="pgm-card-title" style="font-size:13px">🎲 Blinds ao vivo</div>' +
-      '<button onclick="toggleBlindTimer()" id="blind-timer-toggle-btn" style="background:none;border:none;color:var(--gold-light);cursor:pointer;font-size:18px;padding:0">' + (s.blindTimerPausedAt ? '▶️' : '⏸️') + '</button>' +
+      '<button onclick="toggleBlindTimer()" id="blind-timer-toggle-btn" class="pgm-play-btn pgm-play-btn-sm">' + iconePlayPause(s.blindTimerPausedAt) + '</button>' +
     '</div>' +
     '<div id="blind-timer-corpo"></div>' +
     '<div class="pgm-row-btns" style="margin-top:0.5rem">' +
@@ -3101,11 +3113,11 @@ function toggleBlindTimer() {
   if(s.blindTimerPausedAt) {
     s.blindTimerTotalPaused = (s.blindTimerTotalPaused||0) + (Date.now() - s.blindTimerPausedAt);
     s.blindTimerPausedAt = null;
-    if(btn) btn.textContent = '⏸️';
+    if(btn) btn.innerHTML = iconePlayPause(false);
     pedirWakeLock();
   } else {
     s.blindTimerPausedAt = Date.now();
-    if(btn) btn.textContent = '▶️';
+    if(btn) btn.innerHTML = iconePlayPause(true);
     liberarWakeLock();
   }
   savePatch({ 'activeSession/blindTimerPausedAt': s.blindTimerPausedAt, 'activeSession/blindTimerTotalPaused': s.blindTimerTotalPaused });
@@ -4968,10 +4980,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if(S.activeSession.startedAt) {
         var btn = document.getElementById('timer-toggle-btn');
         if(S.activeSession.pausedAt) {
-          if(btn) btn.textContent = '▶️';
+          if(btn) btn.innerHTML = iconePlayPause(true);
           updateSessionTimerDisplay();
         } else {
-          if(btn) btn.textContent = '⏸️';
+          if(btn) btn.innerHTML = iconePlayPause(false);
           startSessionTimer();
         }
       }
