@@ -1246,6 +1246,18 @@ function classificarFases(niveis, perfil, cacife) {
   });
   var L = niveis.length;
   function conta(f){ return niveis.filter(function(n){ return n.fase===f; }).length; }
+  /* guarda quantos níveis o Meio tinha NATURALMENTE (pela profundidade
+     simples, antes de qualquer ajuste) — é o piso certo pra repor depois,
+     em vez de uma fração fixa de L. Uma fração fixa (testada: 20%, depois
+     30%) sempre acertava um cenário e quebrava outro: 20% deixava o Meio
+     morrer quando o Início "roubava" seus 2 níveis de um Meio natural já
+     pequeno (7j/8.000: Meio caía de 4 pra 2, virando "quase tudo Fim");
+     30% forçava Meio além da conta certa e engolia um nível que a
+     profundidade já tinha corretamente marcado como Fim (BB 1.000 num
+     cacife de 6.000, que devia ficar Fim). O tamanho natural já resolve
+     os dois: reflete a fase que a profundidade REALMENTE indicou pra esse
+     cacife específico, só compensando o que o piso do Início tomou. */
+  var metaMeioNatural = conta('Meio');
   if(conta('Início') === 0) niveis[0].fase = 'Início';
 
   /* Início precisa de pelo menos 2 níveis — o Pedro achou estranho o
@@ -1259,12 +1271,7 @@ function classificarFases(niveis, perfil, cacife) {
     niveis[proximo].fase = 'Início';
   }
 
-  /* piso do Meio caiu de 45% pra 20% dos níveis — com a profundidade
-     simples (cacife/bb) a classificação natural já é bem mais rigorosa
-     sobre quando é Fim de verdade, e um piso de 45% brigava com isso,
-     empurrando níveis de volta pro Meio que a métrica nova já tinha
-     acertado como Fim (ex.: BB 1.000 num cacife de 6.000). */
-  var minMeio = Math.max(1, Math.round(L * 0.2));
+  var minMeio = Math.max(2, metaMeioNatural);
   if(conta('Fim') === 0) niveis[L-1].fase = 'Fim';
   var guarda = 0;
   while(conta('Meio') < minMeio && guarda++ < L*2) {
@@ -1705,10 +1712,31 @@ function voltarTabelaBlinds() {
   else closeModal();
 }
 
+/* Depois de tantas tentativas de acertar a posição do add-on por fórmula
+   (fase, fração de nível...) sem nunca agradar em todo cenário, o Pedro
+   pediu controle manual: mover pra cima/baixo direto na estrutura já
+   calculada. Não recalcula nada além do que esse nível específico vale em
+   BB — o resto da tabela (blinds, durações) fica igual. */
+function moverAddon(delta) {
+  var r = window._blindTableUltimoResultado;
+  if(!r) return;
+  var novo = r.addonAposNivel + delta;
+  if(novo < 1 || novo > r.niveis.length - 1) return;
+  r.addonAposNivel = novo;
+  r.addonBBValor = Math.round(r.valorRebuy / r.niveis[novo-1].bb);
+  renderBlindTable(r);
+}
+
 function renderBlindTable(r) {
   window._blindTableUltimoResultado = r;
   var velLabel = PERFIS_TORNEIO[r.velocidade].label;
-  var addonBanda = '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin:5px 0;font-size:10px;font-weight:800;color:#7ab8f5;text-align:center;line-height:1.5">🔵 FIM DO REBUY — ADD-ON DISPONÍVEL<br><span style="font-weight:700;opacity:0.85">' + r.valorRebuy.toLocaleString('pt-BR') + ' fichas ≈ ' + r.addonBBValor + ' big blinds</span></div>';
+  var addonBanda = '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin:5px 0;font-size:10px;font-weight:800;color:#7ab8f5;text-align:center;line-height:1.5">' +
+    '<div style="display:flex;align-items:center;justify-content:center;gap:8px">' +
+    '<button onclick="moverAddon(-1)" title="Add-on um nível antes" style="width:20px;height:20px;border-radius:50%;border:1px solid #7ab8f5;background:none;color:#7ab8f5;font-size:11px;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1">▲</button>' +
+    '<span>🔵 FIM DO REBUY — ADD-ON DISPONÍVEL</span>' +
+    '<button onclick="moverAddon(1)" title="Add-on um nível depois" style="width:20px;height:20px;border-radius:50%;border:1px solid #7ab8f5;background:none;color:#7ab8f5;font-size:11px;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1">▼</button>' +
+    '</div>' +
+    '<span style="font-weight:700;opacity:0.85">' + r.valorRebuy.toLocaleString('pt-BR') + ' fichas ≈ ' + r.addonBBValor + ' big blinds</span></div>';
   var colsNiveis = r.comAnte ? '24px 1fr 46px 92px 46px' : '24px 1fr 46px 92px';
   var linhas = '', acumMin = 0, minAteAddon = 0;
   r.niveis.forEach(function(n){ if(n.nivel <= r.addonAposNivel) minAteAddon += n.duracaoMin; });
