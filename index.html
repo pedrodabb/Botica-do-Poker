@@ -747,7 +747,8 @@ const S = {
   curiosidades: [],
   newSession: { type: 'oficial', players: [] },
   activeSession: null,
-  authConfig: { senhaMesaAtiva: true, googleAtivo: false }
+  authConfig: { senhaMesaAtiva: true, googleAtivo: false },
+  favoritosBlinds: []
 };
 
 function save() {
@@ -1591,6 +1592,7 @@ function openBlindCalcModal() {
   showModal(
     '<div class="pgm-modal-title">' + ICON_CALCULADORA + ' Calculadora de Torneio <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.5">Preenche o que você sabe. O cacife e o stack de fichas eu sugiro.</div>' +
+    favoritosBlindsListHTML() +
     '<div class="pgm-field"><label class="pgm-input-label">Nº de jogadores</label>' +
     '<input type="number" id="blind-calc-jogadores" class="pgm-input" min="2" value="' + numJogadores + '"></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Tempo estimado (h:min)</label>' +
@@ -1694,6 +1696,62 @@ function usarEstruturaTorneio() {
   };
   closeModal();
   showAlert('Estrutura salva: cacife de <strong>' + r.cacife.toLocaleString('pt-BR') + '</strong> fichas e ' + r.niveis.length + ' níveis de blind.');
+}
+
+function nomeAutoEstrutura(eb, numJogadores) {
+  var velLabel = { turbo: '⚡ Turbo', regular: '⚖️ Regular', slow: '🐢 Slow' }[eb.velocidade] || eb.velocidade || '';
+  return (velLabel ? velLabel + ' · ' : '') + numJogadores + ' jogadores · ' + eb.cacife.toLocaleString('pt-BR') + ' fichas';
+}
+
+function estrelaFavoritoHTML(sessionIndex, favoritado) {
+  if(favoritado) {
+    return '<span id="btn-favoritar-blinds-' + sessionIndex + '" title="Estrutura favoritada" style="color:var(--gold-light);font-size:16px;line-height:1">★</span>';
+  }
+  return '<button id="btn-favoritar-blinds-' + sessionIndex + '" onclick="favoritarEstruturaBlinds(' + sessionIndex + ')" title="Favoritar esta estrutura de blinds" style="background:none;border:none;color:var(--text-dim);font-size:16px;line-height:1;cursor:pointer;padding:0">☆</button>';
+}
+
+function favoritarEstruturaBlinds(sessionIndex) {
+  var s = S.sessions[sessionIndex];
+  if(!s || !s.estruturaBlinds || s.blindsFavoritado) return;
+  var nome = nomeAutoEstrutura(s.estruturaBlinds, s.players.length);
+  var fav = { id: 'fav'+Date.now()+Math.random().toString(36).slice(2,6), nome: nome, criadoEm: Date.now(), estrutura: s.estruturaBlinds };
+  if(!S.favoritosBlinds) S.favoritosBlinds = [];
+  S.favoritosBlinds.push(fav);
+  s.blindsFavoritado = fav.id;
+  savePatch({ favoritosBlinds: S.favoritosBlinds, sessions: S.sessions });
+  var btn = document.getElementById('btn-favoritar-blinds-' + sessionIndex);
+  if(btn) btn.outerHTML = estrelaFavoritoHTML(sessionIndex, true);
+  showAlert('★ Estrutura favoritada: <strong>' + escHtml(nome) + '</strong>. Ela aparece na próxima vez que você abrir a calculadora.');
+}
+
+function favoritosBlindsListHTML() {
+  var favs = S.favoritosBlinds || [];
+  if(!favs.length) return '';
+  var itens = favs.slice().reverse().map(function(f) {
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 9px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;margin-bottom:6px">' +
+      '<span style="color:var(--gold-light);font-size:13px;flex-shrink:0">★</span>' +
+      '<span style="flex:1;font-size:11.5px;font-weight:700;color:var(--cream)">' + escHtml(f.nome) + '</span>' +
+      '<button class="pgm-btn pgm-btn-sm" style="padding:0.25rem 0.6rem;flex-shrink:0" onclick="usarFavoritoBlinds(\'' + f.id + '\')">Usar</button>' +
+      '<button onclick="excluirFavoritoBlinds(\'' + f.id + '\')" title="Remover favorito" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0 2px;flex-shrink:0">✕</button>' +
+    '</div>';
+  }).join('');
+  return '<div class="pgm-field"><label class="pgm-input-label">⭐ Suas estruturas favoritas</label>' + itens + '</div>';
+}
+
+function usarFavoritoBlinds(favId) {
+  var fav = (S.favoritosBlinds||[]).find(function(f){ return f.id === favId; });
+  if(!fav) return;
+  S.newSession.estruturaBlinds = JSON.parse(JSON.stringify(fav.estrutura));
+  var campo = document.getElementById('new-tourney-stack');
+  if(campo) campo.value = fav.estrutura.cacife;
+  closeModal();
+  showAlert('Estrutura favorita aplicada: <strong>' + escHtml(fav.nome) + '</strong>.');
+}
+
+function excluirFavoritoBlinds(favId) {
+  S.favoritosBlinds = (S.favoritosBlinds||[]).filter(function(f){ return f.id !== favId; });
+  savePatch({ favoritosBlinds: S.favoritosBlinds });
+  openBlindCalcModal();
 }
 
 function showAnteInfo() {
@@ -3548,10 +3606,17 @@ function finishSessionCommon(s) {
   }).join('');
 
   var durStr = sessaoFinalizada.duration ? '⏱️ ' + formatDuration(sessaoFinalizada.duration) : '';
+  var favoritarBlindsHTML = (sessaoFinalizada.tourneyMode === 'classico' && sessaoFinalizada.estruturaBlinds)
+    ? '<div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">' +
+        estrelaFavoritoHTML(S.sessions.length - 1, !!sessaoFinalizada.blindsFavoritado) +
+        '<span>Gostou dessa estrutura de blinds? Favorita pra usar de novo.</span>' +
+      '</div>'
+    : '';
 
   showModal(
     '<div class="pgm-modal-title">🏆 Resultado · ' + date + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     (durStr ? '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">' + durStr + '</div>' : '') +
+    favoritarBlindsHTML +
     rowsHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
@@ -4058,6 +4123,7 @@ function showSessionDetail(sessionIndex) {
     '<span class="pgm-badge ' + badgeClass + '">' + badgeText + '</span>' +
     '<span style="font-size:12px;font-weight:700;color:var(--text-dim)">Pot: ' + fmtRaw(pot) + ' · ' + s.players.length + ' jogadores' + (s.duration?' · ⏱️ '+formatDuration(s.duration):'') + '</span>' +
     '<button onclick="showDevolucaoPix(' + sessionIndex + ')" title="Quanto devolver pra cada jogador" style="width:18px;height:18px;border-radius:50%;border:1.5px solid var(--gold-light);background:none;color:var(--gold-light);font-size:11px;font-weight:900;font-style:italic;font-family:Georgia,serif;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;line-height:1;padding:0">i</button>' +
+    ((s.tourneyMode === 'classico' && s.estruturaBlinds) ? estrelaFavoritoHTML(sessionIndex, !!s.blindsFavoritado) : '') +
     '</div>' +
     rowsHTML + curiosHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
