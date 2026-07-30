@@ -849,14 +849,17 @@ function iconePlayPause(pausado) {
 }
 
 function maskMoedaOninput(el) {
-  var digits = el.value.replace(/\D/g, '');
-  if(!digits) { el.value = ''; return; }
-  var num = parseInt(digits, 10) / 100;
-  el.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var v = el.value.replace(/[^\d,]/g, '');
+  var i = v.indexOf(',');
+  if(i !== -1) {
+    v = v.slice(0, i+1) + v.slice(i+1).replace(/,/g, '').slice(0, 2);
+  }
+  el.value = v;
 }
 
 function maskPayoutOninput(el) {
   var digits = el.value.replace(/\D/g, '');
+  if(digits === '100') { el.value = '100'; return; }
   var grupos = digits.match(/.{1,2}/g) || [];
   el.value = grupos.join('/');
 }
