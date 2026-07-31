@@ -370,6 +370,11 @@
     @keyframes pgmFadeIn { from { opacity: 0; } to { opacity: 1; } }
     .pgm-modal { background: #16271b; border: 1px solid var(--border-strong); border-radius: 16px; padding: 1.25rem; width: 100%; max-width: 360px; max-height: 85vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.5); animation: pgmModalUp 0.25s ease-out; }
     @keyframes pgmModalUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    /* Reaproveitada quando um modal já aberto só atualiza um valor pequeno
+       (ex: mover o add-on ▲▼ na calculadora) — metade do deslocamento/tempo
+       do "abrir modal" normal, pra não parecer que a tela inteira pulou. */
+    .pgm-modal.pgm-modal-soft { animation: pgmModalUpSoft 0.13s ease-out; }
+    @keyframes pgmModalUpSoft { from { transform: translateY(8px); opacity: 0.5; } to { transform: translateY(0); opacity: 1; } }
     @media (max-width: 520px) {
       .pgm-modal-backdrop:not(.pgm-sheet-mode) { align-items: flex-end; padding: 0; }
       .pgm-modal-backdrop:not(.pgm-sheet-mode) .pgm-modal { max-width: 100%; border-radius: 18px 18px 0 0; border-bottom: none; padding-bottom: calc(1.25rem + env(safe-area-inset-bottom)); animation: pgmSheetUp 0.28s cubic-bezier(0.32, 0.72, 0, 1); max-height: 88vh; }
@@ -1792,7 +1797,7 @@ function nomeAutoEstrutura(eb, numJogadores) {
 
 function estrelaFavoritoHTML(sessionIndex, favoritado) {
   if(favoritado) {
-    return '<span id="btn-favoritar-blinds-' + sessionIndex + '" title="Estrutura favoritada" style="color:var(--gold-light);font-size:16px;line-height:1">★</span>';
+    return '<button id="btn-favoritar-blinds-' + sessionIndex + '" onclick="desfavoritarEstruturaBlinds(' + sessionIndex + ')" title="Desfavoritar esta estrutura de blinds" style="background:none;border:none;color:var(--gold-light);font-size:16px;line-height:1;cursor:pointer;padding:0">★</button>';
   }
   return '<button id="btn-favoritar-blinds-' + sessionIndex + '" onclick="favoritarEstruturaBlinds(' + sessionIndex + ')" title="Favoritar esta estrutura de blinds" style="background:none;border:none;color:var(--text-dim);font-size:16px;line-height:1;cursor:pointer;padding:0">☆</button>';
 }
@@ -1811,18 +1816,68 @@ function favoritarEstruturaBlinds(sessionIndex) {
   showAlert('★ Estrutura favoritada: <strong>' + escHtml(nome) + '</strong>. Ela aparece na próxima vez que você abrir a calculadora.');
 }
 
+/* Desfavoritar direto pela estrelinha — pra corrigir favoritar sem
+   querer sem precisar caçar o item na lista da calculadora e excluir de lá. */
+function desfavoritarEstruturaBlinds(sessionIndex) {
+  var s = S.sessions[sessionIndex];
+  if(!s || !s.blindsFavoritado) return;
+  var favId = s.blindsFavoritado;
+  S.favoritosBlinds = (S.favoritosBlinds||[]).filter(function(f){ return f.id !== favId; });
+  s.blindsFavoritado = null;
+  savePatch({ favoritosBlinds: S.favoritosBlinds, sessions: S.sessions });
+  var btn = document.getElementById('btn-favoritar-blinds-' + sessionIndex);
+  if(btn) btn.outerHTML = estrelaFavoritoHTML(sessionIndex, false);
+  showAlert('☆ Estrutura removida dos favoritos.');
+}
+
+function favoritoRowHTML(f) {
+  return '<div class="pgm-fav-row" id="fav-row-' + f.id + '" style="display:flex;align-items:center;gap:8px;padding:7px 9px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;margin-bottom:6px">' +
+    '<span style="color:var(--gold-light);font-size:13px;flex-shrink:0">★</span>' +
+    '<span style="flex:1;font-size:11.5px;font-weight:700;color:var(--cream);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(f.nome) + '</span>' +
+    '<button onclick="iniciarRenomearFavorito(\'' + f.id + '\')" title="Renomear" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:0 2px;flex-shrink:0">✏️</button>' +
+    '<button class="pgm-btn pgm-btn-sm" style="padding:0.25rem 0.6rem;flex-shrink:0" onclick="usarFavoritoBlinds(\'' + f.id + '\')">Usar</button>' +
+    '<button onclick="excluirFavoritoBlinds(\'' + f.id + '\')" title="Remover favorito" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0 2px;flex-shrink:0">✕</button>' +
+  '</div>';
+}
+
 function favoritosBlindsListHTML() {
   var favs = S.favoritosBlinds || [];
   if(!favs.length) return '';
-  var itens = favs.slice().reverse().map(function(f) {
-    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 9px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;margin-bottom:6px">' +
-      '<span style="color:var(--gold-light);font-size:13px;flex-shrink:0">★</span>' +
-      '<span style="flex:1;font-size:11.5px;font-weight:700;color:var(--cream)">' + escHtml(f.nome) + '</span>' +
-      '<button class="pgm-btn pgm-btn-sm" style="padding:0.25rem 0.6rem;flex-shrink:0" onclick="usarFavoritoBlinds(\'' + f.id + '\')">Usar</button>' +
-      '<button onclick="excluirFavoritoBlinds(\'' + f.id + '\')" title="Remover favorito" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0 2px;flex-shrink:0">✕</button>' +
-    '</div>';
-  }).join('');
+  var itens = favs.slice().reverse().map(favoritoRowHTML).join('');
   return '<div class="pgm-field"><label class="pgm-input-label">⭐ Suas estruturas favoritas</label>' + itens + '</div>';
+}
+
+/* Renomear é feito trocando só a linha do favorito por um campo editável
+   (em vez de abrir outro modal por cima do modal da calculadora — mesmo
+   problema que o showAlert tinha antes de ganhar container próprio). */
+function iniciarRenomearFavorito(favId) {
+  var fav = (S.favoritosBlinds||[]).find(function(f){ return f.id === favId; });
+  var row = document.getElementById('fav-row-' + favId);
+  if(!fav || !row) return;
+  row.innerHTML =
+    '<input type="text" id="fav-rename-input-' + favId + '" class="pgm-input" style="flex:1;padding:6px 8px;font-size:11.5px" value="' + escHtml(fav.nome) + '">' +
+    '<button class="pgm-btn pgm-btn-sm" style="padding:0.25rem 0.6rem;flex-shrink:0" onclick="confirmarRenomearFavorito(\'' + favId + '\')">Salvar</button>' +
+    '<button onclick="cancelarRenomearFavorito(\'' + favId + '\')" title="Cancelar" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0 2px;flex-shrink:0">✕</button>';
+  var inp = document.getElementById('fav-rename-input-' + favId);
+  if(inp) { inp.focus(); inp.select(); inp.addEventListener('keydown', function(e){ if(e.key==='Enter') confirmarRenomearFavorito(favId); }); }
+}
+
+function cancelarRenomearFavorito(favId) {
+  var fav = (S.favoritosBlinds||[]).find(function(f){ return f.id === favId; });
+  var row = document.getElementById('fav-row-' + favId);
+  if(fav && row) row.outerHTML = favoritoRowHTML(fav);
+}
+
+function confirmarRenomearFavorito(favId) {
+  var fav = (S.favoritosBlinds||[]).find(function(f){ return f.id === favId; });
+  var inp = document.getElementById('fav-rename-input-' + favId);
+  if(!fav || !inp) return;
+  var novoNome = inp.value.trim();
+  if(!novoNome) return;
+  fav.nome = novoNome;
+  savePatch({ favoritosBlinds: S.favoritosBlinds });
+  var row = document.getElementById('fav-row-' + favId);
+  if(row) row.outerHTML = favoritoRowHTML(fav);
 }
 
 function usarFavoritoBlinds(favId) {
@@ -1867,10 +1922,11 @@ function moverAddon(delta) {
   if(novo < 1 || novo > r.niveis.length - 1) return;
   r.addonAposNivel = novo;
   r.addonBBValor = Math.round(r.valorRebuy / r.niveis[novo-1].bb);
-  renderBlindTable(r);
+  tocarAvisoLeve();
+  renderBlindTable(r, true);
 }
 
-function renderBlindTable(r) {
+function renderBlindTable(r, soft) {
   window._blindTableUltimoResultado = r;
   var velLabel = PERFIS_TORNEIO[r.velocidade].label;
   var addonBanda = '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin:5px 0;font-size:10px;font-weight:800;color:#7ab8f5;text-align:center;line-height:1.5">' +
@@ -1960,7 +2016,8 @@ function renderBlindTable(r) {
     '<div class="pgm-row-btns" style="margin-top:6px">' +
     '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="openBlindCalcModal()">← Ajustar</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
-    '</div>'
+    '</div>',
+    soft
   );
 }
 
@@ -4601,7 +4658,7 @@ function showSeasonDetail(idx) {
   }, 80);
 }
 
-function showModal(html) { const el=document.getElementById('pgm-modal'); el.innerHTML=`<div class="pgm-modal-backdrop"><div class="pgm-modal">${html}</div></div>`; el.style.display='block'; }
+function showModal(html, soft) { const el=document.getElementById('pgm-modal'); el.innerHTML=`<div class="pgm-modal-backdrop"><div class="pgm-modal${soft ? ' pgm-modal-soft' : ''}">${html}</div></div>`; el.style.display='block'; }
 function closeModal() { const el=document.getElementById('pgm-modal'); el.style.display='none'; el.innerHTML=''; }
 
 function showRulesGuide() {
