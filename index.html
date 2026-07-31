@@ -3158,7 +3158,8 @@ function renderBlindTimerBlock() {
       '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="moverNivelBlind(-1)">◀ Nível anterior</button>' +
       '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="moverNivelBlind(1)">Próximo nível ▶</button>' +
     '</div>' +
-    '<div id="blind-push-status">' + statusPushHTML() + '</div>';
+    '<div id="blind-push-status">' + statusPushHTML() + '</div>' +
+    (_adminAuth ? '<button class="pgm-btn pgm-btn-sm" style="width:100%;margin-top:8px;opacity:0.7" title="Só pra testar o push — encurta os níveis, não usar em jogo de verdade" onclick="acelerarBlindsParaTeste()">🧪 Acelerar níveis pra 1min (teste)</button>' : '');
   atualizarBlindTimerDisplay();
   if(!s.blindTimerPausedAt) pedirWakeLock();
 }
@@ -3230,6 +3231,33 @@ function moverNivelBlind(delta) {
   s.blindTimerTotalPaused = 0;
   savePatch({ 'activeSession/blindTimerStartedAt': s.blindTimerStartedAt, 'activeSession/blindTimerTotalPaused': s.blindTimerTotalPaused });
   atualizarBlindTimerDisplay();
+}
+
+/* Só admin, só pra testar o push notification rápido (sessão real
+   demoraria 10-30min por nível pra trocar). Encurta os níveis da
+   estrutura pra 1min e reinicia o relógio do blind timer a partir de
+   agora — o Worker da Cloudflare lê essa mesma estrutura do Firebase,
+   então o teste vale ponta a ponta de verdade, não é só local. */
+function acelerarBlindsParaTeste() {
+  if(!_adminAuth) return;
+  var s = S.activeSession;
+  if(!s || !s.estruturaBlinds) return;
+  s.estruturaBlinds.niveis.forEach(function(n){ n.duracaoMin = 1; });
+  s.blindTimerStartedAt = Date.now();
+  s.blindTimerPausedAt = null;
+  s.blindTimerTotalPaused = 0;
+  savePatch({
+    'activeSession/estruturaBlinds': s.estruturaBlinds,
+    'activeSession/blindTimerStartedAt': s.blindTimerStartedAt,
+    'activeSession/blindTimerPausedAt': null,
+    'activeSession/blindTimerTotalPaused': 0,
+    'activeSession/pushUltimoNivelNotificado': null,
+    'activeSession/pushAvisoNotificado': null
+  });
+  window._blindTimerUltimoNivel = undefined;
+  window._blindTimerAvisoTocado = false;
+  renderActiveSession();
+  showAlert('🧪 Níveis reduzidos pra 1 minuto — só pra testar o push. Não vale como sessão de verdade nesse ritmo.');
 }
 
 function tocarAlertaNivel() {
