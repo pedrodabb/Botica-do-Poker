@@ -3340,7 +3340,10 @@ function renderBlindTimerBlock() {
   container.innerHTML =
     '<div class="pgm-flex-between" style="margin-bottom:0.5rem">' +
       '<div class="pgm-card-title" style="font-size:13px">⏳ Blinds ao vivo</div>' +
-      '<button onclick="toggleBlindTimer()" id="blind-timer-toggle-btn" class="pgm-play-btn pgm-play-btn-sm">' + iconePlayPause(s.blindTimerPausedAt) + '</button>' +
+      '<div style="display:flex;align-items:center;gap:10px">' +
+        (!s.estruturaBlinds.simples ? '<button onclick="visualizarEstruturaBlindsAtiva()" style="background:none;border:none;color:var(--gold-light);font-size:10px;font-weight:800;text-decoration:underline;cursor:pointer;padding:0">visualizar blinds</button>' : '') +
+        '<button onclick="toggleBlindTimer()" id="blind-timer-toggle-btn" class="pgm-play-btn pgm-play-btn-sm">' + iconePlayPause(s.blindTimerPausedAt) + '</button>' +
+      '</div>' +
     '</div>' +
     '<div id="blind-timer-corpo"></div>' +
     '<div class="pgm-row-btns" style="margin-top:0.5rem">' +
@@ -3351,6 +3354,36 @@ function renderBlindTimerBlock() {
     (_adminAuth ? '<button class="pgm-btn pgm-btn-sm" style="width:100%;margin-top:8px;opacity:0.7" title="Só pra testar o push — encurta os níveis, não usar em jogo de verdade" onclick="acelerarBlindsParaTeste()">🧪 Acelerar níveis pra 1min (teste)</button>' : '');
   atualizarBlindTimerDisplay();
   if(!s.blindTimerPausedAt) pedirWakeLock();
+}
+
+/* "visualizar blinds" no card "Blinds ao vivo" — só pra estrutura
+   sofisticada (níveis reais, Torneio Clássico); modo simples não tem
+   nada além do intervalo já visível no próprio card. Renderização
+   enxuta própria (não reusa renderBlindTable() da calculadora, que
+   espera campos extras — stack, faltas, notas — que a estrutura salva
+   na sessão ativa não guarda, só cacife/níveis/stack resumido). */
+function visualizarEstruturaBlindsAtiva() {
+  var s = S.activeSession;
+  if(!s || !s.estruturaBlinds || !s.estruturaBlinds.niveis) return;
+  var eb = s.estruturaBlinds;
+  var colsNiveis = eb.comAnte ? '24px 1fr 46px 92px 46px' : '24px 1fr 46px 92px';
+  var linhas = eb.niveis.map(function(n) {
+    return '<div style="display:grid;grid-template-columns:' + colsNiveis + ';gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
+      '<div style="font-family:Space Mono,monospace;color:var(--text-dim)">' + n.nivel + '</div>' +
+      '<div style="font-size:9px;font-weight:800;color:var(--gold-dim);text-transform:uppercase">' + (n.fase||'') + '</div>' +
+      '<div style="color:var(--text-dim)">' + n.duracaoMin + 'min</div>' +
+      '<div style="font-family:Space Mono,monospace;font-weight:800;color:var(--cream)">' + n.sb.toLocaleString('pt-BR') + '/' + n.bb.toLocaleString('pt-BR') + '</div>' +
+      (eb.comAnte ? '<div style="font-family:Space Mono,monospace;color:var(--text-dim)">' + (n.ante ? n.ante.toLocaleString('pt-BR') : '—') + '</div>' : '') +
+    '</div>';
+  }).join('');
+  showModal(
+    '<div class="pgm-modal-title">⏳ Estrutura de blinds <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    (eb.cacife ? '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">Cacife: ' + eb.cacife.toLocaleString('pt-BR') + ' fichas</div>' : '') +
+    '<div style="display:grid;grid-template-columns:' + colsNiveis + ';gap:5px;padding-bottom:4px;border-bottom:1px solid var(--border-strong);font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase">' +
+      '<div>Nv</div><div>Fase</div><div>Tempo</div><div>SB/BB</div>' + (eb.comAnte ? '<div>Ante</div>' : '') +
+    '</div>' +
+    '<div style="max-height:60vh;overflow-y:auto">' + linhas + '</div>'
+  );
 }
 
 function atualizarBlindTimerDisplay() {
@@ -3635,20 +3668,28 @@ function statusPushHTML() {
     return '<div style="text-align:center;margin-top:8px;font-size:10px;font-weight:700;color:var(--positive)">🔔 Avisos ativados neste aparelho ' +
       '<button onclick="desativarPushBlinds()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:10px;font-weight:700;text-decoration:underline;padding:0;margin-left:4px">desativar</button></div>';
   }
-  return '<div style="text-align:center;margin-top:8px"><button class="pgm-btn pgm-btn-sm" onclick="ativarPushBlinds()">🔔 Avisar mesmo com a tela apagada</button></div>';
+  return '<div style="text-align:center;margin-top:8px"><button class="pgm-btn pgm-btn-sm" id="btn-ativar-push" onclick="ativarPushBlinds()">🔔 Avisar mesmo com a tela apagada</button></div>';
 }
 
 async function ativarPushBlinds() {
+  var statusEl = document.getElementById('blind-push-status');
+  // Feedback na hora do clique — sem isso, o pedido de permissão do
+  // navegador (ou a busca do token no Firebase) podia levar um instante
+  // sem nenhuma mudança visível, e quem não conhecia o fluxo clicava de
+  // novo achando que o primeiro clique não tinha registrado.
+  var btnJaClicado = document.getElementById('btn-ativar-push');
+  if(btnJaClicado) { btnJaClicado.disabled = true; btnJaClicado.textContent = 'Ativando...'; }
   if(!('Notification' in window) || !('serviceWorker' in navigator) || !window._fbGetMessagingToken) {
     showAlert('Seu navegador não suporta notificações push.');
+    if(statusEl) statusEl.innerHTML = statusPushHTML();
     return;
   }
   if(VAPID_KEY_PUSH.indexOf('COLE_AQUI') !== -1) {
     showAlert('A chave VAPID do Firebase ainda não foi configurada — veja o passo a passo no CLAUDE.md.');
+    if(statusEl) statusEl.innerHTML = statusPushHTML();
     return;
   }
   var permissao = await Notification.requestPermission();
-  var statusEl = document.getElementById('blind-push-status');
   if(permissao !== 'granted') {
     if(statusEl) statusEl.innerHTML = statusPushHTML();
     showAlert('Permissão de notificação negada. Pra ativar depois, muda nas configurações do navegador.');
@@ -3656,6 +3697,7 @@ async function ativarPushBlinds() {
   }
   var token = await window._fbGetMessagingToken(VAPID_KEY_PUSH);
   if(!token) {
+    if(statusEl) statusEl.innerHTML = statusPushHTML();
     showAlert('Não consegui registrar esse aparelho pra notificações. Tenta de novo.');
     return;
   }
