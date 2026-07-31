@@ -73,7 +73,20 @@ async function checarBlinds(env) {
   }
 
   const tokensObj = await rtdbGet(accessToken, DB_PATH + '/pushTokens');
-  const tokenList = tokensObj ? Object.values(tokensObj).map(t => t.token).filter(Boolean) : [];
+  const agora = Date.now();
+  const entradas = tokensObj ? Object.entries(tokensObj) : [];
+  // Mesma duração de 8h do login (pgm_auth_exp) — token sem expiresAt
+  // (registrado antes dessa mudança) é tratado como já expirado, pra
+  // não ficar avisando quem nunca mais voltou a usar o app.
+  const validas = entradas.filter(([, t]) => t.expiresAt && t.expiresAt > agora);
+  const expiradas = entradas.filter(([, t]) => !t.expiresAt || t.expiresAt <= agora);
+  const tokenList = validas.map(([, t]) => t.token).filter(Boolean);
+
+  if (expiradas.length) {
+    const limpeza = {};
+    expiradas.forEach(([chave]) => { limpeza[chave] = null; });
+    await rtdbPatch(accessToken, DB_PATH + '/pushTokens', limpeza).catch(() => {});
+  }
 
   const titulo = precisaAlerta
     ? '🔔 Nível ' + (atual.idx + 1) + ' — ' + fmtNum(atual.nivel.sb) + '/' + fmtNum(atual.nivel.bb)

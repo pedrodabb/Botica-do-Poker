@@ -55,9 +55,14 @@
     };
 
     window._fbSavePushToken = function(token) {
+      // Mesma duração do login (8h, localStorage.pgm_auth_exp) — não
+      // dura pra sempre: se ninguém reativar, para de avisar sozinho
+      // depois de expirado, em vez de continuar tocando indefinidamente
+      // pra quem nem está mais na mesa.
       const safeKey = token.replace(/[.#$\[\]/]/g, '_');
+      const expiresAt = parseInt(localStorage.getItem('pgm_auth_exp') || '0', 10);
       const patch = {};
-      patch[safeKey] = { token: token, registeredAt: Date.now() };
+      patch[safeKey] = { token: token, registeredAt: Date.now(), expiresAt: expiresAt };
       return update(ref(db, DB_REF + '/pushTokens'), patch);
     };
 
