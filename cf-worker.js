@@ -89,11 +89,11 @@ async function checarBlinds(env) {
   }
 
   const titulo = precisaAlerta
-    ? '🔔 Nível ' + (atual.idx + 1) + ' — ' + fmtNum(atual.nivel.sb) + '/' + fmtNum(atual.nivel.bb)
-    : '⏳ Faltam 2 minutos pro próximo nível';
+    ? (atual.nivel.simples ? '🔔 Hora de apitar o blind' : '🔔 Nível ' + (atual.idx + 1) + ' — ' + fmtNum(atual.nivel.sb) + '/' + fmtNum(atual.nivel.bb))
+    : '⏳ Faltam 2 minutos pro próximo apito';
   const corpo = precisaAlerta
-    ? (atual.nivel.fase + (atual.nivel.ante ? ' · ante ' + fmtNum(atual.nivel.ante) : ''))
-    : ('Vai virar pra ' + fmtNum(atual.proximo.sb) + '/' + fmtNum(atual.proximo.bb));
+    ? (atual.nivel.simples ? 'Apita a cada ' + atual.duracaoFaseMin + ' min' : (atual.nivel.fase + (atual.nivel.ante ? ' · ante ' + fmtNum(atual.nivel.ante) : '')))
+    : (atual.nivel.simples ? 'Prepare o apito' : ('Vai virar pra ' + fmtNum(atual.proximo.sb) + '/' + fmtNum(atual.proximo.bb)));
 
   if (tokenList.length) {
     await Promise.all(tokenList.map(token => enviarPush(accessToken, token, titulo, corpo).catch(() => {})));
@@ -110,9 +110,21 @@ function fmtNum(n) {
    resultado, só que rodando no servidor em vez do navegador. */
 function calcNivelBlindAtual(s) {
   var eb = s.estruturaBlinds;
-  if (!eb || !eb.niveis || !eb.niveis.length || !s.blindTimerStartedAt) return null;
+  if (!eb || !s.blindTimerStartedAt) return null;
   var agora = s.blindTimerPausedAt || Date.now();
   var elapsedMin = ((agora - s.blindTimerStartedAt) - (s.blindTimerTotalPaused || 0)) / 60000;
+  if (eb.simples) {
+    var intervalo = eb.intervaloMin || 15;
+    var idxS = Math.floor(Math.max(0, elapsedMin) / intervalo);
+    var acumuladoS = idxS * intervalo;
+    return {
+      idx: idxS, nivel: { simples: true, duracaoMin: intervalo },
+      restanteMin: Math.max(0, (acumuladoS + intervalo) - elapsedMin),
+      duracaoFaseMin: intervalo,
+      proximo: { simples: true }
+    };
+  }
+  if (!eb.niveis || !eb.niveis.length) return null;
   var acumulado = 0;
   for (var i = 0; i < eb.niveis.length; i++) {
     var n = eb.niveis[i];

@@ -568,23 +568,25 @@
               <button class="pgm-toggle-opt" onclick="setSessionType('casual')">🥃 Casual</button>
             </div>
           </div>
-          <div style="margin-bottom:0.75rem" id="cash-blind-wrapper">
-            <label class="pgm-input-label">Blind</label>
-            <div class="pgm-toggle-group" id="cash-blind-toggle">
-              <button class="pgm-toggle-opt active" type="button" onclick="setCashBlindAtivo(false)">Fixo</button>
-              <button class="pgm-toggle-opt" type="button" onclick="setCashBlindAtivo(true)">⏱️ Aumento de blind</button>
-            </div>
-            <div id="cash-blind-niveis-wrapper" style="display:none;margin-top:0.5rem">
-              <div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.5rem;line-height:1.5">Opcional: os valores sobem sozinhos com o tempo, mostrando avisos e podendo notificar mesmo com a tela apagada — igual o torneio, só que em R$ direto, sem ficha.</div>
-              <div id="cash-blind-niveis-list"></div>
-              <button class="pgm-btn pgm-btn-sm" type="button" onclick="addCashBlindNivel()" style="width:100%">+ Nível</button>
-            </div>
-          </div>
           <div style="margin-bottom:0.25rem;display:none" id="tourney-mode-wrapper">
             <label class="pgm-input-label">Modo do Torneio</label>
             <div class="pgm-toggle-group" id="tourney-mode-toggle">
               <button class="pgm-toggle-opt active" onclick="setTourneyMode('classico')"><span style="color:var(--negative);font-size:1.15em">♦</span> Clássico</button>
               <button class="pgm-toggle-opt" onclick="setTourneyMode('cash')">💰 Fichas valem R$</button>
+            </div>
+          </div>
+          <div style="margin-bottom:0.75rem" id="cash-blind-wrapper">
+            <label class="pgm-input-label">Blind</label>
+            <div class="pgm-toggle-group" id="cash-blind-toggle">
+              <button class="pgm-toggle-opt active" type="button" onclick="setCashBlindAtivo(false)">Sem timer</button>
+              <button class="pgm-toggle-opt" type="button" onclick="setCashBlindAtivo(true)">🎲 Timer de blinds</button>
+            </div>
+            <div id="cash-blind-niveis-wrapper" style="display:none;margin-top:0.5rem">
+              <div class="pgm-field" style="margin-bottom:0.4rem">
+                <label class="pgm-input-label">Apitar a cada (min)</label>
+                <input type="number" id="cash-blind-intervalo" class="pgm-input" placeholder="Ex: 15" min="1" value="15">
+              </div>
+              <div style="font-size:10px;font-weight:700;color:var(--text-dim);line-height:1.5">Avisa com som (e notificação, mesmo com a tela apagada) de quanto em quanto tempo apitar. Os valores de blind combinam vocês na mesa mesmo, não precisa configurar aqui.</div>
             </div>
           </div>
           <div id="tourney-classic-fields" style="display:none">
@@ -658,9 +660,6 @@
         <div class="pgm-row-btns" style="margin-top:8px">
           <button class="pgm-btn pgm-btn-danger" onclick="confirmCancelarSessao()" style="flex:1">Cancelar</button>
           <button class="pgm-btn pgm-btn-success" onclick="openFinishSession()" style="flex:1">Encerrar sessão</button>
-        </div>
-        <div id="btn-bora-fatima-row" style="margin-top:8px;display:none">
-          <button class="pgm-btn pgm-btn-sm" style="width:100%;opacity:0.75" onclick="boraFatima()">📣 BORA FATIMA</button>
         </div>
       </div>
     </div>
@@ -936,8 +935,6 @@ function setSessionModality(m) {
   });
   var cashWrapper = document.getElementById('cash-type-wrapper');
   if(cashWrapper) cashWrapper.style.display = m === 'cash' ? 'block' : 'none';
-  var cashBlindWrapper = document.getElementById('cash-blind-wrapper');
-  if(cashBlindWrapper) cashBlindWrapper.style.display = m === 'cash' ? 'block' : 'none';
   var tmWrapper = document.getElementById('tourney-mode-wrapper');
   if(tmWrapper) tmWrapper.style.display = m === 'torneio' ? 'block' : 'none';
   if(m === 'torneio') {
@@ -949,12 +946,26 @@ function setSessionModality(m) {
     var tcf = document.getElementById('tourney-classic-fields');
     if(tcf) tcf.style.display = 'none';
     setSessionType('oficial');
+    atualizarBlindWrapperSimples();
   }
 }
 
-/* Blind opcional pra Cash Game — sem cacife/fichas fictícias, só uma
-   listinha de SB/BB/duração em R$ direto, entregando exatamente a
-   mesma estruturaBlinds.niveis que o timer ao vivo já sabe ler. */
+/* Blind wrapper simples (timer de "apitar a cada X min", sem SB/BB reais)
+   é compartilhado por Cash Game e Torneio "Fichas valem R$" — o torneio
+   Clássico usa a calculadora sofisticada (tourney-classic-fields) em vez
+   disso. Mostrar/esconder depende do formato + modo do torneio, então
+   fica num helper chamado tanto de setSessionModality quanto setTourneyMode. */
+function atualizarBlindWrapperSimples() {
+  var wrapper = document.getElementById('cash-blind-wrapper');
+  if(!wrapper) return;
+  var mostrar = S.newSession.type !== 'torneio' || S.newSession.tourneyMode === 'cash';
+  wrapper.style.display = mostrar ? 'block' : 'none';
+}
+
+/* Timer opcional pra quem não é Torneio Clássico — sem cacife/fichas
+   fictícias, sem valores de SB/BB pré-configurados (isso vai de boca
+   mesmo, na mesa). Só um sino que apita de X em X minutos, reusando os
+   mesmos alertas sonoros/push do timer de blinds do Clássico. */
 function setCashBlindAtivo(ativo) {
   S.newSession.cashBlindAtivo = ativo;
   document.querySelectorAll('#cash-blind-toggle .pgm-toggle-opt').forEach(function(b,i){
@@ -962,44 +973,6 @@ function setCashBlindAtivo(ativo) {
   });
   var wrapper = document.getElementById('cash-blind-niveis-wrapper');
   if(wrapper) wrapper.style.display = ativo ? 'block' : 'none';
-  if(ativo && (!S.newSession.cashBlindNiveis || !S.newSession.cashBlindNiveis.length)) {
-    S.newSession.cashBlindNiveis = [{ sb: 1, bb: 2, duracaoMin: 60 }];
-  }
-  renderCashBlindNiveis();
-}
-
-function renderCashBlindNiveis() {
-  var el = document.getElementById('cash-blind-niveis-list');
-  if(!el) return;
-  var niveis = S.newSession.cashBlindNiveis || [];
-  el.innerHTML = niveis.map(function(n, i) {
-    return '<div class="pgm-row-btns" style="align-items:flex-end;margin-bottom:6px">' +
-      '<div class="pgm-field" style="margin-bottom:0;flex:1"><label class="pgm-input-label" style="font-size:9px">SB (R$)</label>' +
-      '<input type="text" inputmode="numeric" class="pgm-input" style="padding:6px 8px;font-size:12px" value="' + (n.sb||'') + '" oninput="maskMoedaOninput(this);atualizarCashBlindNivel(' + i + ',\'sb\',this)"></div>' +
-      '<div class="pgm-field" style="margin-bottom:0;flex:1"><label class="pgm-input-label" style="font-size:9px">BB (R$)</label>' +
-      '<input type="text" inputmode="numeric" class="pgm-input" style="padding:6px 8px;font-size:12px" value="' + (n.bb||'') + '" oninput="maskMoedaOninput(this);atualizarCashBlindNivel(' + i + ',\'bb\',this)"></div>' +
-      '<div class="pgm-field" style="margin-bottom:0;flex:0 0 64px"><label class="pgm-input-label" style="font-size:9px">Min</label>' +
-      '<input type="number" min="1" class="pgm-input" style="padding:6px 8px;font-size:12px" value="' + (n.duracaoMin||'') + '" oninput="atualizarCashBlindNivel(' + i + ',\'duracaoMin\',this)"></div>' +
-      '<button class="pgm-icon-btn" type="button" onclick="removerCashBlindNivel(' + i + ')" title="Remover nível" style="flex-shrink:0">✕</button>' +
-    '</div>';
-  }).join('');
-}
-
-function addCashBlindNivel() {
-  if(!S.newSession.cashBlindNiveis) S.newSession.cashBlindNiveis = [];
-  var ultimo = S.newSession.cashBlindNiveis[S.newSession.cashBlindNiveis.length-1];
-  S.newSession.cashBlindNiveis.push({ sb: ultimo ? ultimo.sb*2 : 1, bb: ultimo ? ultimo.bb*2 : 2, duracaoMin: ultimo ? ultimo.duracaoMin : 60 });
-  renderCashBlindNiveis();
-}
-
-function removerCashBlindNivel(i) {
-  S.newSession.cashBlindNiveis.splice(i, 1);
-  renderCashBlindNiveis();
-}
-
-function atualizarCashBlindNivel(i, campo, el) {
-  if(!S.newSession.cashBlindNiveis || !S.newSession.cashBlindNiveis[i]) return;
-  S.newSession.cashBlindNiveis[i][campo] = campo === 'duracaoMin' ? (parseInt(el.value)||0) : parseMoedaBR(el.value);
 }
 
 function setTourneyMode(tm) {
@@ -1009,6 +982,7 @@ function setTourneyMode(tm) {
   });
   var tcf = document.getElementById('tourney-classic-fields');
   if(tcf) tcf.style.display = tm === 'classico' ? 'block' : 'none';
+  atualizarBlindWrapperSimples();
 }
 
 /* ===================== CALCULADORA DE TORNEIO =====================
@@ -3059,6 +3033,16 @@ function renderQuickAdd() {
     : '';
 }
 
+/* Lê o timer de blinds simples (Cash Game e Torneio "Fichas valem R$")
+   do formulário de Nova Sessão. ok:false quando ativado mas sem um
+   intervalo válido — startSession() aborta nesse caso. */
+function lerEstruturaBlindsSimples() {
+  if(!S.newSession.cashBlindAtivo) return { ok: true, estrutura: null };
+  var intervalo = parseInt((document.getElementById('cash-blind-intervalo')||{}).value) || 0;
+  if(intervalo <= 0) return { ok: false, estrutura: null };
+  return { ok: true, estrutura: { simples: true, intervaloMin: intervalo } };
+}
+
 function startSession() {
   var type = S.newSession.type;
   var oficialCount = S.sessions.filter(function(s){ return s.type==='oficial'; }).length;
@@ -3086,13 +3070,15 @@ function startSession() {
          vira o timer ao vivo — se o admin não usou a calculadora, o
          torneio funciona igual antes, só sem o timer de blinds. */
       estruturaBlinds = S.newSession.estruturaBlinds || null;
+    } else {
+      var rbTorneio = lerEstruturaBlindsSimples();
+      if(!rbTorneio.ok) { showAlert('Informe de quantos em quantos minutos apitar.'); return; }
+      estruturaBlinds = rbTorneio.estrutura;
     }
-  } else if(S.newSession.cashBlindAtivo) {
-    var niveisCash = S.newSession.cashBlindNiveis || [];
-    if(!niveisCash.length) { showAlert('Adicione pelo menos um nível de blind.'); return; }
-    var nivelInvalido = niveisCash.some(function(n){ return !(n.sb > 0) || !(n.bb > 0) || !(n.duracaoMin > 0); });
-    if(nivelInvalido) { showAlert('Preencha SB, BB e duração de todos os níveis de blind.'); return; }
-    estruturaBlinds = { niveis: niveisCash.map(function(n, i){ return { nivel: i+1, fase: '', sb: n.sb, bb: n.bb, ante: 0, duracaoMin: n.duracaoMin }; }) };
+  } else {
+    var rbCash = lerEstruturaBlindsSimples();
+    if(!rbCash.ok) { showAlert('Informe de quantos em quantos minutos apitar.'); return; }
+    estruturaBlinds = rbCash.estrutura;
   }
 
   S.activeSession = { _uid: 's'+Date.now()+Math.random().toString(36).slice(2,8), num: num, type: type, date: date, buyin: buyin, rebuy: rebuy,
@@ -3163,22 +3149,7 @@ function renderActiveSession() {
       <div class="pgm-pcard-actions">${actionsHTML}</div>
     </div>`;
   }).join('');
-  var linhaFatima = document.getElementById('btn-bora-fatima-row');
-  if(linhaFatima) linhaFatima.style.display = _adminAuth ? 'block' : 'none';
   renderBlindTimerBlock();
-}
-
-function boraFatima() {
-  if(!_adminAuth) return;
-  try {
-    if(!('speechSynthesis' in window)) { showAlert('Esse navegador não suporta voz.'); return; }
-    window.speechSynthesis.cancel();
-    var fala = new SpeechSynthesisUtterance('Bora, Fátima!');
-    fala.lang = 'pt-BR';
-    fala.rate = 1.05;
-    fala.pitch = 1.15;
-    window.speechSynthesis.speak(fala);
-  } catch(e) {}
 }
 
 /* Timer ao vivo de blinds — lê a estrutura aceita na calculadora
@@ -3192,9 +3163,24 @@ function boraFatima() {
    timestamp, mesma lógica — nunca incrementa um índice à parte. */
 function calcNivelBlindAtual(s) {
   var eb = s.estruturaBlinds;
-  if(!eb || !eb.niveis || !eb.niveis.length || !s.blindTimerStartedAt) return null;
+  if(!eb || !s.blindTimerStartedAt) return null;
   var agora = s.blindTimerPausedAt || Date.now();
   var elapsedMin = ((agora - s.blindTimerStartedAt) - (s.blindTimerTotalPaused||0)) / 60000;
+  /* Modo "simples" (Cash Game / Torneio "Fichas valem R$"): sem lista de
+     níveis com SB/BB reais, só um intervalo que se repete pra sempre —
+     o nível é o quociente do tempo decorrido pelo intervalo. */
+  if(eb.simples) {
+    var intervalo = eb.intervaloMin || 15;
+    var idxS = Math.floor(Math.max(0, elapsedMin) / intervalo);
+    var acumuladoS = idxS * intervalo;
+    return {
+      idx: idxS, nivel: { simples: true, duracaoMin: intervalo },
+      restanteMin: Math.max(0, (acumuladoS + intervalo) - elapsedMin),
+      duracaoFaseMin: intervalo,
+      proximo: { simples: true }
+    };
+  }
+  if(!eb.niveis || !eb.niveis.length) return null;
   var acumulado = 0;
   for(var i=0; i<eb.niveis.length; i++) {
     var n = eb.niveis[i];
@@ -3283,6 +3269,17 @@ function atualizarBlindTimerDisplay() {
   var seg = Math.floor((atual.restanteMin - min) * 60);
   var pct = atual.duracaoFaseMin ? Math.max(0, Math.min(100, 100 - (atual.restanteMin/atual.duracaoFaseMin*100))) : 0;
 
+  if(atual.nivel.simples) {
+    corpo.innerHTML =
+      '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">' +
+        '<div style="font-size:10px;font-weight:900;color:var(--gold-dim);text-transform:uppercase">🔔 Apito ' + (atual.idx+1) + '</div>' +
+        '<div style="font-family:DM Mono,monospace;font-size:20px;font-weight:900;color:var(--gold-light)">' + min + ':' + (seg<10?'0':'') + seg + '</div>' +
+      '</div>' +
+      '<div class="pgm-pot-bar" style="margin-top:6px"><div class="pgm-pot-fill" style="width:' + pct + '%"></div></div>' +
+      '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px">Apita a cada ' + atual.duracaoFaseMin + ' min</div>';
+    return;
+  }
+
   corpo.innerHTML =
     '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">' +
       '<div style="font-size:10px;font-weight:900;color:var(--gold-dim);text-transform:uppercase">Nível ' + (atual.idx+1) + (atual.nivel.fase ? ' · ' + atual.nivel.fase : '') + '</div>' +
@@ -3319,9 +3316,17 @@ function moverNivelBlind(delta) {
   if(!s || !s.estruturaBlinds) return;
   var atual = calcNivelBlindAtual(s);
   if(!atual) return;
-  var alvo = Math.max(0, Math.min(s.estruturaBlinds.niveis.length-1, atual.idx + delta));
-  var somaAnterior = 0;
-  for(var i=0;i<alvo;i++) somaAnterior += s.estruturaBlinds.niveis[i].duracaoMin;
+  var eb = s.estruturaBlinds;
+  var somaAnterior, alvo;
+  if(eb.simples) {
+    var intervalo = eb.intervaloMin || 15;
+    alvo = Math.max(0, atual.idx + delta);
+    somaAnterior = alvo * intervalo;
+  } else {
+    alvo = Math.max(0, Math.min(eb.niveis.length-1, atual.idx + delta));
+    somaAnterior = 0;
+    for(var i=0;i<alvo;i++) somaAnterior += eb.niveis[i].duracaoMin;
+  }
   var agora = s.blindTimerPausedAt || Date.now();
   s.blindTimerStartedAt = agora - somaAnterior*60000;
   s.blindTimerTotalPaused = 0;
@@ -3339,7 +3344,8 @@ function acelerarBlindsParaTeste() {
   if(!_adminAuth) return;
   var s = S.activeSession;
   if(!s || !s.estruturaBlinds) return;
-  s.estruturaBlinds.niveis.forEach(function(n){ n.duracaoMin = 1; });
+  if(s.estruturaBlinds.simples) { s.estruturaBlinds.intervaloMin = 1; }
+  else { s.estruturaBlinds.niveis.forEach(function(n){ n.duracaoMin = 1; }); }
   s.blindTimerStartedAt = Date.now();
   s.blindTimerPausedAt = null;
   s.blindTimerTotalPaused = 0;
@@ -3855,7 +3861,7 @@ function finishSessionCommon(s) {
   }).join('');
 
   var durStr = sessaoFinalizada.duration ? '⏱️ ' + formatDuration(sessaoFinalizada.duration) : '';
-  var favoritarBlindsHTML = sessaoFinalizada.estruturaBlinds
+  var favoritarBlindsHTML = (sessaoFinalizada.estruturaBlinds && !sessaoFinalizada.estruturaBlinds.simples)
     ? '<div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">' +
         estrelaFavoritoHTML(S.sessions.length - 1, !!sessaoFinalizada.blindsFavoritado) +
         '<span>Gostou dessa estrutura de blinds? Favorita pra usar de novo.</span>' +
@@ -3902,6 +3908,7 @@ function resetNewSessionForm() {
   setSessionType('oficial');
   var ts = document.getElementById('new-tourney-stack'); if(ts) ts.value = '';
   var tp = document.getElementById('new-tourney-payout'); if(tp) tp.value = '';
+  var cbi = document.getElementById('cash-blind-intervalo'); if(cbi) cbi.value = 15;
   setCashBlindAtivo(false);
   renderQuickAdd();
 }
@@ -4373,7 +4380,7 @@ function showSessionDetail(sessionIndex) {
     '<span class="pgm-badge ' + badgeClass + '">' + badgeText + '</span>' +
     '<span style="font-size:12px;font-weight:700;color:var(--text-dim)">Pot: ' + fmtRaw(pot) + ' · ' + s.players.length + ' jogadores' + (s.duration?' · ⏱️ '+formatDuration(s.duration):'') + '</span>' +
     '<button onclick="showDevolucaoPix(' + sessionIndex + ')" title="Quanto devolver pra cada jogador" style="width:18px;height:18px;border-radius:50%;border:1.5px solid var(--gold-light);background:none;color:var(--gold-light);font-size:11px;font-weight:900;font-style:italic;font-family:Georgia,serif;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;line-height:1;padding:0">i</button>' +
-    (s.estruturaBlinds ? estrelaFavoritoHTML(sessionIndex, !!s.blindsFavoritado) : '') +
+    ((s.estruturaBlinds && !s.estruturaBlinds.simples) ? estrelaFavoritoHTML(sessionIndex, !!s.blindsFavoritado) : '') +
     '</div>' +
     rowsHTML + curiosHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
