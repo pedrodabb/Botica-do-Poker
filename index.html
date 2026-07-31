@@ -381,6 +381,12 @@
     }
     .pgm-modal-title { font-size: 15px; font-weight: 900; color: var(--cream); margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; }
     .pgm-modal-backdrop.pgm-sheet-mode { align-items: flex-end; padding: 0; }
+    /* Aviso (showAlert) fica num container PRÓPRIO, separado do #pgm-modal —
+       assim ele empilha por cima de um modal já aberto (ex: calculadora de
+       blinds) sem apagar o conteúdo dele, e sempre centralizado (nunca vira
+       bottom-sheet no celular, diferente do .pgm-modal-backdrop normal). */
+    .pgm-alert-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1100; padding: 1rem; animation: pgmFadeIn 0.2s ease-out; }
+    .pgm-alert-box { background: #16271b; border: 1px solid var(--border-strong); border-radius: 16px; padding: 1.25rem; width: 100%; max-width: 320px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); animation: pgmModalUp 0.25s ease-out; }
     .pgm-sheet { background: #16271b; border: 1px solid var(--border-strong); border-bottom: none; border-radius: 16px 16px 0 0; padding: 1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom)); width: 100%; max-width: 480px; max-height: 80vh; overflow-y: auto; animation: pgmSheetUp 0.25s ease-out; }
     @keyframes pgmSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     .pgm-rules-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 800; color: var(--cream-dim); }
@@ -777,6 +783,7 @@
   </main>
 </div>
 <div id="pgm-modal" style="display:none"></div>
+<div id="pgm-alert-overlay" style="display:none"></div>
 
 <script>
 /* REGRA DE ESTILO PERMANENTE: nunca usar o emoji de caveira (💀) pra nada
@@ -4621,7 +4628,12 @@ function showRulesGuide() {
     '</div></div>';
   el.style.display = 'block';
 }
-function showAlert(msg) { showModal(`<div style="font-size:14px;font-weight:800;color:var(--cream);margin-bottom:1rem">${msg}</div><button class="pgm-btn" onclick="closeModal()">Ok</button>`); }
+function showAlert(msg) {
+  const el = document.getElementById('pgm-alert-overlay');
+  el.innerHTML = `<div class="pgm-alert-backdrop"><div class="pgm-alert-box"><div style="font-size:14px;font-weight:800;color:var(--cream);margin-bottom:1rem">${msg}</div><button class="pgm-btn" onclick="closeAlert()">Ok</button></div></div>`;
+  el.style.display = 'block';
+}
+function closeAlert() { const el = document.getElementById('pgm-alert-overlay'); el.style.display = 'none'; el.innerHTML = ''; }
 
 let _adminClicks = 0;
 let _adminTimer = null;
