@@ -160,7 +160,7 @@ async function getAccessToken(serviceAccountJson) {
   const header = { alg: 'RS256', typ: 'JWT' };
   const claimSet = {
     iss: sa.client_email,
-    scope: 'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/firebase.messaging',
+    scope: 'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/firebase.messaging',
     aud: 'https://oauth2.googleapis.com/token',
     iat: now,
     exp: now + 3600
