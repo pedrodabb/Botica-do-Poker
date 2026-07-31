@@ -40,7 +40,7 @@ export default {
 async function checarBlinds(env) {
   const accessToken = await getAccessToken(env.FIREBASE_SERVICE_ACCOUNT);
   const session = await rtdbGet(accessToken, DB_PATH + '/activeSession');
-  if (!session || session.tourneyMode !== 'classico' || !session.estruturaBlinds || session.blindTimerPausedAt) return;
+  if (!session || !session.estruturaBlinds || session.blindTimerPausedAt) return;
 
   const atual = calcNivelBlindAtual(session);
   if (!atual) return;
