@@ -647,6 +647,9 @@
           <button class="pgm-btn pgm-btn-danger" onclick="confirmCancelarSessao()" style="flex:1">Cancelar</button>
           <button class="pgm-btn pgm-btn-success" onclick="openFinishSession()" style="flex:1">Encerrar sessão</button>
         </div>
+        <div id="btn-bora-fatima-row" style="margin-top:8px;display:none">
+          <button class="pgm-btn pgm-btn-sm" style="width:100%;opacity:0.75" onclick="boraFatima()">📣 BORA FATIMA</button>
+        </div>
       </div>
     </div>
 
@@ -3085,7 +3088,22 @@ function renderActiveSession() {
       <div class="pgm-pcard-actions">${actionsHTML}</div>
     </div>`;
   }).join('');
+  var linhaFatima = document.getElementById('btn-bora-fatima-row');
+  if(linhaFatima) linhaFatima.style.display = _adminAuth ? 'block' : 'none';
   renderBlindTimerBlock();
+}
+
+function boraFatima() {
+  if(!_adminAuth) return;
+  try {
+    if(!('speechSynthesis' in window)) { showAlert('Esse navegador não suporta voz.'); return; }
+    window.speechSynthesis.cancel();
+    var fala = new SpeechSynthesisUtterance('Bora, Fátima!');
+    fala.lang = 'pt-BR';
+    fala.rate = 1.05;
+    fala.pitch = 1.15;
+    window.speechSynthesis.speak(fala);
+  } catch(e) {}
 }
 
 /* Timer ao vivo de blinds — lê a estrutura aceita na calculadora
