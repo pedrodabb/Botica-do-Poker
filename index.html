@@ -3267,20 +3267,27 @@ function acelerarBlindsParaTeste() {
 function tocarAlertaNivel() {
   try {
     var ctx = new (window.AudioContext || window.webkitAudioContext)();
-    var tempos = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
-    var ganhos = [0.20, 0.24, 0.28, 0.32, 0.36, 0.42];
-    tempos.forEach(function(t, i){
+    // Jingle 8-bit tipo "passou de fase": arpejo maior ascendente
+    // (Dó-Mi-Sol-Dó) em onda quadrada, última nota mais longa.
+    var notas = [
+      { freq: 523, t: 0,    dur: 0.09, gain: 0.22 },
+      { freq: 659, t: 0.1,  dur: 0.09, gain: 0.22 },
+      { freq: 784, t: 0.2,  dur: 0.09, gain: 0.22 },
+      { freq: 1046, t: 0.32, dur: 0.28, gain: 0.26 }
+    ];
+    notas.forEach(function(n){
       var osc = ctx.createOscillator(), gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.001, ctx.currentTime + t);
-      gain.gain.exponentialRampToValueAtTime(ganhos[i], ctx.currentTime + t + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.17);
-      osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.18);
+      osc.type = 'square';
+      osc.frequency.value = n.freq;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + n.t);
+      gain.gain.exponentialRampToValueAtTime(n.gain, ctx.currentTime + n.t + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + n.t + n.dur);
+      osc.start(ctx.currentTime + n.t);
+      osc.stop(ctx.currentTime + n.t + n.dur + 0.02);
     });
   } catch(e) {}
-  if(navigator.vibrate) { try { navigator.vibrate([200,100,200,100,200,100,200,100,200,100,200]); } catch(e) {} }
+  if(navigator.vibrate) { try { navigator.vibrate([100,30,100,30,100,50,250]); } catch(e) {} }
 }
 
 function tocarAvisoLeve() {
