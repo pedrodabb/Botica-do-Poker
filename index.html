@@ -590,7 +590,7 @@
             <label class="pgm-input-label">Blind</label>
             <div class="pgm-toggle-group" id="cash-blind-toggle">
               <button class="pgm-toggle-opt active" type="button" onclick="setCashBlindAtivo(false)">Sem timer</button>
-              <button class="pgm-toggle-opt" type="button" onclick="setCashBlindAtivo(true)">🎲 Timer de blinds</button>
+              <button class="pgm-toggle-opt" type="button" onclick="setCashBlindAtivo(true)">⏳ Timer de blinds</button>
             </div>
             <div id="cash-blind-niveis-wrapper" style="display:none;margin-top:0.5rem">
               <div class="pgm-field" style="margin-bottom:0.4rem">
@@ -3295,7 +3295,7 @@ function renderBlindTimerBlock() {
   container.style.display = 'block';
   container.innerHTML =
     '<div class="pgm-flex-between" style="margin-bottom:0.5rem">' +
-      '<div class="pgm-card-title" style="font-size:13px">🎲 Blinds ao vivo</div>' +
+      '<div class="pgm-card-title" style="font-size:13px">⏳ Blinds ao vivo</div>' +
       '<button onclick="toggleBlindTimer()" id="blind-timer-toggle-btn" class="pgm-play-btn pgm-play-btn-sm">' + iconePlayPause(s.blindTimerPausedAt) + '</button>' +
     '</div>' +
     '<div id="blind-timer-corpo"></div>' +
@@ -3340,7 +3340,10 @@ function atualizarBlindTimerDisplay() {
         '<div style="font-family:Space Mono,monospace;font-size:20px;font-weight:900;color:var(--gold-light)">' + min + ':' + (seg<10?'0':'') + seg + '</div>' +
       '</div>' +
       '<div class="pgm-pot-bar" style="margin-top:6px"><div class="pgm-pot-fill" style="width:' + pct + '%"></div></div>' +
-      '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px">Apita a cada ' + atual.duracaoFaseMin + ' min</div>';
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px">' +
+        '<span style="font-size:10px;color:var(--text-dim);font-weight:700">Apita a cada ' + atual.duracaoFaseMin + ' min</span>' +
+        '<button onclick="editarIntervaloBlindSimples()" title="Editar intervalo" style="background:none;border:none;color:var(--gold-light);cursor:pointer;font-size:10px;font-weight:800;padding:0">✏️ editar</button>' +
+      '</div>';
     return;
   }
 
@@ -3354,6 +3357,52 @@ function atualizarBlindTimerDisplay() {
     '</div>' +
     '<div class="pgm-pot-bar" style="margin-top:6px"><div class="pgm-pot-fill" style="width:' + pct + '%"></div></div>' +
     (atual.proximo ? '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px">Próximo: ' + atual.proximo.sb.toLocaleString('pt-BR') + '/' + atual.proximo.bb.toLocaleString('pt-BR') + '</div>' : '<div style="font-size:10px;color:var(--gold-light);font-weight:800;margin-top:5px">Último nível</div>');
+}
+
+/* Timer simples (Cash Game / Torneio "Fichas valem R$") não tem uma lista
+   de níveis pra navegar como o Clássico — o pedido real era outro: dá pra
+   mudar o ritmo NO MEIO da sessão (ex: acelerar um cash game já andando).
+   Troca só o corpo do card por um campo editável, sem abrir modal. */
+function editarIntervaloBlindSimples() {
+  var s = S.activeSession;
+  if(!s || !s.estruturaBlinds || !s.estruturaBlinds.simples) return;
+  var corpo = document.getElementById('blind-timer-corpo');
+  if(!corpo) return;
+  corpo.innerHTML =
+    '<div style="font-size:10px;font-weight:900;color:var(--gold-dim);text-transform:uppercase;margin-bottom:6px">⏳ Editar intervalo</div>' +
+    '<div style="display:flex;gap:6px;align-items:center">' +
+      '<input type="number" id="blind-intervalo-edit-input" class="pgm-input" min="1" value="' + s.estruturaBlinds.intervaloMin + '" style="flex:1;padding:6px 8px;font-size:13px">' +
+      '<button class="pgm-btn pgm-btn-sm" onclick="confirmarEditarIntervaloBlindSimples()">Salvar</button>' +
+      '<button onclick="atualizarBlindTimerDisplay()" title="Cancelar" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0 4px">✕</button>' +
+    '</div>';
+  var inp = document.getElementById('blind-intervalo-edit-input');
+  if(inp) { inp.focus(); inp.select(); inp.addEventListener('keydown', function(e){ if(e.key==='Enter') confirmarEditarIntervaloBlindSimples(); }); }
+}
+
+/* Reposiciona o relógio pra manter o número do "apito" atual (idx) mas
+   reiniciar a contagem regressiva cheia do novo intervalo a partir de
+   agora — mesma filosofia "derivado de timestamp" do resto do timer
+   (moverNivelBlind/acelerarBlindsParaTeste), nunca um contador à parte. */
+function confirmarEditarIntervaloBlindSimples() {
+  var s = S.activeSession;
+  if(!s || !s.estruturaBlinds || !s.estruturaBlinds.simples) return;
+  var inp = document.getElementById('blind-intervalo-edit-input');
+  var novo = parseInt(inp && inp.value) || 0;
+  if(novo <= 0) { showAlert('Informe um intervalo válido.'); return; }
+  var atual = calcNivelBlindAtual(s);
+  var idxAtual = atual ? atual.idx : 0;
+  s.estruturaBlinds.intervaloMin = novo;
+  var agora = s.blindTimerPausedAt || Date.now();
+  s.blindTimerStartedAt = agora - idxAtual*novo*60000;
+  s.blindTimerTotalPaused = 0;
+  savePatch({
+    'activeSession/estruturaBlinds': s.estruturaBlinds,
+    'activeSession/blindTimerStartedAt': s.blindTimerStartedAt,
+    'activeSession/blindTimerTotalPaused': 0
+  });
+  window._blindTimerAvisoTocado = false;
+  atualizarBlindTimerDisplay();
+  agendarGatilhoPushInstantaneo(s);
 }
 
 function toggleBlindTimer() {
@@ -4444,7 +4493,7 @@ function showSessionDetail(sessionIndex) {
     '<span class="pgm-badge ' + badgeClass + '">' + badgeText + '</span>' +
     '<span style="font-size:12px;font-weight:700;color:var(--text-dim)">Pot: ' + fmtRaw(pot) + ' · ' + s.players.length + ' jogadores' + (s.duration?' · ⏱️ '+formatDuration(s.duration):'') + '</span>' +
     '<button onclick="showDevolucaoPix(' + sessionIndex + ')" title="Quanto devolver pra cada jogador" style="width:18px;height:18px;border-radius:50%;border:1.5px solid var(--gold-light);background:none;color:var(--gold-light);font-size:11px;font-weight:900;font-style:italic;font-family:Georgia,serif;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;line-height:1;padding:0">i</button>' +
-    ((s.estruturaBlinds && !s.estruturaBlinds.simples) ? estrelaFavoritoHTML(sessionIndex, !!s.blindsFavoritado) : '') +
+    ((s.estruturaBlinds && !s.estruturaBlinds.simples && s.blindsFavoritado) ? estrelaFavoritoHTML(sessionIndex, true) : '') +
     '</div>' +
     rowsHTML + curiosHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
