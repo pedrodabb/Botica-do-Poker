@@ -379,10 +379,11 @@
     .pgm-modal { background: #16271b; border: 1px solid var(--border-strong); border-radius: 16px; padding: 1.25rem; width: 100%; max-width: 360px; max-height: 85vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.5); animation: pgmModalUp 0.25s ease-out; }
     @keyframes pgmModalUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     /* Reaproveitada quando um modal já aberto só atualiza um valor pequeno
-       (ex: mover o add-on ▲▼ na calculadora) — metade do deslocamento/tempo
-       do "abrir modal" normal, pra não parecer que a tela inteira pulou. */
-    .pgm-modal.pgm-modal-soft { animation: pgmModalUpSoft 0.13s ease-out; }
-    @keyframes pgmModalUpSoft { from { transform: translateY(8px); opacity: 0.5; } to { transform: translateY(0); opacity: 1; } }
+       (ex: mover o add-on ▲▼ na calculadora) — bem mais discreta que o
+       "abrir modal" normal (reduzida de novo, a primeira versão em 0,13s/
+       8px ainda dava tontura de tanto repetir em cliques seguidos). */
+    .pgm-modal.pgm-modal-soft { animation: pgmModalUpSoft 0.06s ease-out; }
+    @keyframes pgmModalUpSoft { from { transform: translateY(2px); opacity: 0.85; } to { transform: translateY(0); opacity: 1; } }
     @media (max-width: 520px) {
       .pgm-modal-backdrop:not(.pgm-sheet-mode) { align-items: flex-end; padding: 0; }
       .pgm-modal-backdrop:not(.pgm-sheet-mode) .pgm-modal { max-width: 100%; border-radius: 18px 18px 0 0; border-bottom: none; padding-bottom: calc(1.25rem + env(safe-area-inset-bottom)); animation: pgmSheetUp 0.28s cubic-bezier(0.32, 0.72, 0, 1); max-height: 88vh; }
@@ -1581,12 +1582,25 @@ function calcularEstruturaTorneio(cfg) {
      realmente existe no jogo (nunca inventa denominação nova, sempre
      pagável com o que já está na mesa). Pré-selecionável (comAnte);
      desligado, nenhum nível cobra ante. */
+  /* Big Blind Ante (padrão): só quem tá no BB paga, então o valor pode
+     ser "grande" (~1/4 da BB) — uma ficha só. Clássico: cada um dos N
+     jogadores paga o próprio, então divide o mesmo total-alvo por N antes
+     de arredondar pra ficha existente (senão o pingo clássico saía do
+     mesmo tamanho do BBA, current 4x mais pesado no total da mesa). */
+  var tipoAnte = cfg.tipoAnte === 'classico' ? 'classico' : 'bba';
   var primeiroMeio = niveis.findIndex(function(n){ return n.fase !== 'Início'; });
   var anteDesde = primeiroMeio < 0 ? Math.floor(L/2) : primeiroMeio + 1;
   niveis.forEach(function(n,k){
     if(!comAnte || k < anteDesde) { n.ante = 0; return; }
     var candidatos = denoms.filter(function(d){ return d <= n.sb/2; });
-    n.ante = candidatos.length ? Math.max.apply(null, candidatos) : Math.min.apply(null, denoms);
+    var anteBBA = candidatos.length ? Math.max.apply(null, candidatos) : Math.min.apply(null, denoms);
+    if(tipoAnte === 'classico') {
+      var alvoPorJogador = anteBBA / N;
+      var candidatosClassico = denoms.filter(function(d){ return d <= alvoPorJogador; });
+      n.ante = candidatosClassico.length ? Math.max.apply(null, candidatosClassico) : 0;
+    } else {
+      n.ante = anteBBA;
+    }
   });
 
   /* Fim do rebuy / add-on: depois de tentar ancorar pela fase (último
@@ -1666,6 +1680,11 @@ var BLIND_MODO_DESC = {
   oficial:       'Distribuição enxuta de fichas, como cassino e torneio oficial entregam.'
 };
 
+var BLIND_ANTE_DESC = {
+  bba:      'Só quem tá no big blind bota o pingo (~1/4 da BB), valendo pela mesa toda.',
+  classico: 'Cada jogador bota o próprio pingo (bem menor), toda mão.'
+};
+
 /* SVG em vez de emoji: nenhum emoji de calculadora renderiza como
    calculadora de verdade (🖩 vira ábaco igual ao 🧮 na maioria das fontes)
    — desenho garante a mesma aparência em qualquer aparelho. */
@@ -1681,6 +1700,7 @@ function openBlindCalcModal() {
   var modoAtual = window._blindCalcModo || 'personalizado';
   window._blindCalcModo = modoAtual;
   if(window._blindCalcAnte === undefined) window._blindCalcAnte = true;
+  if(window._blindCalcTipoAnte === undefined) window._blindCalcTipoAnte = 'bba';
   showModal(
     '<div class="pgm-modal-title">' + ICON_CALCULADORA + ' Calculadora de Torneio <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem;line-height:1.5">Preenche o que você sabe. O cacife e o stack de fichas eu sugiro.</div>' +
@@ -1702,7 +1722,12 @@ function openBlindCalcModal() {
     '<button class="pgm-toggle-opt' + (window._blindCalcAnte?' active':'') + '" type="button" data-ante="1" onclick="selecionarAnteBlind(true)">Sim</button>' +
     '<button class="pgm-toggle-opt' + (window._blindCalcAnte?'':' active') + '" type="button" data-ante="0" onclick="selecionarAnteBlind(false)">Não</button>' +
     '</div>' +
-    '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px;line-height:1.5">Ante de ~1/4 da big blind, pago só por quem tá no big blind, a partir do Meio do torneio. Com ante ligado o jogo aperta mais rápido, então o fim de jogo chega um pouco antes.</div></div>' +
+    '<div id="blind-calc-ante-tipo-wrapper" style="display:' + (window._blindCalcAnte?'block':'none') + ';margin-top:8px">' +
+    '<div class="pgm-toggle-group" id="blind-calc-ante-tipo-toggle" style="display:flex;gap:6px">' +
+    '<button class="pgm-toggle-opt' + (window._blindCalcTipoAnte==='bba'?' active':'') + '" type="button" data-tipo="bba" onclick="selecionarTipoAnteBlind(\'bba\')">Só o Big Blind</button>' +
+    '<button class="pgm-toggle-opt' + (window._blindCalcTipoAnte==='classico'?' active':'') + '" type="button" data-tipo="classico" onclick="selecionarTipoAnteBlind(\'classico\')">Cada um paga</button>' +
+    '</div></div>' +
+    '<div id="blind-calc-ante-desc" style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px;line-height:1.5">' + BLIND_ANTE_DESC[window._blindCalcTipoAnte] + ' Com ante ligado o jogo aperta mais rápido, então o fim de jogo chega um pouco antes.</div></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Estilo de fichas</label>' +
     '<div class="pgm-toggle-group" id="blind-calc-modo-toggle" style="display:flex;gap:6px">' +
     '<button class="pgm-toggle-opt' + (modoAtual==='personalizado'?' active':'') + '" type="button" data-modo="personalizado" onclick="selecionarModoBlind(\'personalizado\')">🔧 Personalizada</button>' +
@@ -1752,6 +1777,17 @@ function selecionarAnteBlind(v) {
   document.querySelectorAll('#blind-calc-ante-toggle .pgm-toggle-opt').forEach(function(b){
     b.classList.toggle('active', (b.dataset.ante === '1') === v);
   });
+  var wrapper = document.getElementById('blind-calc-ante-tipo-wrapper');
+  if(wrapper) wrapper.style.display = v ? 'block' : 'none';
+}
+
+function selecionarTipoAnteBlind(t) {
+  window._blindCalcTipoAnte = t;
+  document.querySelectorAll('#blind-calc-ante-tipo-toggle .pgm-toggle-opt').forEach(function(b){
+    b.classList.toggle('active', b.dataset.tipo === t);
+  });
+  var desc = document.getElementById('blind-calc-ante-desc');
+  if(desc) desc.innerHTML = BLIND_ANTE_DESC[t] + ' Com ante ligado o jogo aperta mais rápido, então o fim de jogo chega um pouco antes.';
 }
 
 function doCalcularBlinds() {
@@ -1769,7 +1805,8 @@ function doCalcularBlinds() {
     modoRegras: window._blindCalcModo || 'personalizado',
     cacife: parseInt(document.getElementById('blind-calc-cacife').value) || 0,
     comRebuy: window._blindCalcRebuy !== false,
-    comAnte: window._blindCalcAnte !== false
+    comAnte: window._blindCalcAnte !== false,
+    tipoAnte: window._blindCalcTipoAnte || 'bba'
   });
   renderBlindTable(resultado);
 }
