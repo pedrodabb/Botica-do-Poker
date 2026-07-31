@@ -619,7 +619,6 @@
                 <input type="text" inputmode="numeric" id="new-tourney-payout" class="pgm-input" placeholder="Ex: 70/30" oninput="maskPayoutOninput(this)">
               </div>
             </div>
-            <div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-0.25rem 0 0.75rem">Premiação: % do pot por colocação. Digite só os números (ex: 7030) que a / entra sozinha a cada dois dígitos — 1º leva 70%, 2º leva 30%</div>
             <button class="pgm-btn pgm-btn-sm" type="button" onclick="openBlindCalcModal()" style="width:100%;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:center;gap:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line><path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path></svg> Calcular estrutura de blinds</button>
           </div>
           <button class="pgm-rules-link" type="button" onclick="showRulesGuide()">ℹ️ Ver regras de pontuação</button>
@@ -657,8 +656,6 @@
           </div>
           <div style="font-size:12px;font-weight:800;color:var(--cream-dim)">
             Buy-in: <span id="active-buyin" style="color:var(--gold-light);font-family:'Space Mono',monospace">R$ 20</span>
-            &nbsp;·&nbsp;
-            Rebuy: <span id="active-rebuy" style="color:var(--gold-light);font-family:'Space Mono',monospace">R$ 20</span>
             &nbsp;·&nbsp;
             Pot: <span id="active-pot" style="color:var(--gold-light);font-family:'Space Mono',monospace">R$ 0</span>
           </div>
@@ -1907,8 +1904,8 @@ function excluirFavoritoBlinds(favId) {
 function showAnteInfo() {
   showModal(
     '<div class="pgm-modal-title">💰 O que é Ante? <button class="pgm-close-btn" onclick="voltarTabelaBlinds()">✕</button></div>' +
-    '<div style="font-size:13px;color:var(--cream);line-height:1.7;margin-bottom:0.85rem">É uma aposta obrigatória extra que entra no pot antes das cartas, pra ninguém ficar só esperando mão boa sem pagar nada.</div>' +
-    '<div style="font-size:12.5px;color:var(--cream-dim);line-height:1.7;margin-bottom:1rem">Aqui uso uma versão bem reduzida do <strong style="color:var(--gold-light)">Big Blind Ante</strong>: quem está no big blind paga <strong>um ante de mais ou menos um quarto da BB</strong> (metade da small blind) que vale pela mesa toda — em vez de cada jogador pagar o seu, e bem mais leve que o ante cheio (1 BB) do padrão original (WSOP usa o cheio). O valor sempre arredonda pra uma ficha que já existe no jogo, nunca inventa denominação nova.</div>' +
+    '<div style="font-size:13px;color:var(--cream);line-height:1.7;margin-bottom:0.85rem">É aquele <strong style="color:var(--gold-light)">pingo</strong> que entra no pot antes da mão começar, pra ninguém ficar só esperando carta boa de graça.</div>' +
+    '<div style="font-size:12.5px;color:var(--cream-dim);line-height:1.7;margin-bottom:1rem">Aqui só quem está no <strong>big blind</strong> bota o pingo — um valorzinho pequeno (uns 25% da BB) que já vale pela mesa toda, ninguém mais paga nada. Sempre numa ficha que já existe no jogo.</div>' +
     '<button class="pgm-btn" style="width:100%" onclick="voltarTabelaBlinds()">Voltar pra tabela</button>'
   );
 }
@@ -3177,7 +3174,6 @@ function renderActiveSession() {
   document.getElementById('active-session-badge').className = 'pgm-badge '+(s.type==='oficial'?'pgm-badge-gold':(s.type==='torneio'?'pgm-badge-torneio':'pgm-badge-casual'));
   document.getElementById('active-session-badge').textContent = s.type==='oficial'?'🏆 Liga':(s.type==='torneio'?'🥊 Torneio':'🥃 Casual');
   document.getElementById('active-buyin').textContent = fmtRaw(s.buyin);
-  document.getElementById('active-rebuy').textContent = fmtRaw(s.rebuy||s.buyin);
   var classicoInfo = document.getElementById('active-classico-info');
   if(s.tourneyMode === 'classico') {
     if(!classicoInfo) {
