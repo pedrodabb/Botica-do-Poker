@@ -19,6 +19,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
     import { getDatabase, ref, set, onValue, get, update, remove, runTransaction } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+    import { getMessaging, getToken as getFcmToken } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-messaging.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyACviy1MMQadWQb0FQNzRReuaSvXALYzC0",
@@ -35,6 +36,30 @@
     const DB_REF = 'homegame/dados';
     const auth = getAuth(fbApp);
     const googleProvider = new GoogleAuthProvider();
+
+    // getMessaging() lança erro em navegador/contexto sem suporte a push
+    // (ex: sem HTTPS) — isolado pra não quebrar o resto da inicialização.
+    let messaging = null;
+    try { messaging = getMessaging(fbApp); } catch(e) { console.log('Push messaging não suportado:', e); }
+
+    window._fbGetMessagingToken = async function(vapidKey) {
+      if(!messaging) return null;
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const token = await getFcmToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: reg });
+        return token || null;
+      } catch(e) {
+        console.error('Erro ao obter token de push:', e);
+        return null;
+      }
+    };
+
+    window._fbSavePushToken = function(token) {
+      const safeKey = token.replace(/[.#$\[\]/]/g, '_');
+      const patch = {};
+      patch[safeKey] = { token: token, registeredAt: Date.now() };
+      return update(ref(db, DB_REF + '/pushTokens'), patch);
+    };
 
     window._fbSave = function(data) {
       window._fbIgnoreNext = true;
@@ -3127,7 +3152,8 @@ function renderBlindTimerBlock() {
     '<div class="pgm-row-btns" style="margin-top:0.5rem">' +
       '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="moverNivelBlind(-1)">◀ Nível anterior</button>' +
       '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="moverNivelBlind(1)">Próximo nível ▶</button>' +
-    '</div>';
+    '</div>' +
+    '<div id="blind-push-status">' + statusPushHTML() + '</div>';
   atualizarBlindTimerDisplay();
   if(!s.blindTimerPausedAt) pedirWakeLock();
 }
@@ -3246,6 +3272,50 @@ document.addEventListener('visibilitychange', function(){
     pedirWakeLock();
   }
 });
+
+/* Chave VAPID pública, gerada em Firebase Console → Configurações do
+   projeto → Cloud Messaging → Certificados push da Web. Sem isso o
+   botão "Avisar mesmo com a tela apagada" avisa que falta configurar
+   em vez de tentar registrar (nunca falha silenciosamente). */
+var VAPID_KEY_PUSH = 'COLE_AQUI_A_CHAVE_VAPID_DO_FIREBASE';
+
+function statusPushHTML() {
+  if(!('Notification' in window) || !('serviceWorker' in navigator) || !window._fbGetMessagingToken) return '';
+  var perm = Notification.permission;
+  if(perm === 'granted') {
+    return '<div style="text-align:center;margin-top:8px;font-size:10px;font-weight:700;color:var(--positive)">🔔 Avisos ativados neste aparelho</div>';
+  }
+  if(perm === 'denied') {
+    return '<div style="text-align:center;margin-top:8px;font-size:10px;font-weight:700;color:var(--text-dim)">🔕 Notificações bloqueadas nas configurações do navegador</div>';
+  }
+  return '<div style="text-align:center;margin-top:8px"><button class="pgm-btn pgm-btn-sm" onclick="ativarPushBlinds()">🔔 Avisar mesmo com a tela apagada</button></div>';
+}
+
+async function ativarPushBlinds() {
+  if(!('Notification' in window) || !('serviceWorker' in navigator) || !window._fbGetMessagingToken) {
+    showAlert('Seu navegador não suporta notificações push.');
+    return;
+  }
+  if(VAPID_KEY_PUSH.indexOf('COLE_AQUI') !== -1) {
+    showAlert('A chave VAPID do Firebase ainda não foi configurada — veja o passo a passo no CLAUDE.md.');
+    return;
+  }
+  var permissao = await Notification.requestPermission();
+  var statusEl = document.getElementById('blind-push-status');
+  if(permissao !== 'granted') {
+    if(statusEl) statusEl.innerHTML = statusPushHTML();
+    showAlert('Permissão de notificação negada. Pra ativar depois, muda nas configurações do navegador.');
+    return;
+  }
+  var token = await window._fbGetMessagingToken(VAPID_KEY_PUSH);
+  if(!token) {
+    showAlert('Não consegui registrar esse aparelho pra notificações. Tenta de novo.');
+    return;
+  }
+  window._fbSavePushToken(token);
+  if(statusEl) statusEl.innerHTML = statusPushHTML();
+  showAlert('🔔 Notificações ativadas! Você vai receber um aviso mesmo com a tela apagada.');
+}
 
 function openLeftTableModal(idx) {
   const s = S.activeSession;
