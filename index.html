@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <title>Home Game Manager</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
   <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
@@ -248,7 +248,7 @@
     .pgm-play-btn svg { display: block; }
     .pgm-play-btn-sm { width: 28px; height: 28px; min-width: 28px; }
 
-    .pgm-input { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 10px; color: var(--cream); font-family: 'DM Mono', monospace; font-size: 14px; padding: 0.55rem 0.75rem; width: 100%; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
+    .pgm-input { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 10px; color: var(--cream); font-family: 'Space Mono', monospace; font-size: 14px; padding: 0.55rem 0.75rem; width: 100%; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
     .pgm-input:focus { border-color: var(--gold); }
     .pgm-input::placeholder { color: var(--text-dim); }
     .pgm-textarea { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 10px; color: var(--cream); font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; padding: 0.6rem 0.75rem; width: 100%; outline: none; transition: border-color 0.15s; resize: vertical; min-height: 80px; line-height: 1.5; }
@@ -269,7 +269,7 @@
     .pgm-player-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
     .pgm-player-col-label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.06em; text-transform: uppercase; text-align: right; font-weight: 800; }
 
-    .pgm-money { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; text-align: right; }
+    .pgm-money { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 500; text-align: right; }
     .pgm-money.pos { color: var(--positive); } .pgm-money.neg { color: var(--negative); } .pgm-money.neu { color: var(--text-dim); }
 
     .pgm-new-player-form { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 1rem; }
@@ -289,17 +289,17 @@
     .pgm-icon-btn-neutral { width:30px; height:30px; border-radius:50%; background:rgba(201,168,76,0.1); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--gold-light); flex-shrink:0; cursor:pointer; line-height:1; }
     .pgm-icon-btn-neutral:hover { border-color:var(--gold-light); background:rgba(201,168,76,0.18); }
     .pgm-rcard { position:relative; display:flex; align-items:center; gap:11px; padding:8px 10px; border-radius:14px; margin-bottom:6px; background:linear-gradient(155deg, rgba(255,255,255,0.05) 0%, var(--felt-mid) 100%); border:1px solid var(--border); }
-    .pgm-rpos { width:26px; height:26px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; font-family:'DM Mono',monospace; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-dim); }
+    .pgm-rpos { width:26px; height:26px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; font-family:'Space Mono',monospace; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-dim); }
     .pgm-rpos.gold { background:linear-gradient(140deg,#ffe9a8,#d4af37); color:#3a2a06; border-color:transparent; font-size:14px; }
     .pgm-rpos.silver { background:linear-gradient(140deg,#eef0f2,#b8bec4); color:#2a2e33; border-color:transparent; font-size:14px; }
     .pgm-rpos.bronze { background:linear-gradient(140deg,#e3a869,#a86a35); color:#3a2408; border-color:transparent; font-size:14px; }
     .pgm-rname { color:var(--text-on-felt); font-size:13.5px; font-weight:900; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .pgm-rval { font-family:'DM Mono',monospace; font-size:13.5px; font-weight:800; flex-shrink:0; }
+    .pgm-rval { font-family:'Space Mono',monospace; font-size:13.5px; font-weight:800; flex-shrink:0; }
     .pgm-rval.pos { color:var(--positive); } .pgm-rval.neg { color:var(--negative); }
     .pgm-rcard .pgm-player-avatar { width:36px; height:36px; font-size:13px; border:2px solid var(--gold); background:linear-gradient(140deg,var(--gold-light),var(--gold)); }
     .pgm-rname-block { flex:1; min-width:0; }
     .pgm-rname-block .pgm-rname { font-size:13.5px; }
-    .pgm-rsub { font-size:10.5px; color:var(--text-dim); font-family:'DM Mono',monospace; margin-top:1px; }
+    .pgm-rsub { font-size:10.5px; color:var(--text-dim); font-family:'Space Mono',monospace; margin-top:1px; }
     .pgm-player-avatar { width:28px;height:28px;border-radius:50%;background:rgba(201,168,76,0.12);border:1.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;overflow:hidden;cursor:pointer;vertical-align:middle; }
     .pgm-player-avatar:hover { border-color:var(--gold-light); }
     .pgm-player-avatar img { width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;display:block;flex-shrink:0; }
@@ -312,7 +312,7 @@
     .pgm-pcard-body { flex:1; min-width:0; }
     .pgm-pcard-name { font-size:14px; font-weight:900; color:var(--text-on-felt); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .pgm-pcard.out .pgm-pcard-name { text-decoration:line-through; }
-    .pgm-pcard-meta { font-size:11.5px; color:var(--text-dim); font-family:'DM Mono',monospace; display:flex; align-items:center; gap:6px; margin-top:1px; }
+    .pgm-pcard-meta { font-size:11.5px; color:var(--text-dim); font-family:'Space Mono',monospace; display:flex; align-items:center; gap:6px; margin-top:1px; }
     .pgm-pcard-meta.saiu-pos { color:var(--positive); }
     .pgm-rebuy-tag { font-family:'Nunito',sans-serif; font-weight:800; color:var(--negative); background:rgba(241,106,106,0.12); border-radius:20px; padding:1px 7px; font-size:10px; }
     .pgm-pcard-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
@@ -330,7 +330,7 @@
     .pgm-rank-name { font-size: 14px; font-weight: 900; color: var(--cream); }
     .pgm-rank-sessions { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-top: 2px; }
     .pgm-rank-stats { text-align: right; }
-    .pgm-rank-avg { font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 500; }
+    .pgm-rank-avg { font-family: 'Space Mono', monospace; font-size: 15px; font-weight: 500; }
     .pgm-rank-detail { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-top: 2px; }
     .pgm-best-badge { font-size: 10px; font-weight: 800; background: rgba(201,168,76,0.12); color: var(--gold-dim); border-radius: 4px; padding: 2px 6px; margin-left: 6px; }
     .pgm-suit-divider { text-align: center; color: var(--border-strong); font-size: 14px; letter-spacing: 6px; margin: 0.5rem 0 1rem; }
@@ -360,7 +360,7 @@
     .pgm-confetti { position: absolute; top: -8px; width: 6px; height: 10px; border-radius: 2px; opacity: 0; animation: pgmConfettiFall 2.8s ease-in forwards; pointer-events: none; }
     @keyframes pgmConfettiFall { 0% { opacity: 1; transform: translateY(0) rotate(0deg); } 100% { opacity: 0; transform: translateY(90px) rotate(340deg); } }
 
-    .rebuy-item { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; color: var(--text-dim); padding: 3px 0; font-family: 'DM Mono', monospace; }
+    .rebuy-item { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; color: var(--text-dim); padding: 3px 0; font-family: 'Space Mono', monospace; }
 
     .pgm-select { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 7px; color: var(--cream); font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; padding: 0.55rem 0.75rem; width: 100%; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; }
     .pgm-select:focus { border-color: var(--curio); }
@@ -397,7 +397,7 @@
     .pgm-quadro { border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,0.035); margin-bottom: 8px; overflow: hidden; }
     .pgm-quadro-head { display: flex; align-items: center; gap: 9px; width: 100%; padding: 11px 13px; background: none; border: none; cursor: pointer; text-align: left; font-family: 'Nunito', sans-serif; }
     .pgm-quadro-titulo { flex: 1; font-size: 12px; font-weight: 900; color: var(--gold-light); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pgm-quadro-resumo { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 900; color: var(--cream); white-space: nowrap; flex-shrink: 0; }
+    .pgm-quadro-resumo { font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 900; color: var(--cream); white-space: nowrap; flex-shrink: 0; }
     .pgm-quadro-seta { color: var(--text-dim); font-size: 11px; font-weight: 900; transition: transform 0.2s ease; flex-shrink: 0; }
     .pgm-quadro.aberto .pgm-quadro-seta { transform: rotate(90deg); }
     .pgm-quadro-corpo { display: none; padding: 0 13px 13px; }
@@ -406,12 +406,12 @@
     .pgm-quadro.aberto .pgm-quadro-corpo { display: block; }
 
     /* Ficha desenhada — o valor vai escrito dentro, a cor é só leitura visual. */
-    .pgm-ficha { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 900; border: 2.5px dashed rgba(255,255,255,0.5); box-shadow: 0 2px 6px rgba(0,0,0,0.4); flex-shrink: 0; }
+    .pgm-ficha { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 900; border: 2.5px dashed rgba(255,255,255,0.5); box-shadow: 0 2px 6px rgba(0,0,0,0.4); flex-shrink: 0; }
     .pgm-ficha-row { display: grid; grid-template-columns: 34px 1fr auto; gap: 11px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
     .pgm-ficha-row:last-of-type { border-bottom: none; }
-    .pgm-ficha-qtd { font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 900; color: var(--cream); }
+    .pgm-ficha-qtd { font-family: 'Space Mono', monospace; font-size: 15px; font-weight: 900; color: var(--cream); }
     .pgm-ficha-qtd small { font-size: 10px; color: var(--text-dim); font-weight: 800; margin-left: 2px; }
-    .pgm-ficha-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); font-weight: 800; }
+    .pgm-ficha-sub { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-dim); font-weight: 800; }
     .pgm-ficha-total { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--border-strong); display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 800; color: var(--text-dim); }
     .pgm-offline-pill { display:none; align-items:center; gap:5px; background:rgba(231,76,60,0.18); border:1px solid rgba(231,76,60,0.4); border-radius:20px; padding:3px 10px; font-size:11px; font-weight:800; color:#f16a6a; font-family:'Nunito',sans-serif; }
     .pgm-offline-pill.visible { display:flex; }
@@ -492,7 +492,7 @@
   <div id="senha-mesa-block" style="width:100%;max-width:260px">
     <input type="password" id="senha-input" placeholder="Senha"
       style="background:rgba(255,255,255,0.06);border:1px solid rgba(201,168,76,0.45);border-radius:10px;
-             color:#fff;font-family:DM Mono,monospace;font-size:18px;padding:0.75rem 1.25rem;
+             color:#fff;font-family:Space Mono,monospace;font-size:18px;padding:0.75rem 1.25rem;
              width:100%;outline:none;text-align:center;letter-spacing:0.15em;margin-bottom:0.75rem">
     <div id="senha-erro" style="font-size:12px;font-weight:800;color:#f16a6a;font-family:Nunito,sans-serif;height:18px;margin-bottom:0.75rem"></div>
     <button onclick="checkSenha()"
@@ -643,15 +643,15 @@
             <span id="active-session-badge" class="pgm-badge pgm-badge-gold">🏆 Liga</span>
           </div>
           <div style="font-size:12px;font-weight:800;color:var(--cream-dim)">
-            Buy-in: <span id="active-buyin" style="color:var(--gold-light);font-family:'DM Mono',monospace">R$ 20</span>
+            Buy-in: <span id="active-buyin" style="color:var(--gold-light);font-family:'Space Mono',monospace">R$ 20</span>
             &nbsp;·&nbsp;
-            Rebuy: <span id="active-rebuy" style="color:var(--gold-light);font-family:'DM Mono',monospace">R$ 20</span>
+            Rebuy: <span id="active-rebuy" style="color:var(--gold-light);font-family:'Space Mono',monospace">R$ 20</span>
             &nbsp;·&nbsp;
-            Pot: <span id="active-pot" style="color:var(--gold-light);font-family:'DM Mono',monospace">R$ 0</span>
+            Pot: <span id="active-pot" style="color:var(--gold-light);font-family:'Space Mono',monospace">R$ 0</span>
           </div>
           <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;padding-top:0.45rem;border-top:1px solid var(--border)">
             <button onclick="toggleSessionTimer()" id="timer-toggle-btn" class="pgm-play-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg></button>
-            <span id="active-timer" style="color:var(--gold-light);font-family:'DM Mono',monospace;font-size:13px;font-weight:800">⏱️ 00:00:00</span>
+            <span id="active-timer" style="color:var(--gold-light);font-family:'Space Mono',monospace;font-size:13px;font-weight:800">⏱️ 00:00:00</span>
           </div>
           <div class="pgm-pot-bar" style="margin-top:0.5rem;margin-bottom:0"><div id="active-pot-bar" class="pgm-pot-fill" style="width:0%"></div></div>
         </div>
@@ -1886,11 +1886,11 @@ function renderBlindTable(r) {
   r.niveis.forEach(function(n, i) {
     acumMin += n.duracaoMin;
     linhas += '<div style="display:grid;grid-template-columns:' + colsNiveis + ';gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
-      '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + n.nivel + '</div>' +
+      '<div style="font-family:Space Mono,monospace;color:var(--text-dim)">' + n.nivel + '</div>' +
       '<div style="font-size:9px;font-weight:800;color:var(--gold-dim);text-transform:uppercase">' + n.fase + '</div>' +
       '<div style="color:var(--text-dim)">' + n.duracaoMin + 'min</div>' +
-      '<div style="font-family:DM Mono,monospace;font-weight:800;color:var(--cream)">' + n.sb.toLocaleString('pt-BR') + '/' + n.bb.toLocaleString('pt-BR') + '</div>' +
-      (r.comAnte ? '<div style="font-family:DM Mono,monospace;color:var(--text-dim)">' + (n.ante ? n.ante.toLocaleString('pt-BR') : '—') + '</div>' : '') +
+      '<div style="font-family:Space Mono,monospace;font-weight:800;color:var(--cream)">' + n.sb.toLocaleString('pt-BR') + '/' + n.bb.toLocaleString('pt-BR') + '</div>' +
+      (r.comAnte ? '<div style="font-family:Space Mono,monospace;color:var(--text-dim)">' + (n.ante ? n.ante.toLocaleString('pt-BR') : '—') + '</div>' : '') +
     '</div>';
     if(r.comRebuy && n.nivel === r.addonAposNivel) linhas += addonBanda;
   });
@@ -1952,8 +1952,8 @@ function renderBlindTable(r) {
     '<div class="pgm-modal-title">' + ICON_CALCULADORA + ' Estrutura — ' + velLabel + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem;line-height:1.5">' + r.niveis.length + ' níveis · ' + formatarDuracao(r.duracaoTotalMin) + notaTempo + ' · ' + r.numJogadores + ' jogadores</div>' +
     '<div style="display:flex;gap:6px;margin-bottom:0.6rem">' +
-      '<div style="flex:1;background:rgba(255,255,255,0.04);border-radius:8px;padding:6px 9px"><div style="font-size:9px;color:var(--text-dim);font-weight:800;text-transform:uppercase">Profundidade</div><div style="font-family:DM Mono,monospace;font-size:13px;font-weight:900;color:var(--gold-light)">' + r.profundidadeInicial + ' BB</div></div>' +
-      '<div style="flex:1;background:rgba(255,255,255,0.04);border-radius:8px;padding:6px 9px"><div style="font-size:9px;color:var(--text-dim);font-weight:800;text-transform:uppercase">Fichas em jogo</div><div style="font-family:DM Mono,monospace;font-size:13px;font-weight:900;color:var(--cream)">' + r.totalFichas.toLocaleString('pt-BR') + '</div></div>' +
+      '<div style="flex:1;background:rgba(255,255,255,0.04);border-radius:8px;padding:6px 9px"><div style="font-size:9px;color:var(--text-dim);font-weight:800;text-transform:uppercase">Profundidade</div><div style="font-family:Space Mono,monospace;font-size:13px;font-weight:900;color:var(--gold-light)">' + r.profundidadeInicial + ' BB</div></div>' +
+      '<div style="flex:1;background:rgba(255,255,255,0.04);border-radius:8px;padding:6px 9px"><div style="font-size:9px;color:var(--text-dim);font-weight:800;text-transform:uppercase">Fichas em jogo</div><div style="font-family:Space Mono,monospace;font-size:13px;font-weight:900;color:var(--cream)">' + r.totalFichas.toLocaleString('pt-BR') + '</div></div>' +
     '</div>' +
     alerta + quadroStack + quadroRebuy + quadroNiveis +
     '<button class="pgm-btn pgm-btn-success" style="width:100%;margin-top:0.75rem" onclick="usarEstruturaTorneio()">✓ Usar esta estrutura</button>' +
@@ -3280,7 +3280,7 @@ function atualizarBlindTimerDisplay() {
     corpo.innerHTML =
       '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">' +
         '<div style="font-size:10px;font-weight:900;color:var(--gold-dim);text-transform:uppercase">🔔 Apito ' + (atual.idx+1) + '</div>' +
-        '<div style="font-family:DM Mono,monospace;font-size:20px;font-weight:900;color:var(--gold-light)">' + min + ':' + (seg<10?'0':'') + seg + '</div>' +
+        '<div style="font-family:Space Mono,monospace;font-size:20px;font-weight:900;color:var(--gold-light)">' + min + ':' + (seg<10?'0':'') + seg + '</div>' +
       '</div>' +
       '<div class="pgm-pot-bar" style="margin-top:6px"><div class="pgm-pot-fill" style="width:' + pct + '%"></div></div>' +
       '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px">Apita a cada ' + atual.duracaoFaseMin + ' min</div>';
@@ -3290,9 +3290,9 @@ function atualizarBlindTimerDisplay() {
   corpo.innerHTML =
     '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">' +
       '<div style="font-size:10px;font-weight:900;color:var(--gold-dim);text-transform:uppercase">Nível ' + (atual.idx+1) + (atual.nivel.fase ? ' · ' + atual.nivel.fase : '') + '</div>' +
-      '<div style="font-family:DM Mono,monospace;font-size:20px;font-weight:900;color:var(--gold-light)">' + min + ':' + (seg<10?'0':'') + seg + '</div>' +
+      '<div style="font-family:Space Mono,monospace;font-size:20px;font-weight:900;color:var(--gold-light)">' + min + ':' + (seg<10?'0':'') + seg + '</div>' +
     '</div>' +
-    '<div style="font-family:DM Mono,monospace;font-size:22px;font-weight:900;color:var(--cream)">' + atual.nivel.sb.toLocaleString('pt-BR') + ' / ' + atual.nivel.bb.toLocaleString('pt-BR') +
+    '<div style="font-family:Space Mono,monospace;font-size:22px;font-weight:900;color:var(--cream)">' + atual.nivel.sb.toLocaleString('pt-BR') + ' / ' + atual.nivel.bb.toLocaleString('pt-BR') +
       (atual.nivel.ante ? '<span style="font-size:12px;color:var(--text-dim);font-weight:700"> · ante ' + atual.nivel.ante.toLocaleString('pt-BR') + '</span>' : '') +
     '</div>' +
     '<div class="pgm-pot-bar" style="margin-top:6px"><div class="pgm-pot-fill" style="width:' + pct + '%"></div></div>' +
@@ -4432,7 +4432,7 @@ function showDevolucaoPix(sessionIndex) {
     '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.85rem;line-height:1.5">Valor que cada um leva pra casa — o que ficou na mesa com ele, não o lucro.</div>' +
     rowsHTML +
     '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:0.75rem;margin-top:0.5rem;font-size:12px;font-weight:900;color:var(--cream)">' +
-      '<span>Total a devolver</span><span style="font-family:\'DM Mono\',monospace">' + fmtRaw(totalDevolver) + '</span>' +
+      '<span>Total a devolver</span><span style="font-family:\'Space Mono\',monospace">' + fmtRaw(totalDevolver) + '</span>' +
     '</div>' +
     (bateuPot ? '' : '<div class="pgm-warn" style="margin-top:0.6rem;font-size:11px">⚠️ Total a devolver (' + fmtRaw(totalDevolver) + ') diferente do pot (' + fmtRaw(pot) + ') — confira os stacks finais registrados.</div>') +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
@@ -4529,7 +4529,7 @@ function showSeasonDetail(idx) {
           '<div style="font-size:16px;margin-bottom:3px">' + (medals[realPos-1]||'#'+realPos) + '</div>' +
           '<div style="width:30px;height:30px;border-radius:50%;background:' + mc.bg + ';border:2px solid ' + mc.border + ';color:' + mc.color + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;margin:0 auto 5px;overflow:hidden">' + avatarInner + '</div>' +
           '<div style="font-size:11px;font-weight:900;color:#f0ede4;margin-bottom:2px">' + escHtml(p.name) + '</div>' +
-          '<div style="font-size:13px;font-weight:900;color:#c9a84c;font-family:DM Mono,monospace">' + avg + '</div>' +
+          '<div style="font-size:13px;font-weight:900;color:#c9a84c;font-family:Space Mono,monospace">' + avg + '</div>' +
           '<div style="font-size:9px;font-weight:700;color:#5a7a5a">pts/sess</div>' +
         '</div>';
       }).join('') +
@@ -4607,7 +4607,7 @@ function closeModal() { const el=document.getElementById('pgm-modal'); el.style.
 function showRulesGuide() {
   function rows(data) {
     return data.map(function(r) {
-      return '<div class="pgm-rules-row"><span>' + r[0] + '</span><span style="color:var(--gold-light);font-family:\'DM Mono\',monospace">' + r[1] + ' pts</span></div>';
+      return '<div class="pgm-rules-row"><span>' + r[0] + '</span><span style="color:var(--gold-light);font-family:\'Space Mono\',monospace">' + r[1] + ' pts</span></div>';
     }).join('');
   }
   var liga = [['🥇 1º lugar','6'],['🥈 2º lugar','3'],['🥉 3º lugar','2'],['4º lugar','1'],['5º lugar em diante','0']];
@@ -4794,7 +4794,7 @@ function showAdminPanel() {
     '<div style="font-size:10px;color:var(--text-dim);font-weight:900;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.5rem">Código temporário (casuais)</div>' +
     (tcAtivo
       ? '<div style="text-align:center;margin-bottom:0.6rem">' +
-          '<div style="font-size:28px;font-weight:900;color:var(--gold-light);font-family:\'DM Mono\',monospace;letter-spacing:0.1em">' + tc.code + '</div>' +
+          '<div style="font-size:28px;font-weight:900;color:var(--gold-light);font-family:\'Space Mono\',monospace;letter-spacing:0.1em">' + tc.code + '</div>' +
           '<div style="font-size:11px;color:var(--text-dim);font-weight:700;margin-top:2px">Expira às ' + new Date(tc.expiresAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) + '</div>' +
         '</div>' +
         '<div class="pgm-row-btns"><button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="gerarCodigoTemporario()">Gerar novo</button><button class="pgm-btn pgm-btn-danger pgm-btn-sm" style="flex:1" onclick="revogarCodigoTemporario()">Revogar</button></div>'
