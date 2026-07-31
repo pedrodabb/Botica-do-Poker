@@ -3752,7 +3752,7 @@ function renderAcumulado() {
         '</div>';
       }).join('');
       })()
-    : '<div style="font-size:11px;color:var(--text-dim);padding:0.5rem 0">Nenhuma sessão oficial ainda</div>';
+    : '<div class="pgm-empty-state"><div class="suit">★</div>Nenhuma sessão oficial ainda</div>';
 
   const rankedLucro = all.sort(function(a,b){
     if(b.profit !== a.profit) return b.profit - a.profit;
@@ -3777,7 +3777,7 @@ function renderAcumulado() {
         '</div>';
       }).join('');
       })()
-    : '<div style="font-size:11px;color:var(--text-dim);padding:0.5rem 0">Nenhuma sessão oficial ainda</div>';
+    : '<div class="pgm-empty-state"><div class="suit">★</div>Nenhuma sessão oficial ainda</div>';
 }
 
 function getPontosPosicao(pos) {
