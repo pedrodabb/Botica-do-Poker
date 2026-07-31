@@ -3125,6 +3125,7 @@ function renderBlindTimerBlock() {
     if(container) container.style.display = 'none';
     liberarWakeLock();
     if(window._blindTimerInterval) { clearInterval(window._blindTimerInterval); window._blindTimerInterval = null; }
+    if(window._blindPushInstantTimeout) { clearTimeout(window._blindPushInstantTimeout); window._blindPushInstantTimeout = null; }
     return;
   }
   /* intervalo PRÓPRIO, independente do timer geral da sessão — o timer de
@@ -3133,6 +3134,7 @@ function renderBlindTimerBlock() {
      pausado (são coisas diferentes: um é "quanto tempo a mesa tá aberta",
      o outro é "quanto falta pro próximo blind"). */
   if(!window._blindTimerInterval) window._blindTimerInterval = setInterval(atualizarBlindTimerDisplay, 1000);
+  agendarGatilhoPushInstantaneo(s);
   if(window._blindTimerSessionUid !== s._uid) {
     window._blindTimerSessionUid = s._uid;
     window._blindTimerUltimoNivel = undefined;
@@ -3216,6 +3218,7 @@ function toggleBlindTimer() {
   }
   savePatch({ 'activeSession/blindTimerPausedAt': s.blindTimerPausedAt, 'activeSession/blindTimerTotalPaused': s.blindTimerTotalPaused });
   atualizarBlindTimerDisplay();
+  agendarGatilhoPushInstantaneo(s);
 }
 
 function moverNivelBlind(delta) {
@@ -3231,6 +3234,7 @@ function moverNivelBlind(delta) {
   s.blindTimerTotalPaused = 0;
   savePatch({ 'activeSession/blindTimerStartedAt': s.blindTimerStartedAt, 'activeSession/blindTimerTotalPaused': s.blindTimerTotalPaused });
   atualizarBlindTimerDisplay();
+  agendarGatilhoPushInstantaneo(s);
 }
 
 /* Só admin, só pra testar o push notification rápido (sessão real
@@ -3311,6 +3315,32 @@ document.addEventListener('visibilitychange', function(){
    botão "Avisar mesmo com a tela apagada" avisa que falta configurar
    em vez de tentar registrar (nunca falha silenciosamente). */
 var VAPID_KEY_PUSH = 'BK11wZ8RULnuaBohBjdR0zuSXPW8bImocMWztDAOKhZ-Vfnb78kOnmbyimQkf-DYMksBMTP27CDiR6CCpN7hM4s';
+
+var WORKER_URL_PUSH = 'https://botica-blind-push.pedrodabb.workers.dev/';
+
+/* O Worker da Cloudflare roda sozinho de 1 em 1 minuto (mínimo da
+   plataforma) — bom o bastante como rede de segurança, mas devagar
+   demais pra poker de verdade (1 minuto muda tudo). Então, sempre que
+   ALGUM aparelho estiver com o app aberto olhando o timer (o caso mais
+   comum — sempre tem alguém de olho), esse aparelho agenda um alarme
+   pro segundo exato da próxima troca de nível e cutuca o Worker na
+   hora, sem esperar o próximo minuto redondo do cron. Isso só funciona
+   com a aba realmente aberta e visível (o navegador pausa timers de
+   aba em segundo plano/tela apagada) — é um reforço de velocidade pro
+   caso comum, o cron continua cobrindo o caso "ninguém com a tela
+   acesa". Chamado toda vez que o relógio do timer muda: início,
+   pausa/retomada, navegação manual de nível. */
+function agendarGatilhoPushInstantaneo(s) {
+  if(window._blindPushInstantTimeout) { clearTimeout(window._blindPushInstantTimeout); window._blindPushInstantTimeout = null; }
+  if(!s || s.blindTimerPausedAt) return;
+  var atual = calcNivelBlindAtual(s);
+  if(!atual || !atual.proximo) return;
+  var esperaMs = Math.max(0, atual.restanteMin * 60000) + 1500;
+  if(esperaMs > 30 * 60000) return; // nível longo demais, deixa o cron cuidar
+  window._blindPushInstantTimeout = setTimeout(function() {
+    fetch(WORKER_URL_PUSH).catch(function(){});
+  }, esperaMs);
+}
 
 function statusPushHTML() {
   if(!('Notification' in window) || !('serviceWorker' in navigator) || !window._fbGetMessagingToken) return '';
