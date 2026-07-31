@@ -3267,18 +3267,20 @@ function acelerarBlindsParaTeste() {
 function tocarAlertaNivel() {
   try {
     var ctx = new (window.AudioContext || window.webkitAudioContext)();
-    [0, 0.18, 0.36].forEach(function(t){
+    var tempos = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
+    var ganhos = [0.20, 0.24, 0.28, 0.32, 0.36, 0.42];
+    tempos.forEach(function(t, i){
       var osc = ctx.createOscillator(), gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
       osc.frequency.value = 880;
       gain.gain.setValueAtTime(0.001, ctx.currentTime + t);
-      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + t + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.15);
+      gain.gain.exponentialRampToValueAtTime(ganhos[i], ctx.currentTime + t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.17);
       osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.16);
+      osc.stop(ctx.currentTime + t + 0.18);
     });
   } catch(e) {}
-  if(navigator.vibrate) { try { navigator.vibrate([200,100,200,100,200]); } catch(e) {} }
+  if(navigator.vibrate) { try { navigator.vibrate([200,100,200,100,200,100,200,100,200,100,200]); } catch(e) {} }
 }
 
 function tocarAvisoLeve() {
