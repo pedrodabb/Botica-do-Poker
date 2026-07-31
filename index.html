@@ -3315,11 +3315,17 @@ var VAPID_KEY_PUSH = 'BK11wZ8RULnuaBohBjdR0zuSXPW8bImocMWztDAOKhZ-Vfnb78kOnmbyim
 function statusPushHTML() {
   if(!('Notification' in window) || !('serviceWorker' in navigator) || !window._fbGetMessagingToken) return '';
   var perm = Notification.permission;
-  if(perm === 'granted') {
-    return '<div style="text-align:center;margin-top:8px;font-size:10px;font-weight:700;color:var(--positive)">🔔 Avisos ativados neste aparelho</div>';
-  }
   if(perm === 'denied') {
     return '<div style="text-align:center;margin-top:8px;font-size:10px;font-weight:700;color:var(--text-dim)">🔕 Notificações bloqueadas nas configurações do navegador</div>';
+  }
+  // A permissão do navegador ('granted') não expira sozinha, mas o
+  // registro real (token no Firebase) sim, em 8h — por isso checa
+  // pgm_push_exp em vez de só a permissão, senão a tela ficaria
+  // dizendo "ativado" mesmo depois do registro já ter vencido/sido
+  // apagado, e a pessoa nunca ia saber que precisa clicar de novo.
+  var pushExp = parseInt(localStorage.getItem('pgm_push_exp') || '0', 10);
+  if(perm === 'granted' && Date.now() < pushExp) {
+    return '<div style="text-align:center;margin-top:8px;font-size:10px;font-weight:700;color:var(--positive)">🔔 Avisos ativados neste aparelho</div>';
   }
   return '<div style="text-align:center;margin-top:8px"><button class="pgm-btn pgm-btn-sm" onclick="ativarPushBlinds()">🔔 Avisar mesmo com a tela apagada</button></div>';
 }
@@ -3346,6 +3352,10 @@ async function ativarPushBlinds() {
     return;
   }
   window._fbSavePushToken(token);
+  // Mesma validade que _fbSavePushToken grava lá no Firebase (8h,
+  // igual o login) — guardada aqui local pra statusPushHTML() saber
+  // quando parar de mostrar "ativado" sem precisar consultar o banco.
+  localStorage.setItem('pgm_push_exp', localStorage.getItem('pgm_auth_exp') || '0');
   if(statusEl) statusEl.innerHTML = statusPushHTML();
   showAlert('🔔 Notificações ativadas! Você vai receber um aviso mesmo com a tela apagada.');
 }
