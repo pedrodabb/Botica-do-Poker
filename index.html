@@ -66,6 +66,14 @@
       return update(ref(db, DB_REF + '/pushTokens'), patch);
     };
 
+    // Desligar antes das 8h de validade natural — sem isso o Worker
+    // continuaria achando o token em pushTokens e mandando push até
+    // expirar sozinho, mesmo com a pessoa já tendo desativado aqui.
+    window._fbRemovePushToken = function(token) {
+      const safeKey = token.replace(/[.#$\[\]/]/g, '_');
+      return remove(ref(db, DB_REF + '/pushTokens/' + safeKey));
+    };
+
     window._fbSave = function(data) {
       window._fbIgnoreNext = true;
       setTimeout(function(){ window._fbIgnoreNext = false; }, 3000);
@@ -625,7 +633,7 @@
           </div>
           <div class="pgm-field">
             <label class="pgm-input-label">Buy-in (R$)</label>
-            <input type="text" inputmode="numeric" id="new-session-buyin" class="pgm-input" placeholder="0,00" oninput="maskMoedaOninput(this)">
+            <input type="text" inputmode="numeric" id="new-session-buyin" class="pgm-input" placeholder="0" oninput="maskMoedaOninput(this)">
           </div>
 
           <div class="pgm-section-title" style="margin-top:0.5rem">Jogadores da sessão</div>
@@ -868,7 +876,7 @@ function initFirebaseSync() {
     const localTime = S._lastUpdate || 0;
     if(remoteTime < localTime) return;
 
-    const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession','tempCode','_lastUpdate','authConfig'];
+    const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession','tempCode','_lastUpdate','authConfig','favoritosBlinds'];
     keys.forEach(k=>{ if(data[k]!==undefined) S[k]=data[k]; });
     S.activeSession = data.activeSession || null;
     var hadMissingUid = S.sessions.some(function(s){ return !s._uid; });
@@ -3068,7 +3076,7 @@ function addPlayer(nameOverride) {
   const name = nameOverride || inp.value.trim();
   if(!name) return;
   if(S.newSession.players.find(p=>p.name.toLowerCase()===name.toLowerCase())) { inp.value=''; return; }
-  const buyin = parseMoedaBR(document.getElementById('new-session-buyin').value)||20;
+  const buyin = parseMoedaBR(document.getElementById('new-session-buyin').value)||0;
   S.newSession.players.push({ name, buyin, rebuys:[] });
   inp.value = ''; renderNewPlayers();
 }
@@ -3112,7 +3120,8 @@ function startSession() {
   var oficialCount = S.sessions.filter(function(s){ return s.type==='oficial'; }).length;
   if(type==='oficial' && oficialCount>=5) { showAlert('Temporada já tem 5 sessões oficiais!'); return; }
   if(!S.newSession.players.length) { showAlert('Adicione pelo menos um jogador.'); return; }
-  var buyin = parseMoedaBR(document.getElementById('new-session-buyin').value)||20;
+  var buyin = parseMoedaBR(document.getElementById('new-session-buyin').value);
+  if(!buyin || buyin <= 0) { showAlert('Informe o valor do buy-in.'); return; }
   var rebuy = buyin;
   var date  = document.getElementById('new-session-date').value || new Date().toISOString().split('T')[0];
   var labelEl = document.getElementById('new-session-label');
@@ -3267,6 +3276,7 @@ function renderBlindTimerBlock() {
   if(!s || !s.estruturaBlinds) {
     if(container) container.style.display = 'none';
     liberarWakeLock();
+    window._blindIntervaloEditando = false;
     if(window._blindTimerInterval) { clearInterval(window._blindTimerInterval); window._blindTimerInterval = null; }
     if(window._blindPushInstantTimeout) { clearTimeout(window._blindPushInstantTimeout); window._blindPushInstantTimeout = null; }
     return;
@@ -3282,6 +3292,7 @@ function renderBlindTimerBlock() {
     window._blindTimerSessionUid = s._uid;
     window._blindTimerUltimoNivel = undefined;
     window._blindTimerAvisoTocado = false;
+    window._blindIntervaloEditando = false;
   }
   if(!container) {
     container = document.createElement('div');
@@ -3312,6 +3323,11 @@ function renderBlindTimerBlock() {
 function atualizarBlindTimerDisplay() {
   var s = S.activeSession;
   if(!s || !s.estruturaBlinds) return;
+  // Sem essa trava, o setInterval de 1s (que roda sozinho, redesenhando a
+  // contagem regressiva) pisava no campo de edição do intervalo assim que
+  // ele abria — parecia "bugar e sair muito rápido", mas era só o redesenho
+  // automático substituindo o innerHTML por baixo do que a pessoa via.
+  if(window._blindIntervaloEditando) return;
   var corpo = document.getElementById('blind-timer-corpo');
   if(!corpo) return;
   var atual = calcNivelBlindAtual(s);
@@ -3368,15 +3384,21 @@ function editarIntervaloBlindSimples() {
   if(!s || !s.estruturaBlinds || !s.estruturaBlinds.simples) return;
   var corpo = document.getElementById('blind-timer-corpo');
   if(!corpo) return;
+  window._blindIntervaloEditando = true;
   corpo.innerHTML =
     '<div style="font-size:10px;font-weight:900;color:var(--gold-dim);text-transform:uppercase;margin-bottom:6px">⏳ Editar intervalo</div>' +
     '<div style="display:flex;gap:6px;align-items:center">' +
       '<input type="number" id="blind-intervalo-edit-input" class="pgm-input" min="1" value="' + s.estruturaBlinds.intervaloMin + '" style="flex:1;padding:6px 8px;font-size:13px">' +
       '<button class="pgm-btn pgm-btn-sm" onclick="confirmarEditarIntervaloBlindSimples()">Salvar</button>' +
-      '<button onclick="atualizarBlindTimerDisplay()" title="Cancelar" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0 4px">✕</button>' +
+      '<button onclick="cancelarEditarIntervaloBlindSimples()" title="Cancelar" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0 4px">✕</button>' +
     '</div>';
   var inp = document.getElementById('blind-intervalo-edit-input');
   if(inp) { inp.focus(); inp.select(); inp.addEventListener('keydown', function(e){ if(e.key==='Enter') confirmarEditarIntervaloBlindSimples(); }); }
+}
+
+function cancelarEditarIntervaloBlindSimples() {
+  window._blindIntervaloEditando = false;
+  atualizarBlindTimerDisplay();
 }
 
 /* Reposiciona o relógio pra manter o número do "apito" atual (idx) mas
@@ -3401,6 +3423,7 @@ function confirmarEditarIntervaloBlindSimples() {
     'activeSession/blindTimerTotalPaused': 0
   });
   window._blindTimerAvisoTocado = false;
+  window._blindIntervaloEditando = false;
   atualizarBlindTimerDisplay();
   agendarGatilhoPushInstantaneo(s);
 }
@@ -3576,7 +3599,8 @@ function statusPushHTML() {
   // apagado, e a pessoa nunca ia saber que precisa clicar de novo.
   var pushExp = parseInt(localStorage.getItem('pgm_push_exp') || '0', 10);
   if(perm === 'granted' && Date.now() < pushExp) {
-    return '<div style="text-align:center;margin-top:8px;font-size:10px;font-weight:700;color:var(--positive)">🔔 Avisos ativados neste aparelho</div>';
+    return '<div style="text-align:center;margin-top:8px;font-size:10px;font-weight:700;color:var(--positive)">🔔 Avisos ativados neste aparelho ' +
+      '<button onclick="desativarPushBlinds()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:10px;font-weight:700;text-decoration:underline;padding:0;margin-left:4px">desativar</button></div>';
   }
   return '<div style="text-align:center;margin-top:8px"><button class="pgm-btn pgm-btn-sm" onclick="ativarPushBlinds()">🔔 Avisar mesmo com a tela apagada</button></div>';
 }
@@ -3607,8 +3631,21 @@ async function ativarPushBlinds() {
   // igual o login) — guardada aqui local pra statusPushHTML() saber
   // quando parar de mostrar "ativado" sem precisar consultar o banco.
   localStorage.setItem('pgm_push_exp', localStorage.getItem('pgm_auth_exp') || '0');
+  // Guarda o token em si (não só a validade) pra dar pra remover de novo
+  // do Firebase se a pessoa clicar em "desativar" antes das 8h vencerem.
+  localStorage.setItem('pgm_push_token', token);
   if(statusEl) statusEl.innerHTML = statusPushHTML();
   showAlert('🔔 Notificações ativadas! Você vai receber um aviso mesmo com a tela apagada.');
+}
+
+function desativarPushBlinds() {
+  var token = localStorage.getItem('pgm_push_token');
+  if(token && window._fbRemovePushToken) window._fbRemovePushToken(token);
+  localStorage.removeItem('pgm_push_exp');
+  localStorage.removeItem('pgm_push_token');
+  var statusEl = document.getElementById('blind-push-status');
+  if(statusEl) statusEl.innerHTML = statusPushHTML();
+  showAlert('🔕 Avisos com a tela apagada desativados neste aparelho.');
 }
 
 function openLeftTableModal(idx) {
@@ -3620,7 +3657,7 @@ function openLeftTableModal(idx) {
     '<div class="pgm-modal-title">× ' + escHtml(p.name) + ' saiu da mesa <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:12px;color:var(--text-dim);margin-bottom:0.75rem">Investiu: ' + fmtRaw(investido) + '</div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Stack final (R$)</label>' +
-    '<input type="text" inputmode="numeric" id="left-table-stack" class="pgm-input" placeholder="0,00" autofocus oninput="maskMoedaOninput(this)"></div>' +
+    '<input type="text" inputmode="numeric" id="left-table-stack" class="pgm-input" placeholder="0" autofocus oninput="maskMoedaOninput(this)"></div>' +
     '<div class="pgm-row-btns"><button class="pgm-btn pgm-btn-success" style="flex:1" id="btn-confirm-left">Confirmar saída</button></div>'
   );
   setTimeout(function() {
@@ -3863,7 +3900,7 @@ function openFinishSession() {
     var jaSaiu = p.leftTable;
     var inputHTML = jaSaiu
       ? '<input type="text" inputmode="numeric" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px;opacity:0.6" value="' + (p.finalStack||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '" readonly oninput="maskMoedaOninput(this);updateFinishPot()">'
-      : '<input type="text" inputmode="numeric" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0,00" oninput="maskMoedaOninput(this);updateFinishPot()">';
+      : '<input type="text" inputmode="numeric" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0" oninput="maskMoedaOninput(this);updateFinishPot()">';
     return '<div class="pgm-final-row">' +
       '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px;' + (jaSaiu?'opacity:0.6':'') + '">' + avatarHTML(p.name,'pgm-player-avatar','♟') + escHtml(p.name) + (jaSaiu?' <span style="font-size:9px;color:var(--text-dim)">(saiu)</span>':'') + '</div>' +
       '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
