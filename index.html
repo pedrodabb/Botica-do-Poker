@@ -379,11 +379,13 @@
     .pgm-modal { background: #16271b; border: 1px solid var(--border-strong); border-radius: 16px; padding: 1.25rem; width: 100%; max-width: 360px; max-height: 85vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.5); animation: pgmModalUp 0.25s ease-out; }
     @keyframes pgmModalUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     /* Reaproveitada quando um modal já aberto só atualiza um valor pequeno
-       (ex: mover o add-on ▲▼ na calculadora) — bem mais discreta que o
-       "abrir modal" normal (reduzida de novo, a primeira versão em 0,13s/
-       8px ainda dava tontura de tanto repetir em cliques seguidos). */
-    .pgm-modal.pgm-modal-soft { animation: pgmModalUpSoft 0.06s ease-out; }
-    @keyframes pgmModalUpSoft { from { transform: translateY(2px); opacity: 0.85; } to { transform: translateY(0); opacity: 1; } }
+       (ex: mover o add-on ▲▼ na calculadora) — depois de duas reduções
+       (0,13s/8px, depois 0,06s/2px) ainda parecia "a tela toda pulando"
+       no celular (o modal cobre quase a tela toda, então qualquer
+       transform/fade no wrapper inteiro se vê como um salto grande).
+       Tirada de vez: sem animação nenhuma, só a troca instantânea de
+       conteúdo + o beep (tocarAvisoLeve, chamado em moverAddon). */
+    .pgm-modal.pgm-modal-soft { animation: none; }
     @media (max-width: 520px) {
       .pgm-modal-backdrop:not(.pgm-sheet-mode) { align-items: flex-end; padding: 0; }
       .pgm-modal-backdrop:not(.pgm-sheet-mode) .pgm-modal { max-width: 100%; border-radius: 18px 18px 0 0; border-bottom: none; padding-bottom: calc(1.25rem + env(safe-area-inset-bottom)); animation: pgmSheetUp 0.28s cubic-bezier(0.32, 0.72, 0, 1); max-height: 88vh; }
