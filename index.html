@@ -3367,23 +3367,6 @@ function calcNivelBlindAtual(s) {
   return null;
 }
 
-/* Minutos até o FIM do nível addonAposNivel (quando o rebuy/add-on
-   fecha) — diferente de calcNivelBlindAtual, que só sabe quanto falta
-   pro PRÓXIMO nível. Só existe pra estrutura sofisticada com rebuy
-   (Torneio Clássico); modo simples não tem addonAposNivel. */
-function minutosAteFimRebuy(s) {
-  var eb = s.estruturaBlinds;
-  if(!eb || eb.simples || !eb.niveis || !eb.addonAposNivel || !s.blindTimerStartedAt) return null;
-  var acumulado = 0;
-  for(var i=0; i<eb.niveis.length; i++) {
-    acumulado += eb.niveis[i].duracaoMin;
-    if(eb.niveis[i].nivel === eb.addonAposNivel) break;
-  }
-  var agora = s.blindTimerPausedAt || Date.now();
-  var elapsedMin = ((agora - s.blindTimerStartedAt) - (s.blindTimerTotalPaused||0)) / 60000;
-  return acumulado - elapsedMin;
-}
-
 function renderBlindTimerBlock() {
   var s = S.activeSession;
   var container = document.getElementById('active-blind-timer');
@@ -3491,18 +3474,23 @@ function atualizarBlindTimerDisplay() {
   if(!primeiraChamada && window._blindTimerUltimoNivel !== atual.idx) {
     tocarAlertaNivel();
     window._blindTimerAvisoTocado = false;
+    /* Chegou no ÚLTIMO nível em que o rebuy/add-on ainda fica aberto —
+       aviso de voz separado do beep normal de troca de nível. Trocado
+       de "faltam 20min" (baseado em tempo) pra isso (baseado em nível)
+       porque fica automaticamente atrelado ao mesmo relógio pause-aware
+       do resto do timer, sem precisar calcular distância até um
+       instante futuro — só olha se o nível que acabou de começar é
+       exatamente o addonAposNivel. */
+    if(!window._blindAvisoRebuyTocado && s.estruturaBlinds.addonAposNivel && atual.nivel.nivel === s.estruturaBlinds.addonAposNivel) {
+      window._blindAvisoRebuyTocado = true;
+      tocarAvisoRebuy();
+    }
   }
   window._blindTimerUltimoNivel = atual.idx;
 
   if(!primeiraChamada && !window._blindTimerAvisoTocado && atual.proximo && atual.restanteMin <= 2) {
     window._blindTimerAvisoTocado = true;
     tocarAvisoLeve();
-  }
-
-  var minAteRebuy = minutosAteFimRebuy(s);
-  if(!primeiraChamada && !window._blindAvisoRebuyTocado && minAteRebuy !== null && minAteRebuy > 0 && minAteRebuy <= 20) {
-    window._blindAvisoRebuyTocado = true;
-    tocarAvisoRebuy();
   }
 
   var min = Math.floor(atual.restanteMin);

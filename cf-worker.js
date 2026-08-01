@@ -48,8 +48,10 @@ async function checarBlinds(env) {
   // Mesma lógica do cliente (window._blindTimerUltimoNivel /
   // window._blindTimerAvisoTocado em index.html): nunca alerta na
   // primeira checagem depois do início, e o aviso de 2min dispara só
-  // uma vez por nível. O aviso de rebuy (20min pro fim do add-on) é
-  // independente — não é por nível, dispara no máximo uma vez por sessão
+  // uma vez por nível. O aviso de rebuy dispara junto com a troca de
+  // nível — não é mais baseado em "faltam X minutos" (tempo), e sim em
+  // "o nível que acabou de começar é o addonAposNivel" (o último em que
+  // o rebuy ainda fica aberto). Dispara no máximo uma vez por sessão
   // inteira, então pushAvisoRebuyNotificado nunca é resetado depois de
   // marcado (diferente de pushAvisoNotificado, que reseta a cada nível).
   const primeiraChamada = session.pushUltimoNivelNotificado === undefined;
@@ -62,6 +64,15 @@ async function checarBlinds(env) {
       titulo: atual.nivel.simples ? '🔔 Hora de apitar o blind' : '🔔 Nível ' + (atual.idx + 1) + ' — ' + fmtNum(atual.nivel.sb) + '/' + fmtNum(atual.nivel.bb),
       corpo: atual.nivel.simples ? 'Apita a cada ' + atual.duracaoFaseMin + ' min' : (atual.nivel.fase + (atual.nivel.ante ? ' · ante ' + fmtNum(atual.nivel.ante) : ''))
     });
+
+    const eb = session.estruturaBlinds;
+    if (!session.pushAvisoRebuyNotificado && eb && eb.addonAposNivel && atual.nivel.nivel === eb.addonAposNivel) {
+      patch.pushAvisoRebuyNotificado = true;
+      notificacoes.push({
+        titulo: '⏰ Último nível pra recomprar!',
+        corpo: 'O rebuy/add-on fecha no fim deste nível.'
+      });
+    }
   }
 
   const avisoJaTocado = notificacoes.length ? false : !!session.pushAvisoNotificado;
@@ -70,15 +81,6 @@ async function checarBlinds(env) {
     notificacoes.push({
       titulo: '⏳ Faltam 2 minutos pro próximo apito',
       corpo: atual.nivel.simples ? 'Prepare o apito' : ('Vai virar pra ' + fmtNum(atual.proximo.sb) + '/' + fmtNum(atual.proximo.bb))
-    });
-  }
-
-  const minAteRebuy = minutosAteFimRebuy(session);
-  if (!primeiraChamada && !session.pushAvisoRebuyNotificado && minAteRebuy !== null && minAteRebuy > 0 && minAteRebuy <= 20) {
-    patch.pushAvisoRebuyNotificado = true;
-    notificacoes.push({
-      titulo: '⏰ Faltam 20 minutos pro fim do rebuy!',
-      corpo: 'Última chance de recomprar antes do add-on fechar.'
     });
   }
 
@@ -112,22 +114,6 @@ async function checarBlinds(env) {
   }
 
   await rtdbPatch(accessToken, DB_PATH + '/activeSession', patch);
-}
-
-/* Minutos até o fim do nível addonAposNivel (quando o rebuy/add-on
-   fecha) — mesma fórmula do minutosAteFimRebuy() em index.html. Só
-   existe pra estrutura sofisticada com rebuy (Torneio Clássico). */
-function minutosAteFimRebuy(session) {
-  const eb = session.estruturaBlinds;
-  if (!eb || eb.simples || !eb.niveis || !eb.addonAposNivel || !session.blindTimerStartedAt) return null;
-  let acumulado = 0;
-  for (let i = 0; i < eb.niveis.length; i++) {
-    acumulado += eb.niveis[i].duracaoMin;
-    if (eb.niveis[i].nivel === eb.addonAposNivel) break;
-  }
-  const agora = session.blindTimerPausedAt || Date.now();
-  const elapsedMin = ((agora - session.blindTimerStartedAt) - (session.blindTimerTotalPaused || 0)) / 60000;
-  return acumulado - elapsedMin;
 }
 
 function fmtNum(n) {
