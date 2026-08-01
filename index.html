@@ -376,6 +376,13 @@
 
     .pgm-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; animation: pgmFadeIn 0.2s ease-out; }
     @keyframes pgmFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    /* O backdrop (fundo escurecido + blur em tela cheia) tem SUA PRÓPRIA
+       animação de fade — como showModal() recria o backdrop inteiro do
+       zero a cada chamada, isso continuava re-disparando em cada clique
+       do add-on mesmo depois do .pgm-modal-soft zerar a animação da
+       caixa interna. É o fade em tela cheia que parecia "a tela toda
+       pulando" — faltava desligar aqui também. */
+    .pgm-modal-backdrop.pgm-modal-backdrop-soft { animation: none; }
     .pgm-modal { background: #16271b; border: 1px solid var(--border-strong); border-radius: 16px; padding: 1.25rem; width: 100%; max-width: 360px; max-height: 85vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0,0,0,0.5); animation: pgmModalUp 0.25s ease-out; }
     @keyframes pgmModalUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     /* Reaproveitada quando um modal já aberto só atualiza um valor pequeno
@@ -3772,6 +3779,15 @@ async function ativarPushBlinds() {
   }
   var token = await window._fbGetMessagingToken(VAPID_KEY_PUSH);
   if(!token) {
+    // Pegar o token logo depois de conceder a permissão às vezes falha na
+    // primeira tentativa — a inscrição push do navegador ainda não
+    // assentou. Sem essa segunda tentativa, a pessoa via "não consegui" e
+    // precisava clicar de novo por conta própria pra funcionar (o que de
+    // fato funcionava na 2ª vez, só que sem eu ter avisado que precisaria).
+    await new Promise(function(r){ setTimeout(r, 800); });
+    token = await window._fbGetMessagingToken(VAPID_KEY_PUSH);
+  }
+  if(!token) {
     if(statusEl) statusEl.innerHTML = statusPushHTML();
     showAlert('Não consegui registrar esse aparelho pra notificações. Tenta de novo.');
     return;
@@ -4894,7 +4910,7 @@ function showSeasonDetail(idx) {
   }, 80);
 }
 
-function showModal(html, soft) { const el=document.getElementById('pgm-modal'); el.innerHTML=`<div class="pgm-modal-backdrop"><div class="pgm-modal${soft ? ' pgm-modal-soft' : ''}">${html}</div></div>`; el.style.display='block'; }
+function showModal(html, soft) { const el=document.getElementById('pgm-modal'); el.innerHTML=`<div class="pgm-modal-backdrop${soft ? ' pgm-modal-backdrop-soft' : ''}"><div class="pgm-modal${soft ? ' pgm-modal-soft' : ''}">${html}</div></div>`; el.style.display='block'; }
 function closeModal() { const el=document.getElementById('pgm-modal'); el.style.display='none'; el.innerHTML=''; }
 
 function showRulesGuide() {
