@@ -3652,15 +3652,18 @@ function tocarAvisoLeve() {
   if(navigator.vibrate) { try { navigator.vibrate(120); } catch(e) {} }
 }
 
-/* Aviso de 20min pro fim do rebuy — gravação de voz do Pedro em vez de
-   som sintetizado (os outros alertas são gerados por Web Audio, esse é
-   um arquivo real: aviso-rebuy.mp4, na raiz do projeto igual os ícones).
-   <audio> toca só a trilha de som mesmo o arquivo tendo vídeo junto (era
-   uma gravação de tela), sem precisar separar/converter nada. */
+/* Aviso de 20min pro fim do rebuy — fala por voz sintética (Web Speech
+   API, mesma usada antes no extinto botão BORA FATIMA), não um arquivo
+   de áudio gravado. Primeira versão usava uma gravação real da voz do
+   Pedro (aviso-rebuy.mp4), mas ele preferiu trocar por voz gerada. */
 function tocarAvisoRebuy() {
   try {
-    var audio = new Audio('aviso-rebuy.mp4');
-    audio.play().catch(function(){});
+    if('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      var fala = new SpeechSynthesisUtterance('Atenção! Faltam vinte minutos para o fim do rebuy.');
+      fala.lang = 'pt-BR';
+      window.speechSynthesis.speak(fala);
+    }
   } catch(e) {}
   if(navigator.vibrate) { try { navigator.vibrate([200,100,200]); } catch(e) {} }
 }
