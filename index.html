@@ -1724,8 +1724,8 @@ function openBlindCalcModal() {
     '</div>' +
     '<div id="blind-calc-ante-tipo-wrapper" style="display:' + (window._blindCalcAnte?'block':'none') + ';margin-top:8px">' +
     '<div class="pgm-toggle-group" id="blind-calc-ante-tipo-toggle" style="display:flex;gap:6px">' +
-    '<button class="pgm-toggle-opt' + (window._blindCalcTipoAnte==='bba'?' active':'') + '" type="button" data-tipo="bba" onclick="selecionarTipoAnteBlind(\'bba\')">Só o Big Blind</button>' +
     '<button class="pgm-toggle-opt' + (window._blindCalcTipoAnte==='classico'?' active':'') + '" type="button" data-tipo="classico" onclick="selecionarTipoAnteBlind(\'classico\')">Cada um paga</button>' +
+    '<button class="pgm-toggle-opt' + (window._blindCalcTipoAnte==='bba'?' active':'') + '" type="button" data-tipo="bba" onclick="selecionarTipoAnteBlind(\'bba\')">Só o Big Blind</button>' +
     '</div></div>' +
     '<div id="blind-calc-ante-desc" style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px;line-height:1.5">' + BLIND_ANTE_DESC[window._blindCalcTipoAnte] + ' Com ante ligado o jogo aperta mais rápido, então o fim de jogo chega um pouco antes.</div></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Estilo de fichas</label>' +
@@ -3653,7 +3653,20 @@ function agendarGatilhoPushInstantaneo(s) {
 }
 
 function statusPushHTML() {
-  if(!('Notification' in window) || !('serviceWorker' in navigator) || !window._fbGetMessagingToken) return '';
+  if(!('Notification' in window) || !('serviceWorker' in navigator) || !window._fbGetMessagingToken) {
+    // iPhone só expõe a API de notificação quando o PWA está instalado na
+    // Tela de Início (Safari em aba normal nem tem Notification/serviceWorker
+    // utilizável pra push) — sem essa checagem o botão simplesmente sumia
+    // sem explicar nada, parecia que o recurso não existia.
+    var isIOS = /iP(hone|ad|od)/.test(navigator.userAgent || '');
+    if(isIOS) {
+      var instalado = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+      return instalado
+        ? '<div style="text-align:center;margin-top:8px;font-size:10px;font-weight:700;color:var(--text-dim)">📲 Seu iPhone precisa do iOS 16.4 ou mais recente pra avisos com a tela apagada</div>'
+        : '<div style="text-align:center;margin-top:8px;font-size:10px;font-weight:700;color:var(--text-dim)">📲 Pra ativar avisos no iPhone, instale o app na Tela de Início primeiro (Compartilhar → Adicionar à Tela de Início)</div>';
+    }
+    return '';
+  }
   var perm = Notification.permission;
   if(perm === 'denied') {
     return '<div style="text-align:center;margin-top:8px;font-size:10px;font-weight:700;color:var(--text-dim)">🔕 Notificações bloqueadas nas configurações do navegador</div>';
@@ -4899,6 +4912,11 @@ function checkAdminSenha() {
     if(nav) nav.classList.add('admin-mode');
     var apagarWrapper = document.getElementById('apagar-temp-atual-wrapper');
     if(apagarWrapper) apagarWrapper.style.display = 'block';
+    // Sem isso, o botão "🧪 Acelerar níveis" (admin only, no card Blinds ao
+    // vivo) só aparecia no próximo re-render por acaso (ação de jogador,
+    // sync do Firebase) — podia demorar. renderBlindTimerBlock() reconstrói
+    // o card na hora, já com _adminAuth true.
+    if(S.activeSession) renderBlindTimerBlock();
     closeModal();
   } else {
     const err = document.getElementById('admin-erro');
