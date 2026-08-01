@@ -1219,6 +1219,24 @@ function refinarParaMuitasFichas(comp, ds, teto) {
   }
 }
 
+/* Depois do refino de contagem, o 100 ainda sobra como MUITO mais numeroso
+   que o 250 (é a denominação mais "barata" de fabricar ficha, então o
+   refino sempre prefere ela). Pedro achou "muita ficha de 100" e pediu
+   uma troca leve: a cada 5×100 (valor 500), vira 2×250 (mesmo valor,
+   menos fichas) — só numa fração do excesso (não até esgotar o 100),
+   pra rebalancear sem descaracterizar o stack "cheio de ficha". */
+function equilibrarCentena(comp, ds, teto) {
+  var i100 = ds.indexOf(100), i250 = ds.indexOf(250);
+  if(i100 < 0 || i250 < 0) return;
+  var maxTrocas = Math.floor(comp[i100].qtd / 5 * 0.25);
+  var trocas = 0;
+  while(trocas < maxTrocas && comp[i100].qtd - 5 >= RESERVA_MIN_DIVERSIDADE*2 && comp[i250].qtd + 2 <= teto[i250]) {
+    comp[i100].qtd -= 5;
+    comp[i250].qtd += 2;
+    trocas++;
+  }
+}
+
 /* Stack inicial de cada jogador: mais fichas pequenas (pra pagar blind e
    trocar) e poucas grandes.
    opts.modo — 'personalizado' (padrão, muitas fichas) | 'oficial' (enxuto)
@@ -1271,6 +1289,7 @@ function montarStackJogador(cacife, denoms, numJogadores, opts) {
   if(opts.modo !== 'oficial' && total() === cacife) {
     garantirDiversidade(comp, ds, teto);
     refinarParaMuitasFichas(comp, ds, teto);
+    equilibrarCentena(comp, ds, teto);
   }
 
   var lista = comp.filter(function(c){ return c.qtd > 0; });
