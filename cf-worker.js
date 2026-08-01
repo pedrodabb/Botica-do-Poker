@@ -48,24 +48,41 @@ async function checarBlinds(env) {
   // Mesma lógica do cliente (window._blindTimerUltimoNivel /
   // window._blindTimerAvisoTocado em index.html): nunca alerta na
   // primeira checagem depois do início, e o aviso de 2min dispara só
-  // uma vez por nível.
+  // uma vez por nível. O aviso de rebuy (20min pro fim do add-on) é
+  // independente — não é por nível, dispara no máximo uma vez por sessão
+  // inteira, então pushAvisoRebuyNotificado nunca é resetado depois de
+  // marcado (diferente de pushAvisoNotificado, que reseta a cada nível).
   const primeiraChamada = session.pushUltimoNivelNotificado === undefined;
   const patch = { pushUltimoNivelNotificado: atual.idx };
-  let precisaAlerta = false;
-  let precisaAviso = false;
+  const notificacoes = [];
 
   if (!primeiraChamada && session.pushUltimoNivelNotificado !== atual.idx) {
-    precisaAlerta = true;
     patch.pushAvisoNotificado = false;
+    notificacoes.push({
+      titulo: atual.nivel.simples ? '🔔 Hora de apitar o blind' : '🔔 Nível ' + (atual.idx + 1) + ' — ' + fmtNum(atual.nivel.sb) + '/' + fmtNum(atual.nivel.bb),
+      corpo: atual.nivel.simples ? 'Apita a cada ' + atual.duracaoFaseMin + ' min' : (atual.nivel.fase + (atual.nivel.ante ? ' · ante ' + fmtNum(atual.nivel.ante) : ''))
+    });
   }
 
-  const avisoJaTocado = precisaAlerta ? false : !!session.pushAvisoNotificado;
+  const avisoJaTocado = notificacoes.length ? false : !!session.pushAvisoNotificado;
   if (!primeiraChamada && !avisoJaTocado && atual.proximo && atual.restanteMin <= 2) {
-    precisaAviso = true;
     patch.pushAvisoNotificado = true;
+    notificacoes.push({
+      titulo: '⏳ Faltam 2 minutos pro próximo apito',
+      corpo: atual.nivel.simples ? 'Prepare o apito' : ('Vai virar pra ' + fmtNum(atual.proximo.sb) + '/' + fmtNum(atual.proximo.bb))
+    });
   }
 
-  if (!precisaAlerta && !precisaAviso) {
+  const minAteRebuy = minutosAteFimRebuy(session);
+  if (!primeiraChamada && !session.pushAvisoRebuyNotificado && minAteRebuy !== null && minAteRebuy > 0 && minAteRebuy <= 20) {
+    patch.pushAvisoRebuyNotificado = true;
+    notificacoes.push({
+      titulo: '⏰ Faltam 20 minutos pro fim do rebuy!',
+      corpo: 'Última chance de recomprar antes do add-on fechar.'
+    });
+  }
+
+  if (!notificacoes.length) {
     if (session.pushUltimoNivelNotificado !== atual.idx) {
       await rtdbPatch(accessToken, DB_PATH + '/activeSession', patch);
     }
@@ -88,18 +105,29 @@ async function checarBlinds(env) {
     await rtdbPatch(accessToken, DB_PATH + '/pushTokens', limpeza).catch(() => {});
   }
 
-  const titulo = precisaAlerta
-    ? (atual.nivel.simples ? '🔔 Hora de apitar o blind' : '🔔 Nível ' + (atual.idx + 1) + ' — ' + fmtNum(atual.nivel.sb) + '/' + fmtNum(atual.nivel.bb))
-    : '⏳ Faltam 2 minutos pro próximo apito';
-  const corpo = precisaAlerta
-    ? (atual.nivel.simples ? 'Apita a cada ' + atual.duracaoFaseMin + ' min' : (atual.nivel.fase + (atual.nivel.ante ? ' · ante ' + fmtNum(atual.nivel.ante) : '')))
-    : (atual.nivel.simples ? 'Prepare o apito' : ('Vai virar pra ' + fmtNum(atual.proximo.sb) + '/' + fmtNum(atual.proximo.bb)));
-
   if (tokenList.length) {
-    await Promise.all(tokenList.map(token => enviarPush(accessToken, token, titulo, corpo).catch(() => {})));
+    await Promise.all(
+      notificacoes.flatMap(n => tokenList.map(token => enviarPush(accessToken, token, n.titulo, n.corpo).catch(() => {})))
+    );
   }
 
   await rtdbPatch(accessToken, DB_PATH + '/activeSession', patch);
+}
+
+/* Minutos até o fim do nível addonAposNivel (quando o rebuy/add-on
+   fecha) — mesma fórmula do minutosAteFimRebuy() em index.html. Só
+   existe pra estrutura sofisticada com rebuy (Torneio Clássico). */
+function minutosAteFimRebuy(session) {
+  const eb = session.estruturaBlinds;
+  if (!eb || eb.simples || !eb.niveis || !eb.addonAposNivel || !session.blindTimerStartedAt) return null;
+  let acumulado = 0;
+  for (let i = 0; i < eb.niveis.length; i++) {
+    acumulado += eb.niveis[i].duracaoMin;
+    if (eb.niveis[i].nivel === eb.addonAposNivel) break;
+  }
+  const agora = session.blindTimerPausedAt || Date.now();
+  const elapsedMin = ((agora - session.blindTimerStartedAt) - (session.blindTimerTotalPaused || 0)) / 60000;
+  return acumulado - elapsedMin;
 }
 
 function fmtNum(n) {

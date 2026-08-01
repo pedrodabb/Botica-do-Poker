@@ -3324,6 +3324,23 @@ function calcNivelBlindAtual(s) {
   return null;
 }
 
+/* Minutos até o FIM do nível addonAposNivel (quando o rebuy/add-on
+   fecha) — diferente de calcNivelBlindAtual, que só sabe quanto falta
+   pro PRÓXIMO nível. Só existe pra estrutura sofisticada com rebuy
+   (Torneio Clássico); modo simples não tem addonAposNivel. */
+function minutosAteFimRebuy(s) {
+  var eb = s.estruturaBlinds;
+  if(!eb || eb.simples || !eb.niveis || !eb.addonAposNivel || !s.blindTimerStartedAt) return null;
+  var acumulado = 0;
+  for(var i=0; i<eb.niveis.length; i++) {
+    acumulado += eb.niveis[i].duracaoMin;
+    if(eb.niveis[i].nivel === eb.addonAposNivel) break;
+  }
+  var agora = s.blindTimerPausedAt || Date.now();
+  var elapsedMin = ((agora - s.blindTimerStartedAt) - (s.blindTimerTotalPaused||0)) / 60000;
+  return acumulado - elapsedMin;
+}
+
 function renderBlindTimerBlock() {
   var s = S.activeSession;
   var container = document.getElementById('active-blind-timer');
@@ -3331,6 +3348,7 @@ function renderBlindTimerBlock() {
     if(container) container.style.display = 'none';
     liberarWakeLock();
     window._blindIntervaloEditando = false;
+    window._blindAvisoRebuyTocado = false;
     if(window._blindTimerInterval) { clearInterval(window._blindTimerInterval); window._blindTimerInterval = null; }
     if(window._blindPushInstantTimeout) { clearTimeout(window._blindPushInstantTimeout); window._blindPushInstantTimeout = null; }
     return;
@@ -3347,6 +3365,7 @@ function renderBlindTimerBlock() {
     window._blindTimerUltimoNivel = undefined;
     window._blindTimerAvisoTocado = false;
     window._blindIntervaloEditando = false;
+    window._blindAvisoRebuyTocado = false;
   }
   if(!container) {
     container = document.createElement('div');
@@ -3430,6 +3449,12 @@ function atualizarBlindTimerDisplay() {
   if(!primeiraChamada && !window._blindTimerAvisoTocado && atual.proximo && atual.restanteMin <= 2) {
     window._blindTimerAvisoTocado = true;
     tocarAvisoLeve();
+  }
+
+  var minAteRebuy = minutosAteFimRebuy(s);
+  if(!primeiraChamada && !window._blindAvisoRebuyTocado && minAteRebuy !== null && minAteRebuy > 0 && minAteRebuy <= 20) {
+    window._blindAvisoRebuyTocado = true;
+    tocarAvisoRebuy();
   }
 
   var min = Math.floor(atual.restanteMin);
@@ -3625,6 +3650,19 @@ function tocarAvisoLeve() {
     osc.stop(ctx.currentTime + 0.26);
   } catch(e) {}
   if(navigator.vibrate) { try { navigator.vibrate(120); } catch(e) {} }
+}
+
+/* Aviso de 20min pro fim do rebuy — gravação de voz do Pedro em vez de
+   som sintetizado (os outros alertas são gerados por Web Audio, esse é
+   um arquivo real: aviso-rebuy.mp4, na raiz do projeto igual os ícones).
+   <audio> toca só a trilha de som mesmo o arquivo tendo vídeo junto (era
+   uma gravação de tela), sem precisar separar/converter nada. */
+function tocarAvisoRebuy() {
+  try {
+    var audio = new Audio('aviso-rebuy.mp4');
+    audio.play().catch(function(){});
+  } catch(e) {}
+  if(navigator.vibrate) { try { navigator.vibrate([200,100,200]); } catch(e) {} }
 }
 
 var _wakeLock = null;
