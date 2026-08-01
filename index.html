@@ -3434,7 +3434,12 @@ function renderBlindTimerBlock() {
       '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="moverNivelBlind(1)">Próximo nível ▶</button>' +
     '</div>' +
     '<div id="blind-push-status">' + statusPushHTML() + '</div>' +
-    (_adminAuth ? '<button class="pgm-btn pgm-btn-sm" style="width:100%;margin-top:8px;opacity:0.7" title="Só pra testar o push — encurta os níveis, não usar em jogo de verdade" onclick="acelerarBlindsParaTeste()">🧪 Acelerar níveis pra 1min (teste)</button>' : '');
+    (_adminAuth ? (
+      '<div style="display:flex;gap:6px;margin-top:8px">' +
+        '<button class="pgm-btn pgm-btn-sm" style="flex:1;opacity:0.7" title="Só pra testar o push — encurta os níveis, não usar em jogo de verdade" onclick="acelerarBlindsParaTeste()">🧪 Acelerar níveis pra 1min (teste)</button>' +
+        (s.estruturaBlinds._backupTeste ? '<button onclick="desativarTesteBlinds()" title="Restaurar tempo normal dos níveis" style="width:32px;flex-shrink:0;background:none;border:1px solid var(--border-strong);border-radius:8px;color:var(--text-dim);cursor:pointer;font-size:14px;font-weight:900;line-height:1">✕</button>' : '') +
+      '</div>'
+    ) : '');
   atualizarBlindTimerDisplay();
   if(!s.blindTimerPausedAt) pedirWakeLock();
 }
@@ -3635,6 +3640,14 @@ function acelerarBlindsParaTeste() {
   if(!_adminAuth) return;
   var s = S.activeSession;
   if(!s || !s.estruturaBlinds) return;
+  // Guarda os tempos de verdade ANTES de encurtar — sem isso não tinha
+  // como desfazer (uma vez virando 1min, o valor original sumia). Só
+  // grava a primeira vez (se já tem backup, é porque já tá em teste).
+  if(!s.estruturaBlinds._backupTeste) {
+    s.estruturaBlinds._backupTeste = s.estruturaBlinds.simples
+      ? { intervaloMin: s.estruturaBlinds.intervaloMin }
+      : { duracoes: s.estruturaBlinds.niveis.map(function(n){ return n.duracaoMin; }) };
+  }
   if(s.estruturaBlinds.simples) { s.estruturaBlinds.intervaloMin = 1; }
   else { s.estruturaBlinds.niveis.forEach(function(n){ n.duracaoMin = 1; }); }
   s.blindTimerStartedAt = Date.now();
@@ -3652,6 +3665,35 @@ function acelerarBlindsParaTeste() {
   window._blindTimerAvisoTocado = false;
   renderActiveSession();
   showAlert('🧪 Níveis reduzidos pra 1 minuto — só pra testar o push. Não vale como sessão de verdade nesse ritmo.');
+}
+
+/* Restaura os tempos de verdade guardados em _backupTeste e reinicia o
+   relógio do zero (mesma filosofia do acelerar: não tenta reconstruir
+   "onde estaríamos se nunca tivesse acelerado", só volta a contar certo
+   a partir de agora). */
+function desativarTesteBlinds() {
+  if(!_adminAuth) return;
+  var s = S.activeSession;
+  if(!s || !s.estruturaBlinds || !s.estruturaBlinds._backupTeste) return;
+  var backup = s.estruturaBlinds._backupTeste;
+  if(s.estruturaBlinds.simples) { s.estruturaBlinds.intervaloMin = backup.intervaloMin; }
+  else { s.estruturaBlinds.niveis.forEach(function(n, i){ n.duracaoMin = backup.duracoes[i]; }); }
+  delete s.estruturaBlinds._backupTeste;
+  s.blindTimerStartedAt = Date.now();
+  s.blindTimerPausedAt = null;
+  s.blindTimerTotalPaused = 0;
+  savePatch({
+    'activeSession/estruturaBlinds': s.estruturaBlinds,
+    'activeSession/blindTimerStartedAt': s.blindTimerStartedAt,
+    'activeSession/blindTimerPausedAt': null,
+    'activeSession/blindTimerTotalPaused': 0,
+    'activeSession/pushUltimoNivelNotificado': null,
+    'activeSession/pushAvisoNotificado': null
+  });
+  window._blindTimerUltimoNivel = undefined;
+  window._blindTimerAvisoTocado = false;
+  renderActiveSession();
+  showAlert('Níveis de blind restaurados pro tempo normal.');
 }
 
 function tocarAlertaNivel() {
