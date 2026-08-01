@@ -1738,7 +1738,9 @@ function openBlindCalcModal() {
     '<div class="pgm-field"><label class="pgm-input-label">Tempo estimado (h:min)</label>' +
     '<input type="text" inputmode="numeric" id="blind-calc-duracao" class="pgm-input" value="' + duracaoTexto + '" oninput="onDuracaoInput(this)" onfocus="this.setSelectionRange(this.value.length,this.value.length)">' +
     '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px;line-height:1.5">É uma estimativa, não um cronômetro: a velocidade escolhida puxa esse tempo ~20min pra trás (Turbo) ou pra frente (Slow).</div></div>' +
-    '<div class="pgm-field"><label class="pgm-input-label">Velocidade</label>' +
+    '<div class="pgm-field"><label class="pgm-input-label" style="display:flex;align-items:center;gap:5px">Velocidade' +
+    '<button onclick="showVelocidadeInfo()" title="Qual a diferença?" style="width:14px;height:14px;border-radius:50%;border:1.3px solid var(--gold-light);background:none;color:var(--gold-light);font-size:9px;font-weight:900;font-family:Georgia,serif;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;line-height:1;padding:0">?</button>' +
+    '</label>' +
     '<div class="pgm-toggle-group" id="blind-calc-vel-toggle" style="display:flex;gap:6px">' +
     '<button class="pgm-toggle-opt' + (velAtual==='turbo'?' active':'') + '" type="button" data-vel="turbo" onclick="selecionarVelocidadeBlind(\'turbo\')">⚡ Turbo</button>' +
     '<button class="pgm-toggle-opt' + (velAtual==='regular'?' active':'') + '" type="button" data-vel="regular" onclick="selecionarVelocidadeBlind(\'regular\')">⚖️ Regular</button>' +
@@ -1964,6 +1966,40 @@ function excluirFavoritoBlinds(favId) {
   S.favoritosBlinds = (S.favoritosBlinds||[]).filter(function(f){ return f.id !== favId; });
   savePatch({ favoritosBlinds: S.favoritosBlinds });
   openBlindCalcModal();
+}
+
+/* Comparativo visual Turbo/Regular/Slow — dado real de PERFIS_TORNEIO,
+   nunca número solto duplicado (se o perfil mudar, o popup acompanha
+   sozinho). Barra de "profundidade" é só a proporção de bbInicio entre
+   os três, não é um valor calculado à parte. */
+function showVelocidadeInfo() {
+  var cores = { turbo: '#f16a6a', regular: '#e8c97a', slow: '#34d399' };
+  var icones = { turbo: '⚡', regular: '⚖️', slow: '🐢' };
+  var ordem = ['turbo', 'regular', 'slow'];
+  var maxBB = Math.max.apply(null, ordem.map(function(k){ return PERFIS_TORNEIO[k].bbInicio; }));
+  var cards = ordem.map(function(k) {
+    var p = PERFIS_TORNEIO[k];
+    var cor = cores[k];
+    var pct = Math.round(p.bbInicio / maxBB * 100);
+    var ajusteTxt = p.ajusteMin === 0 ? 'termina <strong style="color:' + cor + '">no tempo estimado</strong>'
+      : p.ajusteMin < 0 ? 'termina <strong style="color:' + cor + '">~' + Math.abs(p.ajusteMin) + 'min antes</strong> do estimado'
+      : 'estica <strong style="color:' + cor + '">~' + p.ajusteMin + 'min além</strong> do estimado';
+    return '<div style="background:rgba(255,255,255,0.035);border:1px solid ' + cor + '33;border-left:3px solid ' + cor + ';border-radius:10px;padding:11px 14px;margin-bottom:8px">' +
+      '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px">' +
+        '<div style="font-size:14px;font-weight:900;color:var(--cream)">' + icones[k] + ' ' + p.label + '</div>' +
+        '<div style="font-family:Space Mono,monospace;font-size:11px;font-weight:800;color:' + cor + '">' + p.nivelMin + 'min por nível</div>' +
+      '</div>' +
+      '<div style="font-size:9px;font-weight:800;color:var(--text-dim);text-transform:uppercase;display:flex;justify-content:space-between;margin-bottom:3px"><span>Profundidade inicial</span><span style="color:' + cor + '">' + p.bbInicio + ' BB</span></div>' +
+      '<div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;margin-bottom:8px"><div style="height:100%;width:' + pct + '%;background:' + cor + ';border-radius:3px"></div></div>' +
+      '<div style="font-size:10.5px;color:var(--cream-dim);font-weight:700;line-height:1.5">Rebuy liberado até ~' + p.rebuyMin + 'min de jogo · ' + ajusteTxt + '</div>' +
+    '</div>';
+  }).join('');
+  showModal(
+    '<div class="pgm-modal-title">⚡⚖️🐢 Qual velocidade? <button class="pgm-close-btn" onclick="openBlindCalcModal()">✕</button></div>' +
+    '<div style="font-size:11.5px;color:var(--cream-dim);font-weight:700;line-height:1.6;margin-bottom:12px">Define o quão <strong style="color:var(--gold-light)">fundo</strong> cada jogador começa (em big blinds) e o ritmo de cada nível — não muda jogadores nem cacife, só o estilo do torneio.</div>' +
+    cards +
+    '<button class="pgm-btn" style="width:100%;margin-top:2px" onclick="openBlindCalcModal()">Voltar</button>'
+  );
 }
 
 function showAnteInfo() {
