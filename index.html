@@ -2654,9 +2654,6 @@ const TREINO_HANDS = [
   { street:'preflop', options:['fold','raise'], position:'CO', hand:['Kd','Kc'], board:null, actionsBefore:[],
     question:'Todos foldaram até você. O que você faz?', correct:'raise',
     explanation:'KK abre de qualquer posição — é a segunda melhor mão do jogo, sem exceção possível.' },
-  { street:'preflop', options:['fold','raise'], position:'BTN', hand:['Ah','Ac'], board:null, actionsBefore:[],
-    question:'Todos foldaram até você. O que você faz?', correct:'raise',
-    explanation:'AA sempre abre, em qualquer posição — não existe cenário onde essa mão não jogue.' },
   { street:'preflop', options:['fold','raise'], position:'BTN', hand:['Qd','8d'], board:null, actionsBefore:[],
     question:'Todos foldaram até você. O que você faz?', correct:'raise',
     explanation:'Q8s suited no Botão entra tranquilamente no range mais largo da mesa — só tem os 2 blinds pra passar.' },
@@ -2669,15 +2666,9 @@ const TREINO_HANDS = [
   { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['9c','3d'], board:null, actionsBefore:['UTG deu raise para 3x'],
     question:'UTG abriu antes de você. O que você faz?', correct:'fold',
     explanation:'93o não tem força nenhuma contra o range mais apertado da mesa — fold claro.' },
-  { street:'preflop', options:['fold','call','raise'], position:'BTN', hand:['As','Ah'], board:null, actionsBefore:['CO deu raise para 2.5x'],
-    question:'CO abriu antes de você. O que você faz?', correct:'raise',
-    explanation:'AA sempre 3-bet contra qualquer abertura, independente da posição do vilão.' },
   { street:'preflop', options:['fold','call','raise'], position:'BTN', hand:['8d','2c'], board:null, actionsBefore:['CO deu raise para 2.5x'],
     question:'CO abriu antes de você. O que você faz?', correct:'fold',
     explanation:'82o não tem nenhum valor contra uma abertura — fold automático.' },
-  { street:'preflop', options:['fold','call','raise'], position:'SB', hand:['Ac','Ad'], board:null, actionsBefore:['BTN deu raise para 2.5x (steal)'],
-    question:'O Botão tentou roubar os blinds. O que você faz?', correct:'raise',
-    explanation:'AA sempre 3-bet, mesmo contra o range mais largo possível (steal do BTN) — é a melhor mão do jogo.' },
   { street:'preflop', options:['fold','call','raise'], position:'BB', hand:['Kh','Qh'], board:null, actionsBefore:['BTN deu raise para 2.5x (steal)'],
     question:'O Botão tentou roubar os blinds. O que você faz?', correct:'call',
     explanation:'KQs tem equity de sobra contra o range muito largo de um steal do BTN — defender o BB aqui é claramente correto.' },
@@ -2741,9 +2732,10 @@ const TREINO_HANDS = [
   { street:'postflop', options:['check','bet'], position:'HJ', hand:['Qs','Jd'], board:['Qh','Jc','4d'], actionsBefore:['Você pagou a abertura do UTG','Oponente deu check'],
     question:'Você tem dois pares fortes e o oponente deu check. O que você faz?', correct:'bet',
     explanation:'Dois pares nas cartas mais altas do flop merecem uma aposta de valor sempre que o oponente abre espaço com um check.' },
-  { street:'postflop', options:['check','bet'], position:'BB', hand:['Ac','Ad'], board:['9d','7c','2s'], actionsBefore:['Você defendeu o BB','Oponente deu check'],
-    question:'Você tem overpair (AA) num flop seco e o oponente deu check. O que você faz?', correct:'bet',
-    explanation:'Overpair num flop seco e baixo deve sempre apostar quando o oponente permite — protege contra cartas futuras e constrói o pote.' },
+  { street:'postflop', options:['fold','call'], position:'BB', hand:['Ac','Ah'], board:['Kd','9d','4d','8h','2c'],
+    actionsBefore:['Você defendeu o BB com AA e apostou no flop e no turn','No river, oponente foi all-in'],
+    question:'O board fechou com 3 cartas do mesmo naipe e você não tem nenhuma delas. O oponente foi all-in no river. O que você faz?', correct:'fold',
+    explanation:'AA é a melhor mão de largada, mas no river ela vira só um par. Com flush possível na mesa (3 cartas do mesmo naipe) e você sem nenhuma carta daquele naipe, um all-in nesse ponto é quase sempre flush feito — até o par mais alto do jogo precisa saber desistir num board perigoso desses.' },
   { street:'postflop', options:['check','bet'], position:'BTN', hand:['Ks','Qs'], board:['Kd','8h','3c'], actionsBefore:['Você pagou a abertura do CO','Oponente deu check'],
     question:'Você acertou o Rei do flop com kicker forte e o oponente deu check. O que você faz?', correct:'bet',
     explanation:'Top par com ótimo kicker (KQ) contra um check — apostar extrai valor de mãos piores que ainda podem pagar, como reis com kicker fraco.' },
@@ -2960,7 +2952,8 @@ function _mesaAcaoVilaoPostflop(actionsBefore) {
   var found = null;
   (actionsBefore || []).forEach(function(txt) {
     if(/oponente/i.test(txt)) {
-      if(/apost/i.test(txt)) found = 'Apostou';
+      if(/all-?in/i.test(txt)) found = 'All-in';
+      else if(/apost/i.test(txt)) found = 'Apostou';
       else if(/check/i.test(txt)) found = 'Check';
     }
   });
@@ -3005,12 +2998,22 @@ function renderMesaVisual(hand) {
     if(isPostflop && !aindaNaMao) return '';
     var dim = !aindaNaMao;
 
-    var corAcao = (acao === 'Apostou' || (acao && acao.indexOf('Raise') === 0)) ? '#e8c97a' : '#8fbf9f';
+    var corAcao = acao === 'All-in' ? '#f16a6a' : (acao === 'Apostou' || (acao && acao.indexOf('Raise') === 0)) ? '#e8c97a' : '#8fbf9f';
+
+    // Ficha empilhada no SB/BB no pré-flop: deixa claro que essas duas
+    // cadeiras já têm dinheiro no pote mesmo quando o texto diz "todos
+    // foldaram até você" — esse "todos" nunca inclui os blinds, que ainda
+    // vão agir depois do herói (ou já postaram e só ficam esperando).
+    var mostrarFichaBlind = !isPostflop && (pos === 'SB' || pos === 'BB');
 
     return '<div style="position:absolute;left:' + coord.x + '%;top:' + coord.y + '%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;opacity:' + (dim?0.3:1) + '">' +
       (acao ? '<div style="font-size:8px;font-weight:900;color:' + corAcao + ';background:rgba(0,0,0,0.5);border-radius:6px;padding:1px 5px;white-space:nowrap;margin-bottom:1px">' + acao + '</div>' : '') +
       '<div style="width:' + (isHero?36:26) + 'px;height:' + (isHero?36:26) + 'px;border-radius:50%;background:' + (isHero?'rgba(232,201,122,0.28)':'rgba(255,255,255,0.06)') + ';border:2px solid ' + (isHero?'#e8c97a':'rgba(255,255,255,0.2)') + ';display:flex;align-items:center;justify-content:center;font-size:' + (isHero?11:9) + 'px;font-weight:900;color:' + (isHero?'#e8c97a':'#c8dcc8') + ';box-shadow:' + (isHero?'0 0 12px rgba(232,201,122,0.4)':'none') + '">' + pos + '</div>' +
       (isHero ? '<div style="font-size:7px;font-weight:900;color:#e8c97a;letter-spacing:0.05em;margin-top:1px">VOCÊ</div>' : '') +
+      (mostrarFichaBlind ? '<div title="Já tem o blind no pote — ainda vai agir" style="display:flex;margin-top:1px">' +
+        '<div style="width:8px;height:8px;border-radius:50%;background:#c9a84c;border:1px solid #6b5522;margin-right:-3px"></div>' +
+        '<div style="width:8px;height:8px;border-radius:50%;background:#e8c97a;border:1px solid #6b5522"></div>' +
+      '</div>' : '') +
     '</div>';
   }).join('');
 
@@ -3812,101 +3815,28 @@ function tocarAvisoRebuy() {
    qualquer formato (Cash Game, Torneio Clássico, Torneio Fichas-valem-R$).
    Fica fixo na tela, sobrevive a troca de aba (não vive dentro de nenhuma
    .pgm-tab-content), visível só enquanto tem sessão em andamento.
-   Sintetizado por Web Audio em vez de tocar um arquivo (era Plim.m4a) —
-   pedido explícito do Pedro de "o mais alto possível": um arquivo gravado
-   já vem com o volume limitado por como foi gravado no celular, enquanto
-   um tom sintetizado dá pra levar o ganho até o teto sem distorcer. */
+   Sintetizado por Web Audio em vez de tocar um arquivo — pedido explícito
+   do Pedro de "o mais alto possível": um arquivo gravado já vem com o
+   volume limitado por como foi gravado no celular, enquanto um tom
+   sintetizado dá pra levar o ganho até o teto sem distorcer. Depois de
+   ouvir 10 candidatos na aba Teste, o Pedro escolheu o "sino grave". */
 function tocarSino() {
   try {
     var ctx = getAudioCtx();
-    [{freq:880,gain:0.9},{freq:1320,gain:0.55}].forEach(function(n){
+    [{freq:440,gain:0.9},{freq:660,gain:0.5}].forEach(function(n){
       var osc = ctx.createOscillator(), gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
       osc.type = 'triangle';
       osc.frequency.value = n.freq;
       gain.gain.setValueAtTime(0.0001, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(n.gain, ctx.currentTime + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.9);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.8);
       osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.95);
+      osc.stop(ctx.currentTime + 0.85);
     });
   } catch(e) {}
   if(navigator.vibrate) { try { navigator.vibrate(80); } catch(e) {} }
 }
-
-/* ===== Candidatos de som pro sino flutuante — 10 opções sintetizadas
-   (nenhum arquivo gravado) pro Pedro ouvir na aba "🔊 Teste" e escolher
-   qual fica. Depois da escolha, os outros 9 saem e o escolhido vira o
-   novo tocarSino(). Dois helpers reaproveitáveis: tom() pra apito/sino
-   (osciladores), thump() pra percussão tipo bongo (ruído filtrado). */
-function _somTom(freq, tipo, gainAlvo, duracao) {
-  var ctx = getAudioCtx();
-  var osc = ctx.createOscillator(), gain = ctx.createGain();
-  osc.connect(gain); gain.connect(ctx.destination);
-  osc.type = tipo;
-  osc.frequency.value = freq;
-  gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(gainAlvo, ctx.currentTime + 0.012);
-  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duracao);
-  osc.start(ctx.currentTime);
-  osc.stop(ctx.currentTime + duracao + 0.03);
-}
-function _somThump(freqFiltro, gainAlvo, duracao) {
-  var ctx = getAudioCtx();
-  var tam = Math.floor(ctx.sampleRate * duracao);
-  var buffer = ctx.createBuffer(1, tam, ctx.sampleRate);
-  var dados = buffer.getChannelData(0);
-  for(var i=0; i<tam; i++) dados[i] = Math.random()*2-1;
-  var ruido = ctx.createBufferSource();
-  ruido.buffer = buffer;
-  var filtro = ctx.createBiquadFilter();
-  filtro.type = 'lowpass';
-  filtro.frequency.value = freqFiltro;
-  var gain = ctx.createGain();
-  gain.gain.setValueAtTime(gainAlvo, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duracao);
-  ruido.connect(filtro); filtro.connect(gain); gain.connect(ctx.destination);
-  ruido.start(ctx.currentTime);
-}
-
-function tocarCandidato1() { try { _somTom(880,'triangle',0.9,0.9); _somTom(1320,'triangle',0.55,0.9); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(80);}catch(e){}} } // Sino atual (referência)
-function tocarCandidato2() { try { _somTom(440,'triangle',0.9,0.8); _somTom(660,'triangle',0.5,0.8); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(80);}catch(e){}} } // Sino grave
-function tocarCandidato3() { try { _somTom(1760,'sine',0.7,0.6); _somTom(2640,'sine',0.4,0.6); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(80);}catch(e){}} } // Sino cristal (agudo)
-function tocarCandidato4() { try { _somThump(300,0.9,0.15); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(80);}catch(e){}} } // Bongo simples
-function tocarCandidato5() { try { _somThump(300,0.9,0.12); setTimeout(function(){ try{_somThump(220,0.9,0.15);}catch(e){} },130); } catch(e){} if(navigator.vibrate){try{navigator.vibrate([50,80,80]);}catch(e){}} } // Bongo duplo
-function tocarCandidato6() { try { _somTom(1568,'sine',0.9,0.5); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(80);}catch(e){}} } // Ding de loja
-function tocarCandidato7() { try { _somTom(880,'square',0.7,0.08); setTimeout(function(){ try{_somTom(1174,'square',0.7,0.1);}catch(e){} },100); } catch(e){} if(navigator.vibrate){try{navigator.vibrate([50,50,50]);}catch(e){}} } // Alerta 8-bit duplo
-function tocarCandidato8() {
-  try {
-    var ctx = getAudioCtx();
-    var osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(400, ctx.currentTime);
-    osc.frequency.linearRampToValueAtTime(900, ctx.currentTime + 0.15);
-    osc.frequency.linearRampToValueAtTime(400, ctx.currentTime + 0.3);
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.7, ctx.currentTime + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.32);
-    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.35);
-  } catch(e){}
-  if(navigator.vibrate){try{navigator.vibrate(150);}catch(e){}}
-} // Sirene curta
-function tocarCandidato9() { try { _somTom(220,'triangle',0.85,1.1); _somTom(224,'triangle',0.5,1.1); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(100);}catch(e){}} } // Gongo grave metálico
-function tocarCandidato10() { try { _somTom(2200,'sine',0.8,0.08); _somTom(3100,'sine',0.5,0.06); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(40);}catch(e){}} } // Clique metálico
-
-AUDIOS_TESTE.push(
-  { nome: '1 — Sino atual (referência)', tocar: 'tocarCandidato1' },
-  { nome: '2 — Sino grave', tocar: 'tocarCandidato2' },
-  { nome: '3 — Sino cristal (agudo)', tocar: 'tocarCandidato3' },
-  { nome: '4 — Bongo simples', tocar: 'tocarCandidato4' },
-  { nome: '5 — Bongo duplo', tocar: 'tocarCandidato5' },
-  { nome: '6 — Ding de loja', tocar: 'tocarCandidato6' },
-  { nome: '7 — Alerta 8-bit duplo', tocar: 'tocarCandidato7' },
-  { nome: '8 — Sirene curta', tocar: 'tocarCandidato8' },
-  { nome: '9 — Gongo grave metálico', tocar: 'tocarCandidato9' },
-  { nome: '10 — Clique metálico', tocar: 'tocarCandidato10' }
-);
 
 var _wakeLock = null;
 function pedirWakeLock() {
