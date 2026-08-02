@@ -812,7 +812,7 @@
 </div>
 <div id="pgm-modal" style="display:none"></div>
 <div id="pgm-alert-overlay" style="display:none"></div>
-<button id="pgm-fab-sino" onclick="tocarPlim()" title="Tocar sino" style="display:none;position:fixed;bottom:20px;right:20px;width:52px;height:52px;border-radius:50%;background:var(--gold);border:none;color:var(--felt);font-size:23px;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.45);z-index:900">🔔</button>
+<button id="pgm-fab-sino" onclick="tocarSino()" title="Tocar sino" style="display:none;position:fixed;bottom:20px;right:20px;width:52px;height:52px;border-radius:50%;background:var(--gold);border:none;color:var(--felt);font-size:23px;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.45);z-index:900">🔔</button>
 
 <script>
 /* REGRA DE ESTILO PERMANENTE: nunca usar o emoji de caveira (💀) pra nada
@@ -3741,10 +3741,14 @@ function tocarAvisoLeve() {
 
 /* Biblioteca de áudios de alerta (admin only, aba "🔊 Teste") — Pedro vai
    alimentando com gravações reais ao longo do tempo, pra trocar o áudio
-   usado em cada alerta conforme a necessidade. Cada entrada é só nome +
-   arquivo (o arquivo físico vive na raiz do projeto, igual os ícones). */
+   usado em cada alerta conforme a necessidade. Cada entrada é um arquivo
+   (o arquivo físico vive na raiz do projeto, igual os ícones) OU, pro
+   sino flutuante, uma referência a função (`tocar`) — ele é sintetizado
+   por Web Audio, não um arquivo gravado, mas continua aparecendo aqui
+   pra dar pra ouvir o preview igual aos outros. */
 var AUDIOS_TESTE = [
-  { nome: 'Aviso de rebuy (último nível antes do fim)', arquivo: 'Rebuy.m4a' }
+  { nome: 'Aviso de rebuy (último nível antes do fim)', arquivo: 'alerta-rebuy.m4a' },
+  { nome: 'Sino flutuante (sintetizado, volume máximo)', tocar: 'tocarSino' }
 ];
 
 function renderAudiosTeste() {
@@ -3756,7 +3760,7 @@ function renderAudiosTeste() {
       '<button onclick="tocarAudioTeste(' + i + ')" title="Tocar" style="width:44px;height:44px;border-radius:50%;background:var(--gold);border:none;color:var(--felt);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">▶</button>' +
       '<div style="flex:1;min-width:0">' +
         '<div style="font-size:13px;font-weight:800;color:var(--cream)">' + escHtml(a.nome) + '</div>' +
-        '<div style="font-size:10px;color:var(--text-dim);font-weight:700">' + escHtml(a.arquivo) + '</div>' +
+        '<div style="font-size:10px;color:var(--text-dim);font-weight:700">' + (a.arquivo ? escHtml(a.arquivo) : '(som sintetizado)') + '</div>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -3765,24 +3769,42 @@ function renderAudiosTeste() {
 function tocarAudioTeste(i) {
   var a = AUDIOS_TESTE[i];
   if(!a) return;
+  if(a.tocar && typeof window[a.tocar] === 'function') { window[a.tocar](); return; }
   try { new Audio(a.arquivo).play().catch(function(){}); } catch(e) {}
 }
 
 /* Aviso de rebuy (último nível antes do fim do rebuy/add-on) — gravação
-   real do Pedro (Rebuy.m4a, ~4s, na raiz do projeto igual os ícones).
-   Primeira versão usava voz sintética (Web Speech API), mas ele preferiu
-   voltar pra gravação real. */
+   real do Pedro (alerta-rebuy.m4a, ~3s, na raiz do projeto igual os
+   ícones). Já passou por voz sintética e por uma gravação anterior
+   (Rebuy.m4a) antes de chegar nessa versão. */
 function tocarAvisoRebuy() {
-  try { new Audio('Rebuy.m4a').play().catch(function(){}); } catch(e) {}
+  try { new Audio('alerta-rebuy.m4a').play().catch(function(){}); } catch(e) {}
   if(navigator.vibrate) { try { navigator.vibrate([200,100,200]); } catch(e) {} }
 }
 
 /* Sino flutuante (🔔) na sessão ativa — qualquer jogador pode tocar,
    qualquer formato (Cash Game, Torneio Clássico, Torneio Fichas-valem-R$).
    Fica fixo na tela, sobrevive a troca de aba (não vive dentro de nenhuma
-   .pgm-tab-content), visível só enquanto tem sessão em andamento. */
-function tocarPlim() {
-  try { new Audio('Plim.m4a').play().catch(function(){}); } catch(e) {}
+   .pgm-tab-content), visível só enquanto tem sessão em andamento.
+   Sintetizado por Web Audio em vez de tocar um arquivo (era Plim.m4a) —
+   pedido explícito do Pedro de "o mais alto possível": um arquivo gravado
+   já vem com o volume limitado por como foi gravado no celular, enquanto
+   um tom sintetizado dá pra levar o ganho até o teto sem distorcer. */
+function tocarSino() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [{freq:880,gain:0.9},{freq:1320,gain:0.55}].forEach(function(n){
+      var osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'triangle';
+      osc.frequency.value = n.freq;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(n.gain, ctx.currentTime + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.9);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.95);
+    });
+  } catch(e) {}
   if(navigator.vibrate) { try { navigator.vibrate(80); } catch(e) {} }
 }
 
