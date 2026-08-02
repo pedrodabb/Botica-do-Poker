@@ -1070,6 +1070,23 @@ function calcExtraRebuy(maxRebuys) {
   return soma;
 }
 
+/* Add-on = bônus de fichas físicas, mesmo preço em R$ — convenção real de
+   torneio de poker: rebuy comum SEMPRE dá o mesmo stack do buy-in (nunca
+   mais, senão vira vantagem infinita pra quem tem dinheiro sobrando); o
+   add-on é o evento ÚNICO, no fim da janela de recompra (addonAposNivel),
+   que dá fichas a mais pelo mesmo valor — existe justamente pra compensar
+   blind já mais alto e stacks dos outros já maiores. 25% é moderado
+   (torneios reais variam de ~20% a 100%; escolhido pra não desequilibrar
+   demais, igual o Pedro pediu). Arredondado pra centena — fácil de contar
+   fisicamente, sem inventar fração de ficha. Só sugestão: o app não
+   rastreia fichas físicas por jogador (isso é feito na mesa), então isso
+   nunca é obrigatório nem afeta o valor em R$ do rebuy. */
+var ADDON_BONUS_PCT = 0.25;
+function calcAddonBonusFichas(valorRebuy) {
+  var bonus = Math.round((valorRebuy * ADDON_BONUS_PCT) / 100) * 100;
+  return { bonus: bonus, total: valorRebuy + bonus };
+}
+
 /* Cores das fichas físicas do Pedro (confirmadas por ele em 2026-07-28).
    [fundo, borda, texto, aro-extra opcional pra ficha com 2 cores de faixa].
    O valor 100 soma dois conjuntos reais (verde escuro + azul claro "novas
@@ -1635,9 +1652,19 @@ function calcularEstruturaTorneio(cfg) {
     var candidatos = denoms.filter(function(d){ return d <= n.sb/2; });
     var anteBBA = candidatos.length ? Math.max.apply(null, candidatos) : Math.min.apply(null, denoms);
     if(tipoAnte === 'classico') {
+      /* dividir por N pode passar da menor ficha em jogo (comum quando
+         usa100Only tira 10/25/50 da mesa) — bug real: isso zerava o ante
+         em TODA a estrutura mesmo com "Vai ter ante? Sim" ligado, inclusive
+         no modo Clássico que é o padrão do app. Nesse caso cai pra BBA
+         SÓ NAQUELE nível (continua pagável com ficha real da mesa, nunca
+         inventa denominação) — nos níveis iniciais/baratos onde isso
+         acontece, o stack ainda tá fundo, então concentrar num jogador só
+         não força all-in (o risco que fez o Pedro preferir Clássico só
+         aparece de verdade em blind alto, e aí a divisão por N já passa
+         do piso normalmente). */
       var alvoPorJogador = anteBBA / N;
       var candidatosClassico = denoms.filter(function(d){ return d <= alvoPorJogador; });
-      n.ante = candidatosClassico.length ? Math.max.apply(null, candidatosClassico) : 0;
+      n.ante = candidatosClassico.length ? Math.max.apply(null, candidatosClassico) : anteBBA;
     } else {
       n.ante = anteBBA;
     }
@@ -2047,13 +2074,15 @@ function moverAddon(delta) {
 function renderBlindTable(r, soft) {
   window._blindTableUltimoResultado = r;
   var velLabel = PERFIS_TORNEIO[r.velocidade].label;
+  var addonBonus = calcAddonBonusFichas(r.valorRebuy);
   var addonBanda = '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin:5px 0;font-size:10px;font-weight:800;color:#7ab8f5;text-align:center;line-height:1.5">' +
     '<div style="display:flex;align-items:center;justify-content:center;gap:8px">' +
     '<button onclick="moverAddon(-1)" title="Add-on um nível antes" style="width:20px;height:20px;border-radius:50%;border:1px solid #7ab8f5;background:none;color:#7ab8f5;font-size:11px;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1">▲</button>' +
     '<span>🔵 FIM DO REBUY — ADD-ON DISPONÍVEL</span>' +
     '<button onclick="moverAddon(1)" title="Add-on um nível depois" style="width:20px;height:20px;border-radius:50%;border:1px solid #7ab8f5;background:none;color:#7ab8f5;font-size:11px;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1">▼</button>' +
     '</div>' +
-    '<span style="font-weight:700;opacity:0.85">' + r.valorRebuy.toLocaleString('pt-BR') + ' fichas ≈ ' + r.addonBBValor + ' big blinds</span></div>';
+    '<span style="font-weight:700;opacity:0.85">' + r.valorRebuy.toLocaleString('pt-BR') + ' fichas ≈ ' + r.addonBBValor + ' big blinds</span>' +
+    '<div style="margin-top:3px;font-weight:700;opacity:0.85">🎁 Sugestão de bônus: ' + addonBonus.total.toLocaleString('pt-BR') + ' fichas em vez de ' + r.valorRebuy.toLocaleString('pt-BR') + ' (+' + addonBonus.bonus.toLocaleString('pt-BR') + ', mesmo preço)</div></div>';
   var colsNiveis = r.comAnte ? '24px 1fr 46px 92px 46px' : '24px 1fr 46px 92px';
   var linhas = '', acumMin = 0, minAteAddon = 0;
   r.niveis.forEach(function(n){ if(n.nivel <= r.addonAposNivel) minAteAddon += n.duracaoMin; });
@@ -3463,6 +3492,15 @@ function visualizarEstruturaBlindsAtiva() {
   if(!s || !s.estruturaBlinds || !s.estruturaBlinds.niveis) return;
   var eb = s.estruturaBlinds;
   var colsNiveis = eb.comAnte ? '24px 1fr 46px 92px 46px' : '24px 1fr 46px 92px';
+  var addonBonus = (eb.comRebuy && eb.addonAposNivel) ? calcAddonBonusFichas(eb.valorRebuy || eb.cacife) : null;
+  var addonBBValor = (addonBonus && eb.niveis[eb.addonAposNivel-1]) ? Math.round((eb.valorRebuy||eb.cacife) / eb.niveis[eb.addonAposNivel-1].bb) : 0;
+  var addonBanda = addonBonus ? (
+    '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin:5px 0;font-size:10px;font-weight:800;color:#7ab8f5;text-align:center;line-height:1.5">' +
+      '<div>🔵 FIM DO REBUY — ADD-ON DISPONÍVEL</div>' +
+      '<span style="font-weight:700;opacity:0.85">' + (eb.valorRebuy||eb.cacife).toLocaleString('pt-BR') + ' fichas ≈ ' + addonBBValor + ' big blinds</span>' +
+      '<div style="margin-top:3px;font-weight:700;opacity:0.85">🎁 Sugestão de bônus: ' + addonBonus.total.toLocaleString('pt-BR') + ' fichas em vez de ' + (eb.valorRebuy||eb.cacife).toLocaleString('pt-BR') + ' (+' + addonBonus.bonus.toLocaleString('pt-BR') + ', mesmo preço)</div>' +
+    '</div>'
+  ) : '';
   var linhas = eb.niveis.map(function(n) {
     return '<div style="display:grid;grid-template-columns:' + colsNiveis + ';gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
       '<div style="font-family:Space Mono,monospace;color:var(--text-dim)">' + n.nivel + '</div>' +
@@ -3470,7 +3508,7 @@ function visualizarEstruturaBlindsAtiva() {
       '<div style="color:var(--text-dim)">' + n.duracaoMin + 'min</div>' +
       '<div style="font-family:Space Mono,monospace;font-weight:800;color:var(--cream)">' + n.sb.toLocaleString('pt-BR') + '/' + n.bb.toLocaleString('pt-BR') + '</div>' +
       (eb.comAnte ? '<div style="font-family:Space Mono,monospace;color:var(--text-dim)">' + (n.ante ? n.ante.toLocaleString('pt-BR') : '—') + '</div>' : '') +
-    '</div>';
+    '</div>' + (eb.comRebuy && n.nivel === eb.addonAposNivel ? addonBanda : '');
   }).join('');
   showModal(
     '<div class="pgm-modal-title">⏳ Estrutura de blinds <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
@@ -4059,8 +4097,25 @@ function openRebuyModal(idx) {
   const p = S.activeSession.players[idx];
   const defaultRebuy = S.activeSession.rebuy || S.activeSession.buyin;
   const isClassico = S.activeSession.tourneyMode === 'classico';
+  const eb = S.activeSession.estruturaBlinds;
+  /* Sugestão de bônus de fichas só aparece quando o nível AO VIVO é
+     exatamente o addonAposNivel — é o mesmo instante em que o aviso de
+     voz "último nível pra recomprar" dispara (ver atualizarBlindTimerDisplay).
+     Puramente informativo (o app não rastreia fichas físicas por
+     jogador, só R$), então nunca bloqueia nem muda o valor do campo. */
+  var addonInfo = '';
+  if(isClassico && eb && eb.comRebuy && eb.addonAposNivel) {
+    var atual = calcNivelBlindAtual(S.activeSession);
+    if(atual && atual.nivel && atual.nivel.nivel === eb.addonAposNivel) {
+      var bonus = calcAddonBonusFichas(eb.valorRebuy || eb.cacife || defaultRebuy);
+      addonInfo = '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin-bottom:0.75rem;font-size:10.5px;font-weight:700;color:#7ab8f5;line-height:1.5">' +
+        '🎁 Último nível de recompra — isso é um add-on! Sugestão: dê ' + bonus.total.toLocaleString('pt-BR') + ' fichas físicas em vez de ' + (eb.valorRebuy||eb.cacife).toLocaleString('pt-BR') + ' (+' + bonus.bonus.toLocaleString('pt-BR') + '), mesmo valor em R$. Ajuste na mesa.' +
+      '</div>';
+    }
+  }
   showModal(`
     <div class="pgm-modal-title">Rebuy — ${escHtml(p.name)} <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>
+    ${addonInfo}
     ${isClassico ? `
     <div class="pgm-field"><label class="pgm-input-label">O jogador pegou</label>
     <div class="pgm-toggle-group" id="rebuy-valorsessao-toggle" style="display:flex;gap:6px">
@@ -4071,12 +4126,58 @@ function openRebuyModal(idx) {
     <input type="text" inputmode="numeric" id="rebuy-val" class="pgm-input" value="${defaultRebuy.toFixed(2).replace('.',',')}" oninput="maskMoedaOninput(this)"></div>
     <div style="margin-top:0.5rem">
       ${p.rebuys.length
-        ? p.rebuys.map((r,i)=>`<div class="rebuy-item"><span>${i+1}° rebuy</span><span style="display:inline-flex;align-items:center;gap:10px">R$ ${r.toFixed(2).replace('.',',')} <button class="pgm-close-btn" onclick="removeRebuy(${idx},${i})" title="Apagar este rebuy" style="color:var(--negative);font-size:13px">✕</button></span></div>`).join('')
+        ? p.rebuys.map((r,i)=>rebuyItemHTML(idx,i,r)).join('')
         : '<div style="font-size:12px;font-weight:700;color:var(--text-dim)">Nenhum rebuy ainda</div>'}
     </div>
     <div class="pgm-row-btns" style="margin-top:1rem">
       <button class="pgm-btn pgm-btn-success" style="flex:1" onclick="doRebuy(${idx})">Confirmar rebuy</button>
     </div>`);
+}
+
+/* Cada rebuy já lançado ganha um ✏️ pra editar o valor direto (bug real:
+   Pedro reportou "às vezes queremos editar e não dá" — antes só dava pra
+   apagar e relançar). window._rebuyEditando controla qual linha específica
+   está em modo de edição, mesmo padrão de iniciarRenomearFavorito(). */
+function rebuyItemHTML(playerIdx, rebuyIdx, valor) {
+  var ed = window._rebuyEditando;
+  if(ed && ed.playerIdx === playerIdx && ed.rebuyIdx === rebuyIdx) {
+    return '<div class="rebuy-item"><span>' + (rebuyIdx+1) + '° rebuy</span>' +
+      '<span style="display:inline-flex;align-items:center;gap:6px">' +
+      '<input type="text" inputmode="numeric" id="rebuy-edit-val" class="pgm-input" value="' + valor.toFixed(2).replace('.',',') + '" oninput="maskMoedaOninput(this)" style="width:90px;padding:4px 6px;font-size:12px">' +
+      '<button class="pgm-btn pgm-btn-sm" style="padding:4px 8px" onclick="confirmarEditarRebuy(' + playerIdx + ',' + rebuyIdx + ')">Salvar</button>' +
+      '<button onclick="cancelarEditarRebuy(' + playerIdx + ')" title="Cancelar" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0 4px">✕</button>' +
+      '</span></div>';
+  }
+  return '<div class="rebuy-item"><span>' + (rebuyIdx+1) + '° rebuy</span>' +
+    '<span style="display:inline-flex;align-items:center;gap:8px">R$ ' + valor.toFixed(2).replace('.',',') +
+    '<button onclick="iniciarEditarRebuy(' + playerIdx + ',' + rebuyIdx + ')" title="Editar este rebuy" style="background:none;border:none;color:var(--gold-light);cursor:pointer;font-size:12px;padding:0">✏️</button>' +
+    '<button class="pgm-close-btn" onclick="removeRebuy(' + playerIdx + ',' + rebuyIdx + ')" title="Apagar este rebuy" style="color:var(--negative);font-size:13px">✕</button></span></div>';
+}
+
+function iniciarEditarRebuy(playerIdx, rebuyIdx) {
+  window._rebuyEditando = { playerIdx: playerIdx, rebuyIdx: rebuyIdx };
+  openRebuyModal(playerIdx);
+  setTimeout(function() {
+    var inp = document.getElementById('rebuy-edit-val');
+    if(inp) { inp.focus(); inp.select(); inp.addEventListener('keydown', function(e){ if(e.key==='Enter') confirmarEditarRebuy(playerIdx, rebuyIdx); }); }
+  }, 80);
+}
+
+function cancelarEditarRebuy(playerIdx) {
+  window._rebuyEditando = null;
+  openRebuyModal(playerIdx);
+}
+
+function confirmarEditarRebuy(playerIdx, rebuyIdx) {
+  var v = parseMoedaBR(document.getElementById('rebuy-edit-val').value);
+  if(!v || v<=0) return;
+  var p = S.activeSession.players[playerIdx];
+  if(!p || !p.rebuys) return;
+  p.rebuys[rebuyIdx] = v;
+  window._rebuyEditando = null;
+  renderActiveSession();
+  savePatch({ ['activeSession/players/'+playerIdx+'/rebuys']: p.rebuys });
+  openRebuyModal(playerIdx);
 }
 
 function selecionarValorRebuySessao(v) {
@@ -4099,6 +4200,7 @@ function removeRebuy(playerIdx, rebuyIdx) {
   var p = S.activeSession.players[playerIdx];
   if(!p || !p.rebuys) return;
   p.rebuys.splice(rebuyIdx, 1);
+  window._rebuyEditando = null;
   renderActiveSession();
   savePatch({ ['activeSession/players/'+playerIdx+'/rebuys']: p.rebuys });
   openRebuyModal(playerIdx);
