@@ -3698,9 +3698,25 @@ function desativarTesteBlinds() {
   showAlert('Níveis de blind restaurados pro tempo normal.');
 }
 
+/* Contexto de áudio COMPARTILHADO — cada som antes criava um
+   AudioContext novo e nunca fechava o anterior; navegadores têm um teto
+   de contextos simultâneos (geralmente uns 4-6), então clicar o sino
+   flutuante várias vezes seguidas estourava esse teto e o som parava de
+   funcionar sem erro visível nenhum. Um contexto só, reaproveitado por
+   todo som do app, resolve de vez. */
+function getAudioCtx() {
+  if(!window._audioCtxCompartilhado) {
+    window._audioCtxCompartilhado = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if(window._audioCtxCompartilhado.state === 'suspended') {
+    window._audioCtxCompartilhado.resume().catch(function(){});
+  }
+  return window._audioCtxCompartilhado;
+}
+
 function tocarAlertaNivel() {
   try {
-    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var ctx = getAudioCtx();
     // Jingle 8-bit tipo "passou de fase": arpejo maior ascendente
     // (Dó-Mi-Sol-Dó) em onda quadrada, última nota mais longa.
     var notas = [
@@ -3726,7 +3742,7 @@ function tocarAlertaNivel() {
 
 function tocarAvisoLeve() {
   try {
-    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var ctx = getAudioCtx();
     var osc = ctx.createOscillator(), gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
     osc.frequency.value = 660;
@@ -3762,6 +3778,7 @@ function renderAudiosTeste() {
         '<div style="font-size:13px;font-weight:800;color:var(--cream)">' + escHtml(a.nome) + '</div>' +
         '<div style="font-size:10px;color:var(--text-dim);font-weight:700">' + (a.arquivo ? escHtml(a.arquivo) : '(som sintetizado)') + '</div>' +
       '</div>' +
+      '<button onclick="excluirAudioTeste(' + i + ')" title="Remover da lista" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;padding:0 4px;flex-shrink:0">✕</button>' +
     '</div>';
   }).join('');
 }
@@ -3771,6 +3788,15 @@ function tocarAudioTeste(i) {
   if(!a) return;
   if(a.tocar && typeof window[a.tocar] === 'function') { window[a.tocar](); return; }
   try { new Audio(a.arquivo).play().catch(function(){}); } catch(e) {}
+}
+
+/* Só remove da lista em memória (não persiste — recarregar a página
+   volta com a lista original). Essa aba é uma ferramenta de preview pro
+   Pedro, não um cadastro de verdade: o áudio usado em cada alerta é
+   trocado editando o código mesmo, não por aqui. */
+function excluirAudioTeste(i) {
+  AUDIOS_TESTE.splice(i, 1);
+  renderAudiosTeste();
 }
 
 /* Aviso de rebuy (último nível antes do fim do rebuy/add-on) — gravação
@@ -3792,7 +3818,7 @@ function tocarAvisoRebuy() {
    um tom sintetizado dá pra levar o ganho até o teto sem distorcer. */
 function tocarSino() {
   try {
-    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var ctx = getAudioCtx();
     [{freq:880,gain:0.9},{freq:1320,gain:0.55}].forEach(function(n){
       var osc = ctx.createOscillator(), gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
@@ -3807,6 +3833,80 @@ function tocarSino() {
   } catch(e) {}
   if(navigator.vibrate) { try { navigator.vibrate(80); } catch(e) {} }
 }
+
+/* ===== Candidatos de som pro sino flutuante — 10 opções sintetizadas
+   (nenhum arquivo gravado) pro Pedro ouvir na aba "🔊 Teste" e escolher
+   qual fica. Depois da escolha, os outros 9 saem e o escolhido vira o
+   novo tocarSino(). Dois helpers reaproveitáveis: tom() pra apito/sino
+   (osciladores), thump() pra percussão tipo bongo (ruído filtrado). */
+function _somTom(freq, tipo, gainAlvo, duracao) {
+  var ctx = getAudioCtx();
+  var osc = ctx.createOscillator(), gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = tipo;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(gainAlvo, ctx.currentTime + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duracao);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + duracao + 0.03);
+}
+function _somThump(freqFiltro, gainAlvo, duracao) {
+  var ctx = getAudioCtx();
+  var tam = Math.floor(ctx.sampleRate * duracao);
+  var buffer = ctx.createBuffer(1, tam, ctx.sampleRate);
+  var dados = buffer.getChannelData(0);
+  for(var i=0; i<tam; i++) dados[i] = Math.random()*2-1;
+  var ruido = ctx.createBufferSource();
+  ruido.buffer = buffer;
+  var filtro = ctx.createBiquadFilter();
+  filtro.type = 'lowpass';
+  filtro.frequency.value = freqFiltro;
+  var gain = ctx.createGain();
+  gain.gain.setValueAtTime(gainAlvo, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duracao);
+  ruido.connect(filtro); filtro.connect(gain); gain.connect(ctx.destination);
+  ruido.start(ctx.currentTime);
+}
+
+function tocarCandidato1() { try { _somTom(880,'triangle',0.9,0.9); _somTom(1320,'triangle',0.55,0.9); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(80);}catch(e){}} } // Sino atual (referência)
+function tocarCandidato2() { try { _somTom(440,'triangle',0.9,0.8); _somTom(660,'triangle',0.5,0.8); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(80);}catch(e){}} } // Sino grave
+function tocarCandidato3() { try { _somTom(1760,'sine',0.7,0.6); _somTom(2640,'sine',0.4,0.6); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(80);}catch(e){}} } // Sino cristal (agudo)
+function tocarCandidato4() { try { _somThump(300,0.9,0.15); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(80);}catch(e){}} } // Bongo simples
+function tocarCandidato5() { try { _somThump(300,0.9,0.12); setTimeout(function(){ try{_somThump(220,0.9,0.15);}catch(e){} },130); } catch(e){} if(navigator.vibrate){try{navigator.vibrate([50,80,80]);}catch(e){}} } // Bongo duplo
+function tocarCandidato6() { try { _somTom(1568,'sine',0.9,0.5); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(80);}catch(e){}} } // Ding de loja
+function tocarCandidato7() { try { _somTom(880,'square',0.7,0.08); setTimeout(function(){ try{_somTom(1174,'square',0.7,0.1);}catch(e){} },100); } catch(e){} if(navigator.vibrate){try{navigator.vibrate([50,50,50]);}catch(e){}} } // Alerta 8-bit duplo
+function tocarCandidato8() {
+  try {
+    var ctx = getAudioCtx();
+    var osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(400, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(900, ctx.currentTime + 0.15);
+    osc.frequency.linearRampToValueAtTime(400, ctx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.7, ctx.currentTime + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.32);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.35);
+  } catch(e){}
+  if(navigator.vibrate){try{navigator.vibrate(150);}catch(e){}}
+} // Sirene curta
+function tocarCandidato9() { try { _somTom(220,'triangle',0.85,1.1); _somTom(224,'triangle',0.5,1.1); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(100);}catch(e){}} } // Gongo grave metálico
+function tocarCandidato10() { try { _somTom(2200,'sine',0.8,0.08); _somTom(3100,'sine',0.5,0.06); } catch(e){} if(navigator.vibrate){try{navigator.vibrate(40);}catch(e){}} } // Clique metálico
+
+AUDIOS_TESTE.push(
+  { nome: '1 — Sino atual (referência)', tocar: 'tocarCandidato1' },
+  { nome: '2 — Sino grave', tocar: 'tocarCandidato2' },
+  { nome: '3 — Sino cristal (agudo)', tocar: 'tocarCandidato3' },
+  { nome: '4 — Bongo simples', tocar: 'tocarCandidato4' },
+  { nome: '5 — Bongo duplo', tocar: 'tocarCandidato5' },
+  { nome: '6 — Ding de loja', tocar: 'tocarCandidato6' },
+  { nome: '7 — Alerta 8-bit duplo', tocar: 'tocarCandidato7' },
+  { nome: '8 — Sirene curta', tocar: 'tocarCandidato8' },
+  { nome: '9 — Gongo grave metálico', tocar: 'tocarCandidato9' },
+  { nome: '10 — Clique metálico', tocar: 'tocarCandidato10' }
+);
 
 var _wakeLock = null;
 function pedirWakeLock() {
