@@ -812,6 +812,7 @@
 </div>
 <div id="pgm-modal" style="display:none"></div>
 <div id="pgm-alert-overlay" style="display:none"></div>
+<button id="pgm-fab-sino" onclick="tocarPlim()" title="Tocar sino" style="display:none;position:fixed;bottom:20px;right:20px;width:52px;height:52px;border-radius:50%;background:var(--gold);border:none;color:var(--felt);font-size:23px;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.45);z-index:900">🔔</button>
 
 <script>
 /* REGRA DE ESTILO PERMANENTE: nunca usar o emoji de caveira (💀) pra nada
@@ -907,6 +908,8 @@ function initFirebaseSync() {
     } else {
       document.getElementById('no-session-state').style.display='block';
       document.getElementById('active-session-state').style.display='none';
+      var fabSinoOff = document.getElementById('pgm-fab-sino');
+      if(fabSinoOff) fabSinoOff.style.display = 'none';
     }
     const activeTab = document.querySelector('.pgm-tab-content.active');
     if(activeTab) {
@@ -3280,6 +3283,8 @@ function startSession() {
 function renderActiveSession() {
   if(!S.activeSession) return;
   const s = S.activeSession;
+  var fabSino = document.getElementById('pgm-fab-sino');
+  if(fabSino) fabSino.style.display = 'flex';
   document.getElementById('active-session-title').textContent = s.num ? `Sessão ${s.num}` : (s.label || 'Sessão Casual');
   document.getElementById('active-session-badge').className = 'pgm-badge '+(s.type==='oficial'?'pgm-badge-gold':(s.type==='torneio'?'pgm-badge-torneio':'pgm-badge-casual'));
   document.getElementById('active-session-badge').textContent = s.type==='oficial'?'🏆 Liga':(s.type==='torneio'?'🥊 Torneio':'🥃 Casual');
@@ -3772,6 +3777,15 @@ function tocarAvisoRebuy() {
   if(navigator.vibrate) { try { navigator.vibrate([200,100,200]); } catch(e) {} }
 }
 
+/* Sino flutuante (🔔) na sessão ativa — qualquer jogador pode tocar,
+   qualquer formato (Cash Game, Torneio Clássico, Torneio Fichas-valem-R$).
+   Fica fixo na tela, sobrevive a troca de aba (não vive dentro de nenhuma
+   .pgm-tab-content), visível só enquanto tem sessão em andamento. */
+function tocarPlim() {
+  try { new Audio('Plim.m4a').play().catch(function(){}); } catch(e) {}
+  if(navigator.vibrate) { try { navigator.vibrate(80); } catch(e) {} }
+}
+
 var _wakeLock = null;
 function pedirWakeLock() {
   if(!('wakeLock' in navigator)) return;
@@ -4110,6 +4124,8 @@ function doCancelarSessao() {
   S.activeSession = null;
   document.getElementById('no-session-state').style.display = 'block';
   document.getElementById('active-session-state').style.display = 'none';
+  var fabSinoCancelar = document.getElementById('pgm-fab-sino');
+  if(fabSinoCancelar) fabSinoCancelar.style.display = 'none';
   resetNewSessionForm();
   updateOverview();
   savePatch({ activeSession: null });
@@ -4251,6 +4267,8 @@ function finishSessionCommon(s) {
   S.activeSession = null;
   document.getElementById('no-session-state').style.display = 'block';
   document.getElementById('active-session-state').style.display = 'none';
+  var fabSinoFim = document.getElementById('pgm-fab-sino');
+  if(fabSinoFim) fabSinoFim.style.display = 'none';
   resetNewSessionForm(); updateOverview();
   savePatch({ sessions: S.sessions, activeSession: null, players: S.players });
 
