@@ -2736,6 +2736,10 @@ const TREINO_HANDS = [
     actionsBefore:['Você defendeu o BB com AA e apostou no flop e no turn','No river, oponente foi all-in'],
     question:'O board fechou com 3 cartas do mesmo naipe e você não tem nenhuma delas. O oponente foi all-in no river. O que você faz?', correct:'fold',
     explanation:'AA é a melhor mão de largada, mas no river ela vira só um par. Com flush possível na mesa (3 cartas do mesmo naipe) e você sem nenhuma carta daquele naipe, um all-in nesse ponto é quase sempre flush feito — até o par mais alto do jogo precisa saber desistir num board perigoso desses.' },
+  { street:'postflop', options:['fold','call'], position:'CO', hand:['Kd','Qc'], board:['Kh','Qh','9h','4h','2s'],
+    actionsBefore:['Você pagou a abertura do UTG e apostou no flop e no turn','No river, oponente foi all-in'],
+    question:'Você tem dois pares (reis e damas), mas o board fechou com 4 cartas do mesmo naipe e você não tem nenhuma delas. O oponente foi all-in no river. O que você faz?', correct:'fold',
+    explanation:'Dois pares altos parecem fortes, mas contra 4 cartas do mesmo naipe na mesa, qualquer carta daquele naipe na mão do vilão já é flush — e um all-in nesse cenário quase sempre significa isso. Dois pares, por melhores que pareçam, não vencem um flush.' },
   { street:'postflop', options:['check','bet'], position:'BTN', hand:['Ks','Qs'], board:['Kd','8h','3c'], actionsBefore:['Você pagou a abertura do CO','Oponente deu check'],
     question:'Você acertou o Rei do flop com kicker forte e o oponente deu check. O que você faz?', correct:'bet',
     explanation:'Top par com ótimo kicker (KQ) contra um check — apostar extrai valor de mãos piores que ainda podem pagar, como reis com kicker fraco.' },
@@ -3000,17 +3004,21 @@ function renderMesaVisual(hand) {
 
     var corAcao = acao === 'All-in' ? '#f16a6a' : (acao === 'Apostou' || (acao && acao.indexOf('Raise') === 0)) ? '#e8c97a' : '#8fbf9f';
 
-    // Ficha empilhada no SB/BB no pré-flop: deixa claro que essas duas
-    // cadeiras já têm dinheiro no pote mesmo quando o texto diz "todos
-    // foldaram até você" — esse "todos" nunca inclui os blinds, que ainda
-    // vão agir depois do herói (ou já postaram e só ficam esperando).
-    var mostrarFichaBlind = !isPostflop && (pos === 'SB' || pos === 'BB');
+    // Ficha empilhada em qualquer cadeira que já tenha dinheiro no pote —
+    // deixa a mesa mais realista. Pré-flop: SB/BB (blind já postado, "todos
+    // foldaram" nunca inclui eles) OU qualquer assento com ação detectada
+    // (raise/call/limp). Pós-flop: só o vilão aparece mesmo, e só ganha
+    // ficha quando a ação dele bota dinheiro a mais (aposta/raise/all-in) —
+    // um Check não bota ficha nova, por isso fica de fora.
+    var mostrarFichaBlind = !isPostflop
+      ? (pos === 'SB' || pos === 'BB' || !!acao)
+      : (!!acao && acao !== 'Check');
 
     return '<div style="position:absolute;left:' + coord.x + '%;top:' + coord.y + '%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;opacity:' + (dim?0.3:1) + '">' +
       (acao ? '<div style="font-size:8px;font-weight:900;color:' + corAcao + ';background:rgba(0,0,0,0.5);border-radius:6px;padding:1px 5px;white-space:nowrap;margin-bottom:1px">' + acao + '</div>' : '') +
       '<div style="width:' + (isHero?36:26) + 'px;height:' + (isHero?36:26) + 'px;border-radius:50%;background:' + (isHero?'rgba(232,201,122,0.28)':'rgba(255,255,255,0.06)') + ';border:2px solid ' + (isHero?'#e8c97a':'rgba(255,255,255,0.2)') + ';display:flex;align-items:center;justify-content:center;font-size:' + (isHero?11:9) + 'px;font-weight:900;color:' + (isHero?'#e8c97a':'#c8dcc8') + ';box-shadow:' + (isHero?'0 0 12px rgba(232,201,122,0.4)':'none') + '">' + pos + '</div>' +
       (isHero ? '<div style="font-size:7px;font-weight:900;color:#e8c97a;letter-spacing:0.05em;margin-top:1px">VOCÊ</div>' : '') +
-      (mostrarFichaBlind ? '<div title="Já tem o blind no pote — ainda vai agir" style="display:flex;margin-top:1px">' +
+      (mostrarFichaBlind ? '<div title="Já tem ficha no pote" style="display:flex;margin-top:1px">' +
         '<div style="width:8px;height:8px;border-radius:50%;background:#c9a84c;border:1px solid #6b5522;margin-right:-3px"></div>' +
         '<div style="width:8px;height:8px;border-radius:50%;background:#e8c97a;border:1px solid #6b5522"></div>' +
       '</div>' : '') +
