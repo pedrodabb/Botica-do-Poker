@@ -55,12 +55,21 @@
     };
 
     window._fbSavePushToken = function(token) {
-      // Mesma duração do login (8h, localStorage.pgm_auth_exp) — não
-      // dura pra sempre: se ninguém reativar, para de avisar sozinho
-      // depois de expirado, em vez de continuar tocando indefinidamente
-      // pra quem nem está mais na mesa.
+      // 8h A PARTIR DE AGORA (não do login) — não dura pra sempre: se
+      // ninguém reativar, para de avisar sozinho depois de expirado, em
+      // vez de continuar tocando indefinidamente pra quem nem está mais
+      // na mesa. Bug real corrigido: antes lia localStorage.pgm_auth_exp
+      // (a validade do LOGIN, fixada no momento em que a pessoa entrou
+      // no app) em vez de calcular uma validade nova a partir de agora —
+      // se o push fosse ativado bem depois do login (comum: loga no
+      // início da noite, só ativa o aviso horas depois já com o jogo
+      // rolando), o token nascia com MENOS de 8h de validade, podendo já
+      // estar expirado quando o alerta de verdade precisava disparar. O
+      // Worker da Cloudflare filtra e ignora token expirado silenciosamente
+      // (não é erro visível), então isso explicava avisos que simplesmente
+      // não chegavam com a tela apagada.
       const safeKey = token.replace(/[.#$\[\]/]/g, '_');
-      const expiresAt = parseInt(localStorage.getItem('pgm_auth_exp') || '0', 10);
+      const expiresAt = Date.now() + 8*60*60*1000;
       const patch = {};
       patch[safeKey] = { token: token, registeredAt: Date.now(), expiresAt: expiresAt };
       return update(ref(db, DB_REF + '/pushTokens'), patch);
@@ -4008,10 +4017,11 @@ async function ativarPushBlinds() {
     return;
   }
   window._fbSavePushToken(token);
-  // Mesma validade que _fbSavePushToken grava lá no Firebase (8h,
-  // igual o login) — guardada aqui local pra statusPushHTML() saber
-  // quando parar de mostrar "ativado" sem precisar consultar o banco.
-  localStorage.setItem('pgm_push_exp', localStorage.getItem('pgm_auth_exp') || '0');
+  // Mesma fórmula que _fbSavePushToken usa lá no Firebase (8h A PARTIR
+  // DE AGORA, não do login — bug real corrigido, ver comentário lá) —
+  // guardada aqui local pra statusPushHTML() saber quando parar de
+  // mostrar "ativado" sem precisar consultar o banco.
+  localStorage.setItem('pgm_push_exp', String(Date.now() + 8*60*60*1000));
   // Guarda o token em si (não só a validade) pra dar pra remover de novo
   // do Firebase se a pessoa clicar em "desativar" antes das 8h vencerem.
   localStorage.setItem('pgm_push_token', token);
