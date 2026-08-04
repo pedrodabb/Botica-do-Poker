@@ -665,12 +665,6 @@
           <div class="pgm-field">
             <label class="pgm-input-label">Buy-in (R$)</label>
             <input type="text" inputmode="decimal" id="new-session-buyin" class="pgm-input" placeholder="0" oninput="maskMoedaOninput(this);atualizarSugestaoFichasBuyin(this)">
-            <div id="ficha-cash-modo-wrapper" style="display:none;margin-top:6px">
-              <div class="pgm-toggle-group" id="ficha-cash-modo-toggle" style="display:flex;gap:6px">
-                <button class="pgm-toggle-opt active" type="button" style="font-size:10px;padding:5px 8px" onclick="setFichaCashModo('centavos')">🪙 Fichas em centavos</button>
-                <button class="pgm-toggle-opt" type="button" style="font-size:10px;padding:5px 8px" onclick="setFichaCashModo('real')">🪙 Fichas em valor real</button>
-              </div>
-            </div>
             <div id="new-session-buyin-fichas"></div>
           </div>
 
@@ -1042,50 +1036,30 @@ function atualizarBlindWrapperSimples() {
    sentido no Torneio Clássico, que já tem sua própria lógica de
    cacife/calculadora (fichas fictícias, não R$ real). Recalcula a
    cada dígito digitado; limpa se trocar pro Clássico ou zerar o campo. */
+/* Só modo "centavos" por enquanto (as fichas do Pedro — ficha "100" =
+   R$1,00) — o toggle pra escolher entre "centavos" vs. "reais" (ficha
+   "100" = R$100,00 direto) foi removido a pedido dele, mas
+   sugerirFichasCash() continua aceitando o 2º parâmetro `modo` pra
+   reativar isso depois sem reescrever a função, só recolocar a UI. */
 function atualizarSugestaoFichasBuyin(el) {
   var hint = document.getElementById('new-session-buyin-fichas');
-  var modoWrapper = document.getElementById('ficha-cash-modo-wrapper');
   if(!hint) return;
   var valor = el ? parseMoedaBR(el.value) : parseMoedaBR((document.getElementById('new-session-buyin')||{}).value);
   var ehCashLike = S.newSession.type !== 'torneio' || S.newSession.tourneyMode === 'cash';
-  if(modoWrapper) modoWrapper.style.display = ehCashLike ? 'block' : 'none';
   if(!valor || !ehCashLike) { hint.innerHTML = ''; return; }
-  var modo = window._fichaCashModo || 'centavos';
-  var sug = sugerirFichasCash(valor, modo);
+  var sug = sugerirFichasCash(valor);
   if(!sug.composicao.length) { hint.innerHTML = ''; return; }
   hint.innerHTML = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:7px">' +
     '<span style="font-size:9px;font-weight:800;color:var(--text-dim);text-transform:uppercase;margin-right:1px">🪙 Fichas sugeridas</span>' +
     sug.composicao.map(function(c) {
-      // no modo "centavos" o valor impresso na ficha vale centavos (mesmo
-      // conjunto físico do Torneio); no modo "real" vale R$ direto. Mostra
-      // o valor real do lado pra nunca confundir os dois.
-      var realCada = modo === 'real' ? c.valor : c.valor / 100;
-      return '<span style="display:inline-flex;align-items:center;gap:3px">' + fichaHTML(c.valor) + '<span style="font-size:10.5px;font-weight:800;color:var(--cream-dim)">×' + c.qtd + ' <span style="font-weight:700;color:var(--text-dim)">(R$' + realCada.toFixed(2).replace('.',',') + ' cada)</span></span></span>';
+      // valor impresso na ficha é em centavos (mesmo conjunto do Torneio) —
+      // mostra o valor real em R$ do lado pra nunca confundir os dois.
+      return '<span style="display:inline-flex;align-items:center;gap:3px">' + fichaHTML(c.valor) + '<span style="font-size:10.5px;font-weight:800;color:var(--cream-dim)">×' + c.qtd + ' <span style="font-weight:700;color:var(--text-dim)">(R$' + (c.valor/100).toFixed(2).replace('.',',') + ' cada)</span></span></span>';
     }).join('') +
     (sug.resto > 0 ? '<span style="font-size:9.5px;color:var(--text-dim);font-weight:700">+ R$' + sug.resto.toFixed(2).replace('.',',') + ' sem ficha exata</span>' : '') +
   '</div>';
 }
 
-/* Escolha entre "fichas valem centavos" (padrão — as fichas do Pedro:
-   ficha "100" = R$1,00) ou "fichas valem valor real" (ficha "100" =
-   R$100,00) — pensando no comercial: outros grupos que venham a usar o
-   app podem ter um conjunto físico diferente do dele. Fica pré-marcado
-   em "centavos" (window._fichaCashModo só é lido com fallback pra esse
-   valor, nunca precisa inicializar antes). Escolha não é salva na
-   sessão — é só ajuda visual na hora de montar o buy-in, não afeta
-   nenhum dado gravado. */
-function setFichaCashModo(m) {
-  window._fichaCashModo = m;
-  document.querySelectorAll('#ficha-cash-modo-toggle .pgm-toggle-opt').forEach(function(b,i){
-    b.classList.toggle('active', (i===0 && m==='centavos') || (i===1 && m==='real'));
-  });
-  atualizarSugestaoFichasBuyin();
-}
-
-/* Timer opcional pra quem não é Torneio Clássico — sem cacife/fichas
-   fictícias, sem valores de SB/BB pré-configurados (isso vai de boca
-   mesmo, na mesa). Só um sino que apita de X em X minutos, reusando os
-   mesmos alertas sonoros/push do timer de blinds do Clássico. */
 function setCashBlindAtivo(ativo) {
   S.newSession.cashBlindAtivo = ativo;
   document.querySelectorAll('#cash-blind-toggle .pgm-toggle-opt').forEach(function(b,i){
