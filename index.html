@@ -627,7 +627,17 @@
                 <label class="pgm-input-label">Apitar a cada (min)</label>
                 <input type="number" id="cash-blind-intervalo" class="pgm-input" placeholder="Ex: 15" min="1" value="15">
               </div>
-              <div style="font-size:10px;font-weight:700;color:var(--text-dim);line-height:1.5">Avisa com som (e notificação, mesmo com a tela apagada) de quanto em quanto tempo apitar. Os valores de blind combinam vocês na mesa mesmo, não precisa configurar aqui.</div>
+              <div class="pgm-row2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0.4rem">
+                <div class="pgm-field" style="margin-bottom:0">
+                  <label class="pgm-input-label">Small Blind (R$)</label>
+                  <input type="text" inputmode="decimal" id="cash-blind-sb" class="pgm-input" placeholder="Opcional" oninput="maskMoedaOninput(this)">
+                </div>
+                <div class="pgm-field" style="margin-bottom:0">
+                  <label class="pgm-input-label">Big Blind (R$)</label>
+                  <input type="text" inputmode="decimal" id="cash-blind-bb" class="pgm-input" placeholder="Opcional" oninput="maskMoedaOninput(this)">
+                </div>
+              </div>
+              <div style="font-size:10px;font-weight:700;color:var(--text-dim);line-height:1.5">Avisa com som (e notificação, mesmo com a tela apagada) de quanto em quanto tempo apitar. SB/BB são opcionais, só pra mostrar na tela — não sobem sozinhos, dá pra editar a qualquer momento na sessão ativa.</div>
             </div>
           </div>
           <div id="tourney-classic-fields" style="display:none">
@@ -3324,7 +3334,15 @@ function lerEstruturaBlindsSimples() {
   if(!S.newSession.cashBlindAtivo) return { ok: true, estrutura: null };
   var intervalo = parseInt((document.getElementById('cash-blind-intervalo')||{}).value) || 0;
   if(intervalo <= 0) return { ok: false, estrutura: null };
-  return { ok: true, estrutura: { simples: true, intervaloMin: intervalo } };
+  var estrutura = { simples: true, intervaloMin: intervalo };
+  // SB/BB são opcionais — só pra mostrar na tela, não sobem sozinhos com
+  // o tempo (diferente do Torneio). Não trava o startSession() se ficar
+  // em branco.
+  var sb = parseMoedaBR((document.getElementById('cash-blind-sb')||{}).value);
+  var bb = parseMoedaBR((document.getElementById('cash-blind-bb')||{}).value);
+  if(sb > 0) estrutura.sb = sb;
+  if(bb > 0) estrutura.bb = bb;
+  return { ok: true, estrutura: estrutura };
 }
 
 function startSession() {
@@ -3460,7 +3478,7 @@ function calcNivelBlindAtual(s) {
     var idxS = Math.floor(Math.max(0, elapsedMin) / intervalo);
     var acumuladoS = idxS * intervalo;
     return {
-      idx: idxS, nivel: { simples: true, duracaoMin: intervalo },
+      idx: idxS, nivel: { simples: true, duracaoMin: intervalo, sb: eb.sb, bb: eb.bb },
       restanteMin: Math.max(0, (acumuladoS + intervalo) - elapsedMin),
       duracaoFaseMin: intervalo,
       proximo: { simples: true }
@@ -3634,15 +3652,17 @@ function atualizarBlindTimerDisplay() {
   var pct = atual.duracaoFaseMin ? Math.max(0, Math.min(100, 100 - (atual.restanteMin/atual.duracaoFaseMin*100))) : 0;
 
   if(atual.nivel.simples) {
+    var temBlindLeve = atual.nivel.sb || atual.nivel.bb;
     corpo.innerHTML =
       '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">' +
         '<div style="font-size:10px;font-weight:900;color:var(--gold-dim);text-transform:uppercase">🔔 Apito ' + (atual.idx+1) + '</div>' +
         '<div style="font-family:Space Mono,monospace;font-size:20px;font-weight:900;color:var(--gold-light)">' + min + ':' + (seg<10?'0':'') + seg + '</div>' +
       '</div>' +
+      (temBlindLeve ? '<div style="font-family:Space Mono,monospace;font-size:18px;font-weight:900;color:var(--cream)">' + (atual.nivel.sb ? fmtRaw(atual.nivel.sb) : '—') + ' / ' + (atual.nivel.bb ? fmtRaw(atual.nivel.bb) : '—') + '</div>' : '') +
       '<div class="pgm-pot-bar" style="margin-top:6px"><div class="pgm-pot-fill" style="width:' + pct + '%"></div></div>' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px">' +
         '<span style="font-size:10px;color:var(--text-dim);font-weight:700">Apita a cada ' + atual.duracaoFaseMin + ' min</span>' +
-        '<button onclick="editarIntervaloBlindSimples()" title="Editar intervalo" style="background:none;border:none;color:var(--gold-light);cursor:pointer;font-size:10px;font-weight:800;padding:0">✏️ editar</button>' +
+        '<button onclick="editarIntervaloBlindSimples()" title="Editar blind" style="background:none;border:none;color:var(--gold-light);cursor:pointer;font-size:10px;font-weight:800;padding:0">✏️ editar</button>' +
       '</div>';
     return;
   }
@@ -3669,15 +3689,23 @@ function editarIntervaloBlindSimples() {
   var corpo = document.getElementById('blind-timer-corpo');
   if(!corpo) return;
   window._blindIntervaloEditando = true;
+  var eb = s.estruturaBlinds;
   corpo.innerHTML =
-    '<div style="font-size:10px;font-weight:900;color:var(--gold-dim);text-transform:uppercase;margin-bottom:6px">⏳ Editar intervalo</div>' +
+    '<div style="font-size:10px;font-weight:900;color:var(--gold-dim);text-transform:uppercase;margin-bottom:6px">⏳ Editar blind</div>' +
+    '<div class="pgm-field" style="margin-bottom:6px"><label class="pgm-input-label" style="font-size:9px">Apitar a cada (min)</label>' +
+    '<input type="number" id="blind-intervalo-edit-input" class="pgm-input" min="1" value="' + eb.intervaloMin + '" style="padding:6px 8px;font-size:13px"></div>' +
+    '<div class="pgm-row2" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">' +
+      '<div class="pgm-field" style="margin-bottom:0"><label class="pgm-input-label" style="font-size:9px">Small Blind (R$)</label>' +
+      '<input type="text" inputmode="decimal" id="blind-sb-edit-input" class="pgm-input" placeholder="Opcional" value="' + (eb.sb ? eb.sb.toFixed(2).replace('.',',') : '') + '" oninput="maskMoedaOninput(this)" style="padding:6px 8px;font-size:13px"></div>' +
+      '<div class="pgm-field" style="margin-bottom:0"><label class="pgm-input-label" style="font-size:9px">Big Blind (R$)</label>' +
+      '<input type="text" inputmode="decimal" id="blind-bb-edit-input" class="pgm-input" placeholder="Opcional" value="' + (eb.bb ? eb.bb.toFixed(2).replace('.',',') : '') + '" oninput="maskMoedaOninput(this)" style="padding:6px 8px;font-size:13px"></div>' +
+    '</div>' +
     '<div style="display:flex;gap:6px;align-items:center">' +
-      '<input type="number" id="blind-intervalo-edit-input" class="pgm-input" min="1" value="' + s.estruturaBlinds.intervaloMin + '" style="flex:1;padding:6px 8px;font-size:13px">' +
-      '<button class="pgm-btn pgm-btn-sm" onclick="confirmarEditarIntervaloBlindSimples()">Salvar</button>' +
+      '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="confirmarEditarIntervaloBlindSimples()">Salvar</button>' +
       '<button onclick="cancelarEditarIntervaloBlindSimples()" title="Cancelar" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0 4px">✕</button>' +
     '</div>';
   var inp = document.getElementById('blind-intervalo-edit-input');
-  if(inp) { inp.focus(); inp.select(); inp.addEventListener('keydown', function(e){ if(e.key==='Enter') confirmarEditarIntervaloBlindSimples(); }); }
+  if(inp) { inp.focus(); inp.select(); }
 }
 
 function cancelarEditarIntervaloBlindSimples() {
@@ -3698,6 +3726,14 @@ function confirmarEditarIntervaloBlindSimples() {
   var atual = calcNivelBlindAtual(s);
   var idxAtual = atual ? atual.idx : 0;
   s.estruturaBlinds.intervaloMin = novo;
+  // SB/BB são opcionais e não sobem sozinhos — editar aqui é a única
+  // forma de mudar (igual a mesa combinar de aumentar na hora).
+  var sbInp = document.getElementById('blind-sb-edit-input');
+  var bbInp = document.getElementById('blind-bb-edit-input');
+  var sb = parseMoedaBR(sbInp && sbInp.value);
+  var bb = parseMoedaBR(bbInp && bbInp.value);
+  if(sb > 0) { s.estruturaBlinds.sb = sb; } else { delete s.estruturaBlinds.sb; }
+  if(bb > 0) { s.estruturaBlinds.bb = bb; } else { delete s.estruturaBlinds.bb; }
   var agora = s.blindTimerPausedAt || Date.now();
   s.blindTimerStartedAt = agora - idxAtual*novo*60000;
   s.blindTimerTotalPaused = 0;
@@ -4575,6 +4611,8 @@ function resetNewSessionForm() {
   var ts = document.getElementById('new-tourney-stack'); if(ts) ts.value = '';
   var tp = document.getElementById('new-tourney-payout'); if(tp) tp.value = '';
   var cbi = document.getElementById('cash-blind-intervalo'); if(cbi) cbi.value = 15;
+  var cbsb = document.getElementById('cash-blind-sb'); if(cbsb) cbsb.value = '';
+  var cbbb = document.getElementById('cash-blind-bb'); if(cbbb) cbbb.value = '';
   setCashBlindAtivo(false);
   renderQuickAdd();
 }
