@@ -665,6 +665,12 @@
           <div class="pgm-field">
             <label class="pgm-input-label">Buy-in (R$)</label>
             <input type="text" inputmode="decimal" id="new-session-buyin" class="pgm-input" placeholder="0" oninput="maskMoedaOninput(this);atualizarSugestaoFichasBuyin(this)">
+            <div id="ficha-cash-modo-wrapper" style="display:none;margin-top:6px">
+              <div class="pgm-toggle-group" id="ficha-cash-modo-toggle" style="display:flex;gap:6px">
+                <button class="pgm-toggle-opt active" type="button" style="font-size:10px;padding:5px 8px" onclick="setFichaCashModo('centavos')">🪙 Fichas em centavos</button>
+                <button class="pgm-toggle-opt" type="button" style="font-size:10px;padding:5px 8px" onclick="setFichaCashModo('real')">🪙 Fichas em valor real</button>
+              </div>
+            </div>
             <div id="new-session-buyin-fichas"></div>
           </div>
 
@@ -1038,19 +1044,42 @@ function atualizarBlindWrapperSimples() {
    cada dígito digitado; limpa se trocar pro Clássico ou zerar o campo. */
 function atualizarSugestaoFichasBuyin(el) {
   var hint = document.getElementById('new-session-buyin-fichas');
+  var modoWrapper = document.getElementById('ficha-cash-modo-wrapper');
   if(!hint) return;
   var valor = el ? parseMoedaBR(el.value) : parseMoedaBR((document.getElementById('new-session-buyin')||{}).value);
   var ehCashLike = S.newSession.type !== 'torneio' || S.newSession.tourneyMode === 'cash';
+  if(modoWrapper) modoWrapper.style.display = ehCashLike ? 'block' : 'none';
   if(!valor || !ehCashLike) { hint.innerHTML = ''; return; }
-  var sug = sugerirFichasCash(valor);
+  var modo = window._fichaCashModo || 'centavos';
+  var sug = sugerirFichasCash(valor, modo);
   if(!sug.composicao.length) { hint.innerHTML = ''; return; }
-  hint.innerHTML = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:7px">' +
+  hint.innerHTML = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:7px">' +
     '<span style="font-size:9px;font-weight:800;color:var(--text-dim);text-transform:uppercase;margin-right:1px">🪙 Fichas sugeridas</span>' +
     sug.composicao.map(function(c) {
-      return '<span style="display:inline-flex;align-items:center;gap:3px">' + fichaHTML(c.valor) + '<span style="font-size:10.5px;font-weight:800;color:var(--cream-dim)">×' + c.qtd + '</span></span>';
+      // no modo "centavos" o valor impresso na ficha vale centavos (mesmo
+      // conjunto físico do Torneio); no modo "real" vale R$ direto. Mostra
+      // o valor real do lado pra nunca confundir os dois.
+      var realCada = modo === 'real' ? c.valor : c.valor / 100;
+      return '<span style="display:inline-flex;align-items:center;gap:3px">' + fichaHTML(c.valor) + '<span style="font-size:10.5px;font-weight:800;color:var(--cream-dim)">×' + c.qtd + ' <span style="font-weight:700;color:var(--text-dim)">(R$' + realCada.toFixed(2).replace('.',',') + ' cada)</span></span></span>';
     }).join('') +
     (sug.resto > 0 ? '<span style="font-size:9.5px;color:var(--text-dim);font-weight:700">+ R$' + sug.resto.toFixed(2).replace('.',',') + ' sem ficha exata</span>' : '') +
   '</div>';
+}
+
+/* Escolha entre "fichas valem centavos" (padrão — as fichas do Pedro:
+   ficha "100" = R$1,00) ou "fichas valem valor real" (ficha "100" =
+   R$100,00) — pensando no comercial: outros grupos que venham a usar o
+   app podem ter um conjunto físico diferente do dele. Fica pré-marcado
+   em "centavos" (window._fichaCashModo só é lido com fallback pra esse
+   valor, nunca precisa inicializar antes). Escolha não é salva na
+   sessão — é só ajuda visual na hora de montar o buy-in, não afeta
+   nenhum dado gravado. */
+function setFichaCashModo(m) {
+  window._fichaCashModo = m;
+  document.querySelectorAll('#ficha-cash-modo-toggle .pgm-toggle-opt').forEach(function(b,i){
+    b.classList.toggle('active', (i===0 && m==='centavos') || (i===1 && m==='real'));
+  });
+  atualizarSugestaoFichasBuyin();
 }
 
 /* Timer opcional pra quem não é Torneio Clássico — sem cacife/fichas
@@ -1165,38 +1194,51 @@ function fichaHTML(valor) {
   return '<div class="pgm-ficha" style="background:' + c[0] + ';border-color:' + c[1] + ';color:' + c[2] + ';' + sombra + '">' + valor.toLocaleString('pt-BR') + '</div>';
 }
 
-/* Cash Game não tem cacife fictício — a ficha física vale o R$ escrito
-   nela, direto. Reaproveita as MESMAS fichas que o Pedro já tem
-   (FICHAS_INVENTARIO), sem checar quantidade disponível no inventário
-   (diferente do stack do Torneio — é só sugestão pra UM buy-in por vez,
-   não pra mesa toda). Bug real corrigido: a primeira versão era gulosa
-   (sempre pega a maior ficha primeiro), o que podia deixar sobra mesmo
-   quando o valor fechava exato — ex.: R$90 sobrava R$5 sem necessidade,
-   já que 1×50+4×10=90 fecha certinho. Agora usa troco MÍNIMO (programação
-   dinâmica, sempre acha uma combinação exata quando ela existe, nunca só
-   "tenta a maior e desiste") e depois um refino que quebra a ficha maior
-   em menores de mesmo valor total — mesmo espírito de
-   refinarParaMuitasFichas() da calculadora de torneio (Pedro pediu
-   "sempre bastante ficha"), só que num alvo bem menor (3-8 fichas), já
-   que aqui é um buy-in avulso, não um cacife inteiro pra mesa toda. */
-function sugerirFichasCash(valor) {
-  var denoms = FICHAS_INVENTARIO.map(function(f){ return f.valor; }).sort(function(a,b){ return a-b; });
-  var valorArred = Math.round(valor * 100) / 100;
-  var parteReais = Math.floor(valorArred);
-  var centavos = Math.round((valorArred - parteReais) * 100) / 100;
+/* Cash Game não tem cacife fictício, mas TAMBÉM não é "o número escrito
+   na ficha = R$ direto" — é o MESMO conjunto físico do Torneio, e o que
+   o número impresso representa depende do `modo` (pensando no
+   comercial: outros grupos podem ter fichas diferentes das do Pedro):
+   `'centavos'` (padrão, as fichas do Pedro — ficha "25" = R$0,25, ficha
+   "100" = R$1,00, ficha "3000" = R$30,00) ou `'real'` (ficha "100" =
+   R$100,00 direto). Reaproveita FICHAS_INVENTARIO sem checar quantidade
+   disponível (é sugestão pra UM buy-in por vez, não pra mesa toda).
+   Trabalha inteiramente em inteiros na escala do modo escolhido (evita
+   erro de arredondamento de float fazendo conta em reais fracionados).
+   Troco MÍNIMO por programação dinâmica (sempre acha uma combinação
+   exata quando ela existe — bug real da 1ª versão, que era gulosa e
+   podia deixar sobra à toa) e depois um refino que quebra a ficha maior
+   em menores de mesmo valor total, até um alvo moderado de 3-8 fichas —
+   mesmo espírito de refinarParaMuitasFichas() da calculadora de torneio
+   ("sempre bastante ficha"), só numa escala bem menor (buy-in avulso,
+   não cacife de mesa inteira). */
+function sugerirFichasCash(valor, modo) {
+  var denoms = FICHAS_INVENTARIO.map(function(f){ return f.valor; }).sort(function(a,b){ return a-b; }); // valor de face
+  var ehCentavos = modo !== 'real';
+  var alvoBase, restoExtra;
+  if (ehCentavos) {
+    alvoBase = Math.round(valor * 100); // ficha de face X vale X centavos
+    restoExtra = 0;
+  } else {
+    alvoBase = Math.floor(valor); // ficha de face X vale X reais
+    restoExtra = Math.round((valor - alvoBase) * 100) / 100; // centavos do buy-in nunca fecham em ficha nenhuma nesse modo
+  }
+  var unidade = 5; // toda ficha do inventário é múltiplo de 5 — reduz o tamanho da tabela de DP
+  var alvoU = Math.floor(alvoBase / unidade);
+  var restoCent = alvoBase - alvoU * unidade;
 
-  var minQtd = new Array(parteReais + 1).fill(Infinity);
-  var escolha = new Array(parteReais + 1).fill(-1);
+  var denomsU = denoms.map(function(d){ return d / unidade; });
+  var minQtd = new Array(alvoU + 1).fill(Infinity);
+  var escolha = new Array(alvoU + 1).fill(-1);
   minQtd[0] = 0;
-  for (var v = 1; v <= parteReais; v++) {
-    for (var i = 0; i < denoms.length; i++) {
-      var d = denoms[i];
+  for (var v = 1; v <= alvoU; v++) {
+    for (var i = 0; i < denomsU.length; i++) {
+      var d = denomsU[i];
       if (d <= v && minQtd[v - d] + 1 < minQtd[v]) { minQtd[v] = minQtd[v - d] + 1; escolha[v] = d; }
     }
   }
-  var vUsar = parteReais;
+  var vUsar = alvoU;
   while (vUsar > 0 && !isFinite(minQtd[vUsar])) vUsar--;
-  var resto = (parteReais - vUsar) + centavos;
+  restoCent += (alvoU - vUsar) * unidade;
 
   var contagem = {};
   var v2 = vUsar;
@@ -1209,19 +1251,22 @@ function sugerirFichasCash(valor) {
     var presentes = Object.keys(contagem).map(Number).sort(function(a,b){ return b - a; });
     var maior = presentes[0];
     if (maior === undefined) break;
-    var idx = denoms.indexOf(maior);
+    var idx = denomsU.indexOf(maior);
     if (idx <= 0) break; // já é a menor ficha, não dá pra quebrar mais
-    var menor = denoms[idx - 1];
+    var menor = denomsU[idx - 1];
     if (maior % menor !== 0) break; // não divide exato — nunca inventa fração de ficha
     contagem[maior]--;
     if (contagem[maior] === 0) delete contagem[maior];
     contagem[menor] = (contagem[menor] || 0) + (maior / menor);
   }
 
-  var composicao = Object.keys(contagem).map(Number).sort(function(a,b){ return b - a; }).map(function(dv){
-    return { valor: dv, qtd: contagem[dv] };
+  var composicao = Object.keys(contagem).map(Number).sort(function(a,b){ return b - a; }).map(function(dU){
+    return { valor: dU * unidade, qtd: contagem[dU] }; // valor de FACE (o que está impresso na ficha)
   });
-  return { composicao: composicao, resto: Math.round(resto * 100) / 100 };
+  // restoCent está na escala do modo escolhido (centavos ou reais inteiros)
+  // — só o modo centavos precisa dividir por 100 pra virar reais.
+  var restoBaseReais = ehCentavos ? Math.round(restoCent) / 100 : restoCent;
+  return { composicao: composicao, resto: Math.round((restoBaseReais + restoExtra) * 100) / 100 };
 }
 
 /* Escada de small blinds. A maioria é múltipla de 250 (preferência do
