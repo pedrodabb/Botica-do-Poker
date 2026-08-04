@@ -1020,15 +1020,18 @@ function atualizarBlindWrapperSimples() {
   wrapper.style.display = mostrar ? 'block' : 'none';
 }
 
-/* Sugestão de fichas físicas pro buy-in — só faz sentido no Cash Game
-   puro (Torneio, mesmo "Fichas valem R$", já tem sua própria lógica de
-   cacife/calculadora). Recalcula a cada dígito digitado; limpa se
-   trocar pra Torneio ou zerar o campo. */
+/* Sugestão de fichas físicas pro buy-in — faz sentido em qualquer
+   formato onde ficha = R$ direto: Cash Game E Torneio "Fichas valem
+   R$" (mesmo padrão de atualizarBlindWrapperSimples). Só não faz
+   sentido no Torneio Clássico, que já tem sua própria lógica de
+   cacife/calculadora (fichas fictícias, não R$ real). Recalcula a
+   cada dígito digitado; limpa se trocar pro Clássico ou zerar o campo. */
 function atualizarSugestaoFichasBuyin(el) {
   var hint = document.getElementById('new-session-buyin-fichas');
   if(!hint) return;
   var valor = el ? parseMoedaBR(el.value) : parseMoedaBR((document.getElementById('new-session-buyin')||{}).value);
-  if(!valor || S.newSession.type === 'torneio') { hint.innerHTML = ''; return; }
+  var ehCashLike = S.newSession.type !== 'torneio' || S.newSession.tourneyMode === 'cash';
+  if(!valor || !ehCashLike) { hint.innerHTML = ''; return; }
   var sug = sugerirFichasCash(valor);
   if(!sug.composicao.length) { hint.innerHTML = ''; return; }
   hint.innerHTML = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:7px">' +
@@ -1061,6 +1064,7 @@ function setTourneyMode(tm) {
   var tcf = document.getElementById('tourney-classic-fields');
   if(tcf) tcf.style.display = tm === 'classico' ? 'block' : 'none';
   atualizarBlindWrapperSimples();
+  atualizarSugestaoFichasBuyin();
 }
 
 /* ===================== CALCULADORA DE TORNEIO =====================
