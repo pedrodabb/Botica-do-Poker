@@ -1166,23 +1166,62 @@ function fichaHTML(valor) {
 }
 
 /* Cash Game não tem cacife fictício — a ficha física vale o R$ escrito
-   nela, direto. Sugestão simples de troco (maior denominação primeiro),
-   reaproveitando as MESMAS fichas que o Pedro já tem (FICHAS_INVENTARIO)
-   em vez de inventar uma denominação nova. Não checa quantidade
-   disponível no inventário (diferente do stack do Torneio) — é só uma
-   sugestão pra UM buy-in por vez, não pra mesa toda de uma vez. */
+   nela, direto. Reaproveita as MESMAS fichas que o Pedro já tem
+   (FICHAS_INVENTARIO), sem checar quantidade disponível no inventário
+   (diferente do stack do Torneio — é só sugestão pra UM buy-in por vez,
+   não pra mesa toda). Bug real corrigido: a primeira versão era gulosa
+   (sempre pega a maior ficha primeiro), o que podia deixar sobra mesmo
+   quando o valor fechava exato — ex.: R$90 sobrava R$5 sem necessidade,
+   já que 1×50+4×10=90 fecha certinho. Agora usa troco MÍNIMO (programação
+   dinâmica, sempre acha uma combinação exata quando ela existe, nunca só
+   "tenta a maior e desiste") e depois um refino que quebra a ficha maior
+   em menores de mesmo valor total — mesmo espírito de
+   refinarParaMuitasFichas() da calculadora de torneio (Pedro pediu
+   "sempre bastante ficha"), só que num alvo bem menor (3-8 fichas), já
+   que aqui é um buy-in avulso, não um cacife inteiro pra mesa toda. */
 function sugerirFichasCash(valor) {
-  var denoms = FICHAS_INVENTARIO.map(function(f){ return f.valor; }).sort(function(a,b){ return b-a; });
-  var resto = Math.round(valor * 100) / 100;
-  var composicao = [];
-  denoms.forEach(function(d) {
-    var qtd = Math.floor(resto / d);
-    if(qtd > 0) {
-      composicao.push({ valor: d, qtd: qtd });
-      resto = Math.round((resto - qtd * d) * 100) / 100;
+  var denoms = FICHAS_INVENTARIO.map(function(f){ return f.valor; }).sort(function(a,b){ return a-b; });
+  var valorArred = Math.round(valor * 100) / 100;
+  var parteReais = Math.floor(valorArred);
+  var centavos = Math.round((valorArred - parteReais) * 100) / 100;
+
+  var minQtd = new Array(parteReais + 1).fill(Infinity);
+  var escolha = new Array(parteReais + 1).fill(-1);
+  minQtd[0] = 0;
+  for (var v = 1; v <= parteReais; v++) {
+    for (var i = 0; i < denoms.length; i++) {
+      var d = denoms[i];
+      if (d <= v && minQtd[v - d] + 1 < minQtd[v]) { minQtd[v] = minQtd[v - d] + 1; escolha[v] = d; }
     }
+  }
+  var vUsar = parteReais;
+  while (vUsar > 0 && !isFinite(minQtd[vUsar])) vUsar--;
+  var resto = (parteReais - vUsar) + centavos;
+
+  var contagem = {};
+  var v2 = vUsar;
+  while (v2 > 0) { var dEsc = escolha[v2]; contagem[dEsc] = (contagem[dEsc] || 0) + 1; v2 -= dEsc; }
+
+  var totalFichas = function(){ return Object.keys(contagem).reduce(function(a,k){ return a + contagem[k]; }, 0); };
+  var alvoFichas = Math.min(8, Math.max(3, Math.round(vUsar / 8)));
+  var guarda = 0;
+  while (totalFichas() < alvoFichas && guarda++ < 30) {
+    var presentes = Object.keys(contagem).map(Number).sort(function(a,b){ return b - a; });
+    var maior = presentes[0];
+    if (maior === undefined) break;
+    var idx = denoms.indexOf(maior);
+    if (idx <= 0) break; // já é a menor ficha, não dá pra quebrar mais
+    var menor = denoms[idx - 1];
+    if (maior % menor !== 0) break; // não divide exato — nunca inventa fração de ficha
+    contagem[maior]--;
+    if (contagem[maior] === 0) delete contagem[maior];
+    contagem[menor] = (contagem[menor] || 0) + (maior / menor);
+  }
+
+  var composicao = Object.keys(contagem).map(Number).sort(function(a,b){ return b - a; }).map(function(dv){
+    return { valor: dv, qtd: contagem[dv] };
   });
-  return { composicao: composicao, resto: resto };
+  return { composicao: composicao, resto: Math.round(resto * 100) / 100 };
 }
 
 /* Escada de small blinds. A maioria é múltipla de 250 (preferência do
