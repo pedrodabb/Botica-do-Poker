@@ -49,11 +49,14 @@ async function checarBlinds(env) {
   // window._blindTimerAvisoTocado em index.html): nunca alerta na
   // primeira checagem depois do início, e o aviso de 2min dispara só
   // uma vez por nível. O aviso de rebuy dispara junto com a troca de
-  // nível — não é mais baseado em "faltam X minutos" (tempo), e sim em
-  // "o nível que acabou de começar é o addonAposNivel" (o último em que
-  // o rebuy ainda fica aberto). Dispara no máximo uma vez por sessão
-  // inteira, então pushAvisoRebuyNotificado nunca é resetado depois de
-  // marcado (diferente de pushAvisoNotificado, que reseta a cada nível).
+  // nível — não é baseado em "faltam X minutos" (tempo), e sim em "o
+  // nível que acabou de começar é o addonAposNivel" (o último em que o
+  // rebuy ainda fica aberto). Bug real corrigido: antes
+  // pushAvisoRebuyNotificado nunca resetava (disparava uma vez só por
+  // sessão inteira), então se o nível avançasse errado
+  // (moverNivelBlind sem querer) e voltasse pro nível do add-on de
+  // novo, o push não chegava mais — agora reseta sempre que o nível
+  // muda pra fora do add-on, igual pushAvisoNotificado já fazia.
   const primeiraChamada = session.pushUltimoNivelNotificado === undefined;
   const patch = { pushUltimoNivelNotificado: atual.idx };
   const notificacoes = [];
@@ -66,12 +69,17 @@ async function checarBlinds(env) {
     });
 
     const eb = session.estruturaBlinds;
-    if (!session.pushAvisoRebuyNotificado && eb && eb.addonAposNivel && atual.nivel.nivel === eb.addonAposNivel) {
-      patch.pushAvisoRebuyNotificado = true;
-      notificacoes.push({
-        titulo: '⏰ Último nível pra recomprar!',
-        corpo: 'O rebuy/add-on fecha no fim deste nível.'
-      });
+    const ehNivelAddon = eb && eb.addonAposNivel && atual.nivel.nivel === eb.addonAposNivel;
+    if (ehNivelAddon) {
+      if (!session.pushAvisoRebuyNotificado) {
+        patch.pushAvisoRebuyNotificado = true;
+        notificacoes.push({
+          titulo: '⏰ Último nível pra recomprar!',
+          corpo: 'O rebuy/add-on fecha no fim deste nível.'
+        });
+      }
+    } else {
+      patch.pushAvisoRebuyNotificado = false;
     }
   }
 

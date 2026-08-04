@@ -3561,9 +3561,19 @@ function atualizarBlindTimerDisplay() {
        do resto do timer, sem precisar calcular distância até um
        instante futuro — só olha se o nível que acabou de começar é
        exatamente o addonAposNivel. */
-    if(!window._blindAvisoRebuyTocado && s.estruturaBlinds.addonAposNivel && atual.nivel.nivel === s.estruturaBlinds.addonAposNivel) {
-      window._blindAvisoRebuyTocado = true;
-      tocarAvisoRebuy();
+    var ehNivelAddon = s.estruturaBlinds.addonAposNivel && atual.nivel.nivel === s.estruturaBlinds.addonAposNivel;
+    if(ehNivelAddon) {
+      if(!window._blindAvisoRebuyTocado) {
+        window._blindAvisoRebuyTocado = true;
+        tocarAvisoRebuy();
+      }
+    } else {
+      /* Bug real: antes esse flag nunca resetava (disparava uma vez só
+         por sessão inteira), então se o nível avançasse errado
+         (moverNivelBlind sem querer) e voltasse pro nível do add-on de
+         novo, o aviso não tocava mais. Resetando aqui — sempre que SAI
+         do nível do add-on — ele pode disparar de novo se voltar. */
+      window._blindAvisoRebuyTocado = false;
     }
   }
   window._blindTimerUltimoNivel = atual.idx;
