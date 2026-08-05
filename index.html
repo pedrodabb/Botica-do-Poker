@@ -269,6 +269,8 @@
     .pgm-input { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 10px; color: var(--cream); font-family: 'Space Mono', monospace; font-size: 14px; padding: 0.55rem 0.75rem; width: 100%; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
     .pgm-input:focus { border-color: var(--gold); }
     .pgm-input::placeholder { color: var(--text-dim); }
+    select.pgm-input { cursor: pointer; }
+    select.pgm-input option { background: var(--felt-mid); color: var(--cream); }
     .pgm-textarea { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 10px; color: var(--cream); font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700; padding: 0.6rem 0.75rem; width: 100%; outline: none; transition: border-color 0.15s; resize: vertical; min-height: 80px; line-height: 1.5; }
     .pgm-textarea:focus { border-color: var(--curio); }
     .pgm-textarea::placeholder { color: var(--text-dim); }
@@ -1036,11 +1038,8 @@ function atualizarBlindWrapperSimples() {
    getBlindLadderCash() cai nessa constante enquanto S.blindLadderCash
    não for customizado. */
 var BLIND_LADDER_CASH_PADRAO = [
-  { sb: 10, bb: 20 }, { sb: 20, bb: 30 }, { sb: 25, bb: 50 }, { sb: 30, bb: 60 },
-  { sb: 40, bb: 80 }, { sb: 50, bb: 100 }, { sb: 125, bb: 150 }, { sb: 150, bb: 300 },
-  { sb: 200, bb: 400 }, { sb: 250, bb: 500 }, { sb: 300, bb: 600 }, { sb: 400, bb: 800 },
-  { sb: 500, bb: 1000 }, { sb: 750, bb: 1500 }, { sb: 1000, bb: 2000 }, { sb: 2000, bb: 3000 },
-  { sb: 3000, bb: 6000 }
+  { sb: 0.10, bb: 0.20 }, { sb: 0.20, bb: 0.40 }, { sb: 0.25, bb: 0.50 }, { sb: 0.40, bb: 0.80 },
+  { sb: 0.50, bb: 1.00 }, { sb: 0.75, bb: 1.50 }, { sb: 1.00, bb: 2.00 }
 ];
 
 function getBlindLadderCash() {
