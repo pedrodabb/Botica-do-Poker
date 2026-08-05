@@ -632,7 +632,7 @@
               <div class="pgm-field" style="margin-bottom:0.4rem">
                 <label class="pgm-input-label">Blind inicial (opcional)</label>
                 <select id="cash-blind-nivel-inicial" class="pgm-input">
-                  <option value="">Nenhum (só apito)</option>
+                  <option value=""></option>
                 </select>
               </div>
               <div style="font-size:10px;font-weight:700;color:var(--text-dim);line-height:1.5">Avisa com som (e notificação, mesmo com a tela apagada) de quanto em quanto tempo apitar. Se escolher um blind inicial, ele sobe sozinho seguindo a tabela — dá pra adiantar/voltar de nível a qualquer momento na sessão ativa.</div>
@@ -1058,7 +1058,7 @@ function garantirBlindLadderCashCustom() {
 function popularSelectNivelInicialCash(selectEl, selectedIdx) {
   if(!selectEl) return;
   var ladder = getBlindLadderCash();
-  selectEl.innerHTML = '<option value="">Nenhum (só apito)</option>' +
+  selectEl.innerHTML = '<option value=""></option>' +
     ladder.map(function(n,i){ return '<option value="' + i + '">' + fmtRaw(n.sb) + ' / ' + fmtRaw(n.bb) + '</option>'; }).join('');
   if(selectedIdx !== undefined && selectedIdx !== null && selectedIdx >= 0 && selectedIdx < ladder.length) {
     selectEl.value = String(selectedIdx);
