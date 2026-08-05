@@ -1241,20 +1241,18 @@ var CORES_FICHA_CASH = {
    quantidade disponível (é sugestão pra UM buy-in por vez, não pra mesa
    toda).
 
-   Composição pensada em 3 camadas, não só troco mínimo (que sozinho
-   colapsava tudo em 1-2 fichas grandes, o oposto do "mesa cheia de
-   ficha" que o Pedro quer):
-   1) Reserva ~20 fichas de 10c de cara — é a ficha que mais roda na
-      mesa (pedido explícito do Pedro), então sempre entra em
-      quantidade generosa antes de qualquer coisa.
-   2) No máximo 1 ficha de 200 e 1 de 500 — são raras nesse conjunto (só
-      ~8 de cada), então funcionam só como "arredondamento", nunca como
-      base da composição.
-   3) O que sobra vira 25/50/100 por troco mínimo (DP) e depois um
-      refino que quebra a ficha maior em menores até um alvo generoso de
-      fichas — mesmo espírito de refinarParaMuitasFichas() da
-      calculadora de torneio, só numa escala bem menor (buy-in avulso,
-      não cacife de mesa inteira). */
+   Composição em camadas de teto DECRESCENTE (pedido explícito do Pedro:
+   "a ordem de qtd é 10c,25c,50c,100c,200c,500c" — o jogo gira em torno
+   de 0,25 e 0,10, e 200/500 são basicamente pra completar o cacife):
+   1) Cada denominação pequena (10→25→50→100, nessa ordem) pega o quanto
+      couber até um teto próprio, sempre menor que o da denominação
+      anterior (20/16/10/4) — garante que a contagem cai conforme a
+      ficha fica mais valiosa, nunca o contrário.
+   2) O que sobrar (geralmente pouco, já que as 4 camadas acima cobrem a
+      maior parte de qualquer buy-in comum) fecha por troco mínimo (DP)
+      usando o conjunto inteiro — é aqui que 200/500 entram de verdade,
+      só "completando" o resto, podendo passar de 1 unidade em buy-ins
+      bem maiores que o usual. */
 function sugerirFichasCash(valor, modo) {
   var ehCentavos = modo !== 'real';
   var alvoBase, restoExtra;
@@ -1269,18 +1267,19 @@ function sugerirFichasCash(valor, modo) {
   var contagem = {};
   var restante = alvoBase;
 
-  var reserva10 = Math.min(20, Math.floor(restante / 10 * 0.4));
-  if (reserva10 > 0) { contagem[10] = reserva10; restante -= reserva10 * 10; }
+  var TETOS_CAMADA = [[10, 20], [25, 16], [50, 10], [100, 4]];
+  TETOS_CAMADA.forEach(function(camada) {
+    var denom = camada[0], teto = camada[1];
+    var qtd = Math.min(teto, Math.floor(restante / denom));
+    if (qtd > 0) { contagem[denom] = (contagem[denom] || 0) + qtd; restante -= qtd * denom; }
+  });
 
-  if (restante >= 1500) { contagem[500] = 1; restante -= 500; }
-  if (restante >= 500)  { contagem[200] = (contagem[200] || 0) + 1; restante -= 200; }
-
-  var pequenas = [10, 25, 50, 100];
-  var unidade = 5; // toda ficha pequena é múltiplo de 5 — reduz o tamanho da tabela de DP
+  var denoms = [10, 25, 50, 100, 200, 500];
+  var unidade = 5; // toda ficha do conjunto é múltiplo de 5 — reduz o tamanho da tabela de DP
   var alvoU = Math.floor(restante / unidade);
   var restoCent = restante - alvoU * unidade;
 
-  var denomsU = pequenas.map(function(d){ return d / unidade; });
+  var denomsU = denoms.map(function(d){ return d / unidade; });
   var minQtd = new Array(alvoU + 1).fill(Infinity);
   var escolha = new Array(alvoU + 1).fill(-1);
   minQtd[0] = 0;
@@ -1296,23 +1295,6 @@ function sugerirFichasCash(valor, modo) {
 
   var v2 = vUsar;
   while (v2 > 0) { var dEsc = escolha[v2]; var val = dEsc * unidade; contagem[val] = (contagem[val] || 0) + 1; v2 -= dEsc; }
-
-  var totalPequenas = function(){ return pequenas.reduce(function(a,d){ return a + (contagem[d] || 0); }, 0); };
-  var alvoFichasPequenas = Math.max(8, Math.round(vUsar * unidade / 45)) + reserva10;
-  var guarda = 0;
-  while (totalPequenas() < alvoFichasPequenas && guarda++ < 200) {
-    // Nunca mexe na reserva de 10c aqui — ela já foi decidida na etapa 1.
-    var presentes = pequenas.filter(function(d){ return contagem[d] > 0 && d !== 10; }).sort(function(a,b){ return b - a; });
-    var maior = presentes[0];
-    if (maior === undefined) break;
-    var idx = pequenas.indexOf(maior);
-    if (idx <= 0) break; // já é a menor ficha refinável, não dá pra quebrar mais
-    var menor = pequenas[idx - 1];
-    if (maior % menor !== 0) break; // não divide exato — nunca inventa fração de ficha
-    contagem[maior]--;
-    if (contagem[maior] === 0) delete contagem[maior];
-    contagem[menor] = (contagem[menor] || 0) + (maior / menor);
-  }
 
   var composicao = Object.keys(contagem).map(Number).filter(function(d){ return contagem[d] > 0; }).sort(function(a,b){ return b - a; }).map(function(d){
     return { valor: d, qtd: contagem[d] }; // valor de FACE (o que está impresso na ficha)
