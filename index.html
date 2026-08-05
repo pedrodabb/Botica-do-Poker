@@ -1239,20 +1239,23 @@ var CORES_FICHA_CASH = {
    (padrão, as fichas do Pedro — ficha "25" = R$0,25, ficha "500" =
    R$5,00) ou `'real'` (ficha "100" = R$100,00 direto). Sem checar
    quantidade disponível (é sugestão pra UM buy-in por vez, não pra mesa
-   toda). Trabalha inteiramente em inteiros na escala do modo escolhido
-   (evita erro de arredondamento de float fazendo conta em reais
-   fracionados). Troco MÍNIMO por programação dinâmica (sempre acha uma
-   combinação exata quando ela existe — bug real da 1ª versão, que era
-   gulosa e podia deixar sobra à toa) e depois um refino que quebra a
-   ficha maior em fichas menores de mesmo valor total (decomposição
-   gulosa entre as denominações menores presentes no conjunto — não
-   exige mais que a próxima ficha menor divida exato, porque nesse
-   conjunto 500 não é múltiplo de 200), até um alvo moderado de 3-8
-   fichas — mesmo espírito de refinarParaMuitasFichas() da calculadora
-   de torneio ("sempre bastante ficha"), só numa escala bem menor
-   (buy-in avulso, não cacife de mesa inteira). */
+   toda).
+
+   Composição pensada em 3 camadas, não só troco mínimo (que sozinho
+   colapsava tudo em 1-2 fichas grandes, o oposto do "mesa cheia de
+   ficha" que o Pedro quer):
+   1) Reserva ~20 fichas de 10c de cara — é a ficha que mais roda na
+      mesa (pedido explícito do Pedro), então sempre entra em
+      quantidade generosa antes de qualquer coisa.
+   2) No máximo 1 ficha de 200 e 1 de 500 — são raras nesse conjunto (só
+      ~8 de cada), então funcionam só como "arredondamento", nunca como
+      base da composição.
+   3) O que sobra vira 25/50/100 por troco mínimo (DP) e depois um
+      refino que quebra a ficha maior em menores até um alvo generoso de
+      fichas — mesmo espírito de refinarParaMuitasFichas() da
+      calculadora de torneio, só numa escala bem menor (buy-in avulso,
+      não cacife de mesa inteira). */
 function sugerirFichasCash(valor, modo) {
-  var denoms = FICHAS_CASH.slice().sort(function(a,b){ return a-b; }); // valor de face
   var ehCentavos = modo !== 'real';
   var alvoBase, restoExtra;
   if (ehCentavos) {
@@ -1262,11 +1265,22 @@ function sugerirFichasCash(valor, modo) {
     alvoBase = Math.floor(valor); // ficha de face X vale X reais
     restoExtra = Math.round((valor - alvoBase) * 100) / 100; // centavos do buy-in nunca fecham em ficha nenhuma nesse modo
   }
-  var unidade = 5; // toda ficha do inventário é múltiplo de 5 — reduz o tamanho da tabela de DP
-  var alvoU = Math.floor(alvoBase / unidade);
-  var restoCent = alvoBase - alvoU * unidade;
 
-  var denomsU = denoms.map(function(d){ return d / unidade; });
+  var contagem = {};
+  var restante = alvoBase;
+
+  var reserva10 = Math.min(20, Math.floor(restante / 10 * 0.4));
+  if (reserva10 > 0) { contagem[10] = reserva10; restante -= reserva10 * 10; }
+
+  if (restante >= 1500) { contagem[500] = 1; restante -= 500; }
+  if (restante >= 500)  { contagem[200] = (contagem[200] || 0) + 1; restante -= 200; }
+
+  var pequenas = [10, 25, 50, 100];
+  var unidade = 5; // toda ficha pequena é múltiplo de 5 — reduz o tamanho da tabela de DP
+  var alvoU = Math.floor(restante / unidade);
+  var restoCent = restante - alvoU * unidade;
+
+  var denomsU = pequenas.map(function(d){ return d / unidade; });
   var minQtd = new Array(alvoU + 1).fill(Infinity);
   var escolha = new Array(alvoU + 1).fill(-1);
   minQtd[0] = 0;
@@ -1280,38 +1294,28 @@ function sugerirFichasCash(valor, modo) {
   while (vUsar > 0 && !isFinite(minQtd[vUsar])) vUsar--;
   restoCent += (alvoU - vUsar) * unidade;
 
-  var contagem = {};
   var v2 = vUsar;
-  while (v2 > 0) { var dEsc = escolha[v2]; contagem[dEsc] = (contagem[dEsc] || 0) + 1; v2 -= dEsc; }
+  while (v2 > 0) { var dEsc = escolha[v2]; var val = dEsc * unidade; contagem[val] = (contagem[val] || 0) + 1; v2 -= dEsc; }
 
-  var totalFichas = function(){ return Object.keys(contagem).reduce(function(a,k){ return a + contagem[k]; }, 0); };
-  var alvoFichas = Math.min(8, Math.max(3, Math.round(vUsar / 8)));
+  var totalPequenas = function(){ return pequenas.reduce(function(a,d){ return a + (contagem[d] || 0); }, 0); };
+  var alvoFichasPequenas = Math.max(8, Math.round(vUsar * unidade / 45)) + reserva10;
   var guarda = 0;
-  while (totalFichas() < alvoFichas && guarda++ < 30) {
-    var presentes = Object.keys(contagem).map(Number).sort(function(a,b){ return b - a; });
+  while (totalPequenas() < alvoFichasPequenas && guarda++ < 200) {
+    // Nunca mexe na reserva de 10c aqui — ela já foi decidida na etapa 1.
+    var presentes = pequenas.filter(function(d){ return contagem[d] > 0 && d !== 10; }).sort(function(a,b){ return b - a; });
     var maior = presentes[0];
     if (maior === undefined) break;
-    var idx = denomsU.indexOf(maior);
-    if (idx <= 0) break; // já é a menor ficha, não dá pra quebrar mais
-    // Decompõe 1 ficha de "maior" nas denominações menores disponíveis
-    // (guloso, da maior pra menor) — mais geral que "divide por 1 só
-    // valor", necessário porque no conjunto do Cash Game 500 não é
-    // múltiplo de 200 (500/200 não fecha exato numa denominação só).
-    var restanteDecomp = maior;
-    var novasFichas = [];
-    for (var k = idx - 1; k >= 0 && restanteDecomp > 0; k--) {
-      var dk = denomsU[k];
-      var qk = Math.floor(restanteDecomp / dk);
-      if (qk > 0) { novasFichas.push([dk, qk]); restanteDecomp -= dk * qk; }
-    }
-    if (restanteDecomp !== 0) break; // não fechou exato — nunca inventa fração de ficha
+    var idx = pequenas.indexOf(maior);
+    if (idx <= 0) break; // já é a menor ficha refinável, não dá pra quebrar mais
+    var menor = pequenas[idx - 1];
+    if (maior % menor !== 0) break; // não divide exato — nunca inventa fração de ficha
     contagem[maior]--;
     if (contagem[maior] === 0) delete contagem[maior];
-    novasFichas.forEach(function(nf){ contagem[nf[0]] = (contagem[nf[0]] || 0) + nf[1]; });
+    contagem[menor] = (contagem[menor] || 0) + (maior / menor);
   }
 
-  var composicao = Object.keys(contagem).map(Number).sort(function(a,b){ return b - a; }).map(function(dU){
-    return { valor: dU * unidade, qtd: contagem[dU] }; // valor de FACE (o que está impresso na ficha)
+  var composicao = Object.keys(contagem).map(Number).filter(function(d){ return contagem[d] > 0; }).sort(function(a,b){ return b - a; }).map(function(d){
+    return { valor: d, qtd: contagem[d] }; // valor de FACE (o que está impresso na ficha)
   });
   // restoCent está na escala do modo escolhido (centavos ou reais inteiros)
   // — só o modo centavos precisa dividir por 100 pra virar reais.
