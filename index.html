@@ -1101,7 +1101,7 @@ function atualizarSugestaoFichasBuyin(el) {
     sug.composicao.map(function(c) {
       // valor impresso na ficha é em centavos (mesmo conjunto do Torneio) —
       // mostra o valor real em R$ do lado pra nunca confundir os dois.
-      return '<span style="display:inline-flex;align-items:center;gap:3px">' + fichaHTML(c.valor) + '<span style="font-size:10.5px;font-weight:800;color:var(--cream-dim)">×' + c.qtd + ' <span style="font-weight:700;color:var(--text-dim)">(R$' + (c.valor/100).toFixed(2).replace('.',',') + ' cada)</span></span></span>';
+      return '<span style="display:inline-flex;align-items:center;gap:3px">' + fichaHTML(c.valor, CORES_FICHA_CASH) + '<span style="font-size:10.5px;font-weight:800;color:var(--cream-dim)">×' + c.qtd + ' <span style="font-weight:700;color:var(--text-dim)">(R$' + (c.valor/100).toFixed(2).replace('.',',') + ' cada)</span></span></span>';
     }).join('') +
     (sug.resto > 0 ? '<span style="font-size:9.5px;color:var(--text-dim);font-weight:700">+ R$' + sug.resto.toFixed(2).replace('.',',') + ' sem ficha exata</span>' : '') +
   '</div>';
@@ -1207,37 +1207,52 @@ var CORES_FICHA = {
   3000: ['#161616','#e15fa0','#f5d7e6']
 };
 
-function fichaHTML(valor) {
-  var c = CORES_FICHA[valor] || ['#3a3a3a','#1c1c1c','#ffffff'];
+function fichaHTML(valor, coresMap) {
+  var c = (coresMap || CORES_FICHA)[valor] || ['#3a3a3a','#1c1c1c','#ffffff'];
   var sombra = c[3]
     ? 'box-shadow:inset 0 0 0 2px ' + c[3] + ', 0 2px 6px rgba(0,0,0,0.4);'
     : '';
   return '<div class="pgm-ficha" style="background:' + c[0] + ';border-color:' + c[1] + ';color:' + c[2] + ';' + sombra + '">' + valor.toLocaleString('pt-BR') + '</div>';
 }
 
+/* Fichas do Cash Game são um conjunto FÍSICO PRÓPRIO, diferente das
+   fichas de torneio (FICHAS_INVENTARIO/CORES_FICHA) — mesmo quando o
+   valor de face coincide (10/25/50/100/500), a cor real é outra (ex:
+   100 é verde no Cash, azul clara no Torneio). Confirmado pelo Pedro em
+   2026-08-05: 10 azul, 25 amarela, 50 rosa, 100 verde, 200 azul escura,
+   500 vermelha — sem 1000/3000 (não existem nesse conjunto). */
+var FICHAS_CASH = [10, 25, 50, 100, 200, 500];
+var CORES_FICHA_CASH = {
+  10:  ['#2f6fd1','#1a4a8f','#ffffff'],
+  25:  ['#eec53f','#a67e10','#2c2005'],
+  50:  ['#e0699b','#a13d68','#ffffff'],
+  100: ['#3fb37a','#1f7a4d','#ffffff'],
+  200: ['#173a63','#0b2039','#ffffff'],
+  500: ['#d1453b','#8f2620','#ffffff']
+};
+
 /* Cash Game não tem cacife fictício, mas TAMBÉM não é "o número escrito
-   na ficha = R$ direto" — é o MESMO conjunto físico do Torneio, e o que
-   o número impresso representa depende do `modo` (pensando no
-   comercial: outros grupos podem ter fichas diferentes das do Pedro):
-   `'centavos'` (padrão, as fichas do Pedro — ficha "25" = R$0,25, ficha
-   "100" = R$1,00, ficha "3000" = R$30,00) ou `'real'` (ficha "100" =
-   R$100,00 direto). Reaproveita FICHAS_INVENTARIO sem checar quantidade
-   disponível (é sugestão pra UM buy-in por vez, não pra mesa toda).
-   Trabalha inteiramente em inteiros na escala do modo escolhido (evita
-   erro de arredondamento de float fazendo conta em reais fracionados).
-   Troco MÍNIMO por programação dinâmica (sempre acha uma combinação
-   exata quando ela existe — bug real da 1ª versão, que era gulosa e
-   podia deixar sobra à toa) e depois um refino que quebra a ficha maior
-   em menores de mesmo valor total, até um alvo moderado de 3-8 fichas —
-   mesmo espírito de refinarParaMuitasFichas() da calculadora de torneio
-   ("sempre bastante ficha"), só numa escala bem menor (buy-in avulso,
-   não cacife de mesa inteira). */
+   na ficha = R$ direto" — usa o conjunto físico PRÓPRIO do Cash Game
+   (FICHAS_CASH/CORES_FICHA_CASH, diferente do Torneio), e o que o
+   número impresso representa depende do `modo` (pensando no comercial:
+   outros grupos podem ter fichas diferentes das do Pedro): `'centavos'`
+   (padrão, as fichas do Pedro — ficha "25" = R$0,25, ficha "500" =
+   R$5,00) ou `'real'` (ficha "100" = R$100,00 direto). Sem checar
+   quantidade disponível (é sugestão pra UM buy-in por vez, não pra mesa
+   toda). Trabalha inteiramente em inteiros na escala do modo escolhido
+   (evita erro de arredondamento de float fazendo conta em reais
+   fracionados). Troco MÍNIMO por programação dinâmica (sempre acha uma
+   combinação exata quando ela existe — bug real da 1ª versão, que era
+   gulosa e podia deixar sobra à toa) e depois um refino que quebra a
+   ficha maior em fichas menores de mesmo valor total (decomposição
+   gulosa entre as denominações menores presentes no conjunto — não
+   exige mais que a próxima ficha menor divida exato, porque nesse
+   conjunto 500 não é múltiplo de 200), até um alvo moderado de 3-8
+   fichas — mesmo espírito de refinarParaMuitasFichas() da calculadora
+   de torneio ("sempre bastante ficha"), só numa escala bem menor
+   (buy-in avulso, não cacife de mesa inteira). */
 function sugerirFichasCash(valor, modo) {
-  var denoms = FICHAS_INVENTARIO.map(function(f){ return f.valor; }).sort(function(a,b){ return a-b; }); // valor de face
-  // Buy-in até R$20 não precisa da ficha de 500 (R$5,00 em centavos) — o
-  // Pedro prefere mais fichas menores nesse patamar (jogo com 6-7
-  // pessoas, buy-in típico); acima de R$20 ela volta a entrar normalmente.
-  if (valor <= 20) denoms = denoms.filter(function(d){ return d !== 500; });
+  var denoms = FICHAS_CASH.slice().sort(function(a,b){ return a-b; }); // valor de face
   var ehCentavos = modo !== 'real';
   var alvoBase, restoExtra;
   if (ehCentavos) {
@@ -1278,11 +1293,21 @@ function sugerirFichasCash(valor, modo) {
     if (maior === undefined) break;
     var idx = denomsU.indexOf(maior);
     if (idx <= 0) break; // já é a menor ficha, não dá pra quebrar mais
-    var menor = denomsU[idx - 1];
-    if (maior % menor !== 0) break; // não divide exato — nunca inventa fração de ficha
+    // Decompõe 1 ficha de "maior" nas denominações menores disponíveis
+    // (guloso, da maior pra menor) — mais geral que "divide por 1 só
+    // valor", necessário porque no conjunto do Cash Game 500 não é
+    // múltiplo de 200 (500/200 não fecha exato numa denominação só).
+    var restanteDecomp = maior;
+    var novasFichas = [];
+    for (var k = idx - 1; k >= 0 && restanteDecomp > 0; k--) {
+      var dk = denomsU[k];
+      var qk = Math.floor(restanteDecomp / dk);
+      if (qk > 0) { novasFichas.push([dk, qk]); restanteDecomp -= dk * qk; }
+    }
+    if (restanteDecomp !== 0) break; // não fechou exato — nunca inventa fração de ficha
     contagem[maior]--;
     if (contagem[maior] === 0) delete contagem[maior];
-    contagem[menor] = (contagem[menor] || 0) + (maior / menor);
+    novasFichas.forEach(function(nf){ contagem[nf[0]] = (contagem[nf[0]] || 0) + nf[1]; });
   }
 
   var composicao = Object.keys(contagem).map(Number).sort(function(a,b){ return b - a; }).map(function(dU){
