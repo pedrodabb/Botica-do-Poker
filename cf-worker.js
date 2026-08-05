@@ -64,7 +64,7 @@ async function checarBlinds(env) {
   if (!primeiraChamada && session.pushUltimoNivelNotificado !== atual.idx) {
     patch.pushAvisoNotificado = false;
     notificacoes.push({
-      titulo: atual.nivel.simples ? '🔔 Hora de apitar o blind' : '🔔 Nível ' + (atual.idx + 1) + ' — ' + fmtNum(atual.nivel.sb) + '/' + fmtNum(atual.nivel.bb),
+      titulo: atual.nivel.simples ? (atual.nivel.sb ? '🔔 ' + fmtNum(atual.nivel.sb) + '/' + fmtNum(atual.nivel.bb) : '🔔 Hora de apitar o blind') : '🔔 Nível ' + (atual.idx + 1) + ' — ' + fmtNum(atual.nivel.sb) + '/' + fmtNum(atual.nivel.bb),
       corpo: atual.nivel.simples ? 'Apita a cada ' + atual.duracaoFaseMin + ' min' : (atual.nivel.fase + (atual.nivel.ante ? ' · ante ' + fmtNum(atual.nivel.ante) : ''))
     });
 
@@ -88,7 +88,7 @@ async function checarBlinds(env) {
     patch.pushAvisoNotificado = true;
     notificacoes.push({
       titulo: '⏳ Faltam 2 minutos pro próximo apito',
-      corpo: atual.nivel.simples ? 'Prepare o apito' : ('Vai virar pra ' + fmtNum(atual.proximo.sb) + '/' + fmtNum(atual.proximo.bb))
+      corpo: atual.nivel.simples ? (atual.proximoEscada ? 'Vai virar pra ' + fmtNum(atual.proximoEscada.sb) + '/' + fmtNum(atual.proximoEscada.bb) : 'Prepare o apito') : ('Vai virar pra ' + fmtNum(atual.proximo.sb) + '/' + fmtNum(atual.proximo.bb))
     });
   }
 
@@ -139,11 +139,15 @@ function calcNivelBlindAtual(s) {
     var intervalo = eb.intervaloMin || 15;
     var idxS = Math.floor(Math.max(0, elapsedMin) / intervalo);
     var acumuladoS = idxS * intervalo;
+    var escada = eb.escada;
+    var lookupIdx = escada ? Math.min(idxS, escada.length - 1) : -1;
+    var nivelEscada = lookupIdx >= 0 ? escada[lookupIdx] : null;
     return {
-      idx: idxS, nivel: { simples: true, duracaoMin: intervalo },
+      idx: idxS, nivel: { simples: true, duracaoMin: intervalo, sb: nivelEscada ? nivelEscada.sb : null, bb: nivelEscada ? nivelEscada.bb : null },
       restanteMin: Math.max(0, (acumuladoS + intervalo) - elapsedMin),
       duracaoFaseMin: intervalo,
-      proximo: { simples: true }
+      proximo: { simples: true },
+      proximoEscada: escada ? (escada[lookupIdx + 1] || null) : null
     };
   }
   if (!eb.niveis || !eb.niveis.length) return null;

@@ -627,17 +627,13 @@
                 <label class="pgm-input-label">Apitar a cada (min)</label>
                 <input type="number" id="cash-blind-intervalo" class="pgm-input" placeholder="Ex: 15" min="1" value="15">
               </div>
-              <div class="pgm-row2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0.4rem">
-                <div class="pgm-field" style="margin-bottom:0">
-                  <label class="pgm-input-label">Small Blind (R$)</label>
-                  <input type="text" inputmode="decimal" id="cash-blind-sb" class="pgm-input" placeholder="Opcional" oninput="maskMoedaOninput(this)">
-                </div>
-                <div class="pgm-field" style="margin-bottom:0">
-                  <label class="pgm-input-label">Big Blind (R$)</label>
-                  <input type="text" inputmode="decimal" id="cash-blind-bb" class="pgm-input" placeholder="Opcional" oninput="maskMoedaOninput(this)">
-                </div>
+              <div class="pgm-field" style="margin-bottom:0.4rem">
+                <label class="pgm-input-label">Blind inicial (opcional)</label>
+                <select id="cash-blind-nivel-inicial" class="pgm-input">
+                  <option value="">Nenhum (só apito)</option>
+                </select>
               </div>
-              <div style="font-size:10px;font-weight:700;color:var(--text-dim);line-height:1.5">Avisa com som (e notificação, mesmo com a tela apagada) de quanto em quanto tempo apitar. SB/BB são opcionais, só pra mostrar na tela — não sobem sozinhos, dá pra editar a qualquer momento na sessão ativa.</div>
+              <div style="font-size:10px;font-weight:700;color:var(--text-dim);line-height:1.5">Avisa com som (e notificação, mesmo com a tela apagada) de quanto em quanto tempo apitar. Se escolher um blind inicial, ele sobe sozinho seguindo a tabela — dá pra adiantar/voltar de nível a qualquer momento na sessão ativa.</div>
             </div>
           </div>
           <div id="tourney-classic-fields" style="display:none">
@@ -850,7 +846,8 @@ const S = {
   newSession: { type: 'oficial', players: [] },
   activeSession: null,
   authConfig: { senhaMesaAtiva: true, googleAtivo: false },
-  favoritosBlinds: []
+  favoritosBlinds: [],
+  blindLadderCash: null
 };
 
 function save() {
@@ -914,7 +911,7 @@ function initFirebaseSync() {
     const localTime = S._lastUpdate || 0;
     if(remoteTime < localTime) return;
 
-    const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession','tempCode','_lastUpdate','authConfig','favoritosBlinds'];
+    const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession','tempCode','_lastUpdate','authConfig','favoritosBlinds','blindLadderCash'];
     keys.forEach(k=>{ if(data[k]!==undefined) S[k]=data[k]; });
     S.activeSession = data.activeSession || null;
     var hadMissingUid = S.sessions.some(function(s){ return !s._uid; });
@@ -1028,6 +1025,57 @@ function atualizarBlindWrapperSimples() {
   if(!wrapper) return;
   var mostrar = S.newSession.type !== 'torneio' || S.newSession.tourneyMode === 'cash';
   wrapper.style.display = mostrar ? 'block' : 'none';
+  popularSelectNivelInicialCash(document.getElementById('cash-blind-nivel-inicial'), -1);
+}
+
+/* Tabela padrão de progressão de blinds do Cash Game / Torneio "Fichas
+   valem R$" — pedida pelo Pedro pra o timer de blinds fazer sentido de
+   verdade (sem isso, "Blind leve" só mostrava um SB/BB fixo que nunca
+   subia). Admin pode personalizar via showBlindLadderAdmin() (pensando
+   em comercializar — outros grupos podem ter progressão diferente);
+   getBlindLadderCash() cai nessa constante enquanto S.blindLadderCash
+   não for customizado. */
+var BLIND_LADDER_CASH_PADRAO = [
+  { sb: 10, bb: 20 }, { sb: 20, bb: 30 }, { sb: 25, bb: 50 }, { sb: 30, bb: 60 },
+  { sb: 40, bb: 80 }, { sb: 50, bb: 100 }, { sb: 125, bb: 150 }, { sb: 150, bb: 300 },
+  { sb: 200, bb: 400 }, { sb: 250, bb: 500 }, { sb: 300, bb: 600 }, { sb: 400, bb: 800 },
+  { sb: 500, bb: 1000 }, { sb: 750, bb: 1500 }, { sb: 1000, bb: 2000 }, { sb: 2000, bb: 3000 },
+  { sb: 3000, bb: 6000 }
+];
+
+function getBlindLadderCash() {
+  return (S.blindLadderCash && S.blindLadderCash.length) ? S.blindLadderCash : BLIND_LADDER_CASH_PADRAO;
+}
+
+/* Garante uma cópia própria (nunca reaproveita a referência da constante
+   padrão) antes de qualquer edição do admin — senão adicionar/remover
+   nível mutaria BLIND_LADDER_CASH_PADRAO direto. */
+function garantirBlindLadderCashCustom() {
+  if(!S.blindLadderCash || !S.blindLadderCash.length) {
+    S.blindLadderCash = BLIND_LADDER_CASH_PADRAO.map(function(n){ return { sb: n.sb, bb: n.bb }; });
+  }
+}
+
+function popularSelectNivelInicialCash(selectEl, selectedIdx) {
+  if(!selectEl) return;
+  var ladder = getBlindLadderCash();
+  selectEl.innerHTML = '<option value="">Nenhum (só apito)</option>' +
+    ladder.map(function(n,i){ return '<option value="' + i + '">' + fmtRaw(n.sb) + ' / ' + fmtRaw(n.bb) + '</option>'; }).join('');
+  if(selectedIdx !== undefined && selectedIdx !== null && selectedIdx >= 0 && selectedIdx < ladder.length) {
+    selectEl.value = String(selectedIdx);
+  }
+}
+
+/* Acha em qual índice da tabela atual (getBlindLadderCash()) começa a
+   escada salva numa estrutura — usado pra pré-selecionar o formulário de
+   edição ao vivo com o nível certo. */
+function acharIndiceInicialEscada(eb) {
+  if(!eb || !eb.escada || !eb.escada.length) return -1;
+  var ladder = getBlindLadderCash();
+  for(var i=0;i<ladder.length;i++) {
+    if(ladder[i].sb === eb.escada[0].sb && ladder[i].bb === eb.escada[0].bb) return i;
+  }
+  return -1;
 }
 
 /* Sugestão de fichas físicas pro buy-in — faz sentido em qualquer
@@ -3387,19 +3435,19 @@ function renderQuickAdd() {
 
 /* Lê o timer de blinds simples (Cash Game e Torneio "Fichas valem R$")
    do formulário de Nova Sessão. ok:false quando ativado mas sem um
-   intervalo válido — startSession() aborta nesse caso. */
+   intervalo válido — startSession() aborta nesse caso. Escolher um
+   "blind inicial" é opcional — sem isso, o timer só apita, sem SB/BB.
+   Com isso, sobe sozinho seguindo a tabela (getBlindLadderCash()),
+   snapshot salvo na sessão pra edição futura do admin na tabela não
+   afetar sessões já em andamento. */
 function lerEstruturaBlindsSimples() {
   if(!S.newSession.cashBlindAtivo) return { ok: true, estrutura: null };
   var intervalo = parseInt((document.getElementById('cash-blind-intervalo')||{}).value) || 0;
   if(intervalo <= 0) return { ok: false, estrutura: null };
   var estrutura = { simples: true, intervaloMin: intervalo };
-  // SB/BB são opcionais — só pra mostrar na tela, não sobem sozinhos com
-  // o tempo (diferente do Torneio). Não trava o startSession() se ficar
-  // em branco.
-  var sb = parseMoedaBR((document.getElementById('cash-blind-sb')||{}).value);
-  var bb = parseMoedaBR((document.getElementById('cash-blind-bb')||{}).value);
-  if(sb > 0) estrutura.sb = sb;
-  if(bb > 0) estrutura.bb = bb;
+  var nivelSel = document.getElementById('cash-blind-nivel-inicial');
+  var idx = (nivelSel && nivelSel.value !== '') ? parseInt(nivelSel.value) : -1;
+  if(idx >= 0) estrutura.escada = getBlindLadderCash().slice(idx);
   return { ok: true, estrutura: estrutura };
 }
 
@@ -3535,11 +3583,18 @@ function calcNivelBlindAtual(s) {
     var intervalo = eb.intervaloMin || 15;
     var idxS = Math.floor(Math.max(0, elapsedMin) / intervalo);
     var acumuladoS = idxS * intervalo;
+    // Com escada (tabela de blinds), o "apito" continua contando pra
+    // sempre no mesmo ritmo, mas o SB/BB fica travado no último degrau
+    // assim que a tabela acaba — não inventa nível além do que existe.
+    var escada = eb.escada;
+    var lookupIdx = escada ? Math.min(idxS, escada.length-1) : -1;
+    var nivelEscada = lookupIdx >= 0 ? escada[lookupIdx] : null;
     return {
-      idx: idxS, nivel: { simples: true, duracaoMin: intervalo, sb: eb.sb, bb: eb.bb },
+      idx: idxS, nivel: { simples: true, duracaoMin: intervalo, sb: nivelEscada ? nivelEscada.sb : null, bb: nivelEscada ? nivelEscada.bb : null },
       restanteMin: Math.max(0, (acumuladoS + intervalo) - elapsedMin),
       duracaoFaseMin: intervalo,
-      proximo: { simples: true }
+      proximo: { simples: true },
+      proximoEscada: escada ? (escada[lookupIdx+1] || null) : null
     };
   }
   if(!eb.niveis || !eb.niveis.length) return null;
@@ -3711,13 +3766,20 @@ function atualizarBlindTimerDisplay() {
 
   if(atual.nivel.simples) {
     var temBlindLeve = atual.nivel.sb || atual.nivel.bb;
+    var proxLinha = '';
+    if(s.estruturaBlinds.escada) {
+      proxLinha = atual.proximoEscada
+        ? '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:5px">Próximo: ' + fmtRaw(atual.proximoEscada.sb) + ' / ' + fmtRaw(atual.proximoEscada.bb) + '</div>'
+        : '<div style="font-size:10px;color:var(--gold-light);font-weight:800;margin-top:5px">Blind máximo da tabela</div>';
+    }
     corpo.innerHTML =
       '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">' +
         '<div style="font-size:10px;font-weight:900;color:var(--gold-dim);text-transform:uppercase">🔔 Apito ' + (atual.idx+1) + '</div>' +
         '<div style="font-family:Space Mono,monospace;font-size:20px;font-weight:900;color:var(--gold-light)">' + min + ':' + (seg<10?'0':'') + seg + '</div>' +
       '</div>' +
-      (temBlindLeve ? '<div style="font-family:Space Mono,monospace;font-size:18px;font-weight:900;color:var(--cream)">' + (atual.nivel.sb ? fmtRaw(atual.nivel.sb) : '—') + ' / ' + (atual.nivel.bb ? fmtRaw(atual.nivel.bb) : '—') + '</div>' : '') +
+      (temBlindLeve ? '<div style="font-family:Space Mono,monospace;font-size:18px;font-weight:900;color:var(--cream)">' + fmtRaw(atual.nivel.sb) + ' / ' + fmtRaw(atual.nivel.bb) + '</div>' : '') +
       '<div class="pgm-pot-bar" style="margin-top:6px"><div class="pgm-pot-fill" style="width:' + pct + '%"></div></div>' +
+      proxLinha +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px">' +
         '<span style="font-size:10px;color:var(--text-dim);font-weight:700">Apita a cada ' + atual.duracaoFaseMin + ' min</span>' +
         '<button onclick="editarIntervaloBlindSimples()" title="Editar blind" style="background:none;border:none;color:var(--gold-light);cursor:pointer;font-size:10px;font-weight:800;padding:0">✏️ editar</button>' +
@@ -3748,20 +3810,18 @@ function editarIntervaloBlindSimples() {
   if(!corpo) return;
   window._blindIntervaloEditando = true;
   var eb = s.estruturaBlinds;
+  var idxOriginal = acharIndiceInicialEscada(eb);
   corpo.innerHTML =
     '<div style="font-size:10px;font-weight:900;color:var(--gold-dim);text-transform:uppercase;margin-bottom:6px">⏳ Editar blind</div>' +
     '<div class="pgm-field" style="margin-bottom:6px"><label class="pgm-input-label" style="font-size:9px">Apitar a cada (min)</label>' +
     '<input type="number" id="blind-intervalo-edit-input" class="pgm-input" min="1" value="' + eb.intervaloMin + '" style="padding:6px 8px;font-size:13px"></div>' +
-    '<div class="pgm-row2" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">' +
-      '<div class="pgm-field" style="margin-bottom:0"><label class="pgm-input-label" style="font-size:9px">Small Blind (R$)</label>' +
-      '<input type="text" inputmode="decimal" id="blind-sb-edit-input" class="pgm-input" placeholder="Opcional" value="' + (eb.sb ? eb.sb.toFixed(2).replace('.',',') : '') + '" oninput="maskMoedaOninput(this)" style="padding:6px 8px;font-size:13px"></div>' +
-      '<div class="pgm-field" style="margin-bottom:0"><label class="pgm-input-label" style="font-size:9px">Big Blind (R$)</label>' +
-      '<input type="text" inputmode="decimal" id="blind-bb-edit-input" class="pgm-input" placeholder="Opcional" value="' + (eb.bb ? eb.bb.toFixed(2).replace('.',',') : '') + '" oninput="maskMoedaOninput(this)" style="padding:6px 8px;font-size:13px"></div>' +
-    '</div>' +
+    '<div class="pgm-field" style="margin-bottom:8px"><label class="pgm-input-label" style="font-size:9px">Blind (tabela)</label>' +
+    '<select id="blind-nivel-edit-input" class="pgm-input" data-original="' + idxOriginal + '" style="padding:6px 8px;font-size:13px"></select></div>' +
     '<div style="display:flex;gap:6px;align-items:center">' +
       '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="confirmarEditarIntervaloBlindSimples()">Salvar</button>' +
       '<button onclick="cancelarEditarIntervaloBlindSimples()" title="Cancelar" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0 4px">✕</button>' +
     '</div>';
+  popularSelectNivelInicialCash(document.getElementById('blind-nivel-edit-input'), idxOriginal);
   var inp = document.getElementById('blind-intervalo-edit-input');
   if(inp) { inp.focus(); inp.select(); }
 }
@@ -3784,16 +3844,19 @@ function confirmarEditarIntervaloBlindSimples() {
   var atual = calcNivelBlindAtual(s);
   var idxAtual = atual ? atual.idx : 0;
   s.estruturaBlinds.intervaloMin = novo;
-  // SB/BB são opcionais e não sobem sozinhos — editar aqui é a única
-  // forma de mudar (igual a mesa combinar de aumentar na hora).
-  var sbInp = document.getElementById('blind-sb-edit-input');
-  var bbInp = document.getElementById('blind-bb-edit-input');
-  var sb = parseMoedaBR(sbInp && sbInp.value);
-  var bb = parseMoedaBR(bbInp && bbInp.value);
-  if(sb > 0) { s.estruturaBlinds.sb = sb; } else { delete s.estruturaBlinds.sb; }
-  if(bb > 0) { s.estruturaBlinds.bb = bb; } else { delete s.estruturaBlinds.bb; }
+  // Trocar o blind selecionado é um "pula pra esse nível agora" — reseta
+  // a contagem do apito (idx 0) porque não faz sentido herdar a posição
+  // antiga numa tabela diferente. Só mexer no intervalo, mantendo o
+  // mesmo blind, preserva o número do apito atual (mesma filosofia de
+  // sempre: derivado de timestamp, nunca um contador à parte).
+  var nivelSel = document.getElementById('blind-nivel-edit-input');
+  var idxOriginal = nivelSel ? parseInt(nivelSel.getAttribute('data-original')) : -1;
+  var idxNovo = (nivelSel && nivelSel.value !== '') ? parseInt(nivelSel.value) : -1;
+  if(idxNovo >= 0) { s.estruturaBlinds.escada = getBlindLadderCash().slice(idxNovo); } else { delete s.estruturaBlinds.escada; }
+  var mudouBlind = idxNovo !== idxOriginal;
+  var idxBase = mudouBlind ? 0 : idxAtual;
   var agora = s.blindTimerPausedAt || Date.now();
-  s.blindTimerStartedAt = agora - idxAtual*novo*60000;
+  s.blindTimerStartedAt = agora - idxBase*novo*60000;
   s.blindTimerTotalPaused = 0;
   savePatch({
     'activeSession/estruturaBlinds': s.estruturaBlinds,
@@ -3835,6 +3898,7 @@ function moverNivelBlind(delta) {
   if(eb.simples) {
     var intervalo = eb.intervaloMin || 15;
     alvo = Math.max(0, atual.idx + delta);
+    if(eb.escada) alvo = Math.min(alvo, eb.escada.length-1);
     somaAnterior = alvo * intervalo;
   } else {
     alvo = Math.max(0, Math.min(eb.niveis.length-1, atual.idx + delta));
@@ -4669,8 +4733,7 @@ function resetNewSessionForm() {
   var ts = document.getElementById('new-tourney-stack'); if(ts) ts.value = '';
   var tp = document.getElementById('new-tourney-payout'); if(tp) tp.value = '';
   var cbi = document.getElementById('cash-blind-intervalo'); if(cbi) cbi.value = 15;
-  var cbsb = document.getElementById('cash-blind-sb'); if(cbsb) cbsb.value = '';
-  var cbbb = document.getElementById('cash-blind-bb'); if(cbbb) cbbb.value = '';
+  var cbni = document.getElementById('cash-blind-nivel-inicial'); if(cbni) cbni.value = '';
   setCashBlindAtivo(false);
   renderQuickAdd();
 }
@@ -5583,11 +5646,17 @@ function showAdminPanel() {
     '</div>' +
   '</div>';
 
+  var blindLadderHTML = '<div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:0.75rem">' +
+    '<div style="font-size:10px;color:var(--text-dim);font-weight:900;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.5rem">Timer de blinds (Cash Game)</div>' +
+    '<button class="pgm-btn pgm-btn-sm" style="width:100%" onclick="showBlindLadderAdmin()">🎚️ Personalizar tabela de blinds</button>' +
+  '</div>';
+
   showModal(
     '<div class="pgm-modal-title">📊 Admin <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     temporadaHTML +
     tcHTML +
     authHTML +
+    blindLadderHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminSair()">Sair</button>' +
@@ -5625,6 +5694,89 @@ function toggleAuthConfig(key, value) {
   S.authConfig = next;
   savePatch({ authConfig: S.authConfig });
   showAdminPanel();
+}
+
+/* Personalização da tabela de blinds do Cash Game (admin only) — pensada
+   pro comercial: grupos diferentes do Pedro podem ter progressão própria
+   (fichas/denominações diferentes). Editar aqui não afeta sessões já em
+   andamento — elas guardam sua própria cópia (snapshot) em
+   estruturaBlinds.escada, lida uma vez no início da sessão. */
+function showBlindLadderAdmin() {
+  if(!_adminAuth) return;
+  var ladder = getBlindLadderCash();
+  var linhas = ladder.map(function(n,i) {
+    return '<div id="blind-ladder-row-' + i + '" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="flex:1;font-family:Space Mono,monospace;font-weight:800;color:var(--cream)">' + fmtRaw(n.sb) + ' / ' + fmtRaw(n.bb) + '</div>' +
+      '<button onclick="adminIniciarEditarNivelBlindLadder(' + i + ')" style="background:none;border:none;color:var(--gold-light);cursor:pointer;font-size:12px">✏️</button>' +
+      '<button onclick="adminRemoverNivelBlindLadder(' + i + ')" style="background:none;border:none;color:var(--negative);cursor:pointer;font-size:14px;font-weight:900">✕</button>' +
+    '</div>';
+  }).join('');
+  showModal(
+    '<div class="pgm-modal-title">🎚️ Tabela de blinds (Cash) <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="font-size:11px;color:var(--text-dim);font-weight:700;margin-bottom:0.6rem">Progressão padrão usada pelo "Timer de blinds" do Cash Game e do Torneio "Fichas valem R$". Editar aqui não muda sessões já em andamento — só as novas.</div>' +
+    '<div id="blind-ladder-lista" style="max-height:45vh;overflow-y:auto;margin-bottom:0.75rem">' + linhas + '</div>' +
+    '<div class="pgm-row2" style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:end;margin-bottom:0.75rem">' +
+      '<div class="pgm-field" style="margin-bottom:0"><label class="pgm-input-label" style="font-size:9px">SB</label><input type="text" inputmode="decimal" id="blind-ladder-novo-sb" class="pgm-input" placeholder="Ex: 10" oninput="maskMoedaOninput(this)" style="padding:6px 8px;font-size:13px"></div>' +
+      '<div class="pgm-field" style="margin-bottom:0"><label class="pgm-input-label" style="font-size:9px">BB</label><input type="text" inputmode="decimal" id="blind-ladder-novo-bb" class="pgm-input" placeholder="Ex: 20" oninput="maskMoedaOninput(this)" style="padding:6px 8px;font-size:13px"></div>' +
+      '<button class="pgm-btn pgm-btn-sm" onclick="adminAdicionarNivelBlindLadder()">+ Add</button>' +
+    '</div>' +
+    '<div class="pgm-row-btns">' +
+      '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
+      '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminRestaurarPadraoBlindLadder()">Restaurar padrão</button>' +
+    '</div>'
+  );
+}
+
+function adminAdicionarNivelBlindLadder() {
+  if(!_adminAuth) return;
+  var sb = parseMoedaBR((document.getElementById('blind-ladder-novo-sb')||{}).value);
+  var bb = parseMoedaBR((document.getElementById('blind-ladder-novo-bb')||{}).value);
+  if(!sb || !bb) { showAlert('Informe SB e BB.'); return; }
+  garantirBlindLadderCashCustom();
+  S.blindLadderCash.push({ sb: sb, bb: bb });
+  S.blindLadderCash.sort(function(a,b){ return a.sb - b.sb; });
+  savePatch({ blindLadderCash: S.blindLadderCash });
+  showBlindLadderAdmin();
+}
+
+function adminRemoverNivelBlindLadder(idx) {
+  if(!_adminAuth) return;
+  garantirBlindLadderCashCustom();
+  S.blindLadderCash.splice(idx, 1);
+  savePatch({ blindLadderCash: S.blindLadderCash });
+  showBlindLadderAdmin();
+}
+
+function adminIniciarEditarNivelBlindLadder(idx) {
+  if(!_adminAuth) return;
+  var ladder = getBlindLadderCash();
+  var n = ladder[idx];
+  var row = document.getElementById('blind-ladder-row-' + idx);
+  if(!row || !n) return;
+  row.innerHTML =
+    '<input type="text" inputmode="decimal" id="blind-ladder-edit-sb-' + idx + '" class="pgm-input" value="' + n.sb.toFixed(2).replace('.',',') + '" oninput="maskMoedaOninput(this)" style="flex:1;padding:5px 7px;font-size:12px">' +
+    '<input type="text" inputmode="decimal" id="blind-ladder-edit-bb-' + idx + '" class="pgm-input" value="' + n.bb.toFixed(2).replace('.',',') + '" oninput="maskMoedaOninput(this)" style="flex:1;padding:5px 7px;font-size:12px">' +
+    '<button onclick="adminConfirmarEditarNivelBlindLadder(' + idx + ')" style="background:none;border:none;color:var(--positive);cursor:pointer;font-size:14px;font-weight:900">✓</button>' +
+    '<button onclick="showBlindLadderAdmin()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px">✕</button>';
+}
+
+function adminConfirmarEditarNivelBlindLadder(idx) {
+  if(!_adminAuth) return;
+  var sb = parseMoedaBR((document.getElementById('blind-ladder-edit-sb-' + idx)||{}).value);
+  var bb = parseMoedaBR((document.getElementById('blind-ladder-edit-bb-' + idx)||{}).value);
+  if(!sb || !bb) { showAlert('Informe SB e BB.'); return; }
+  garantirBlindLadderCashCustom();
+  S.blindLadderCash[idx] = { sb: sb, bb: bb };
+  S.blindLadderCash.sort(function(a,b){ return a.sb - b.sb; });
+  savePatch({ blindLadderCash: S.blindLadderCash });
+  showBlindLadderAdmin();
+}
+
+function adminRestaurarPadraoBlindLadder() {
+  if(!_adminAuth) return;
+  S.blindLadderCash = null;
+  savePatch({ blindLadderCash: null });
+  showBlindLadderAdmin();
 }
 
 function gerarCodigoTemporario() {
