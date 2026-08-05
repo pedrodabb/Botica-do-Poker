@@ -663,6 +663,9 @@
           <div class="pgm-field">
             <label class="pgm-input-label">Buy-in (R$)</label>
             <input type="text" inputmode="decimal" id="new-session-buyin" class="pgm-input" placeholder="0" oninput="maskMoedaOninput(this);atualizarSugestaoFichasBuyin(this)">
+            <div id="new-session-buyin-jogadores-wrapper" style="display:none;margin-top:6px">
+              <input type="number" id="new-session-buyin-jogadores" class="pgm-input" placeholder="Nº de jogadores (só pra calcular fichas)" min="1" style="max-width:220px;padding:6px 8px;font-size:12px" oninput="atualizarSugestaoFichasBuyin()">
+            </div>
             <div id="new-session-buyin-fichas"></div>
           </div>
 
@@ -1082,7 +1085,15 @@ function acharIndiceInicialEscada(eb) {
    R$" (mesmo padrão de atualizarBlindWrapperSimples). Só não faz
    sentido no Torneio Clássico, que já tem sua própria lógica de
    cacife/calculadora (fichas fictícias, não R$ real). Recalcula a
-   cada dígito digitado; limpa se trocar pro Clássico ou zerar o campo. */
+   cada dígito digitado; limpa se trocar pro Clássico ou zerar o campo.
+
+   Nº de jogadores é um campo PRÓPRIO pra esse cálculo (não reaproveita
+   S.newSession.players.length) — na prática o Pedro só adiciona
+   jogador DEPOIS de definir o buy-in, então a lista ainda estaria
+   vazia nesse momento do formulário. Serve só pra multiplicar a
+   sugestão e avisar quando o total passa do estoque de 200/500 (só ~8
+   de cada) — nunca bloqueia, o Pedro tem fichas reserva fora do app
+   pra cobrir isso quando precisar. */
 /* Só modo "centavos" por enquanto (as fichas do Pedro — ficha "100" =
    R$1,00) — o toggle pra escolher entre "centavos" vs. "reais" (ficha
    "100" = R$100,00 direto) foi removido a pedido dele, mas
@@ -1090,18 +1101,30 @@ function acharIndiceInicialEscada(eb) {
    reativar isso depois sem reescrever a função, só recolocar a UI. */
 function atualizarSugestaoFichasBuyin(el) {
   var hint = document.getElementById('new-session-buyin-fichas');
+  var jogadoresWrapper = document.getElementById('new-session-buyin-jogadores-wrapper');
   if(!hint) return;
   var valor = el ? parseMoedaBR(el.value) : parseMoedaBR((document.getElementById('new-session-buyin')||{}).value);
   var ehCashLike = S.newSession.type !== 'torneio' || S.newSession.tourneyMode === 'cash';
-  if(!valor || !ehCashLike) { hint.innerHTML = ''; return; }
+  if(!valor || !ehCashLike) {
+    hint.innerHTML = '';
+    if(jogadoresWrapper) jogadoresWrapper.style.display = 'none';
+    return;
+  }
+  if(jogadoresWrapper) jogadoresWrapper.style.display = 'block';
   var sug = sugerirFichasCash(valor);
   if(!sug.composicao.length) { hint.innerHTML = ''; return; }
+  var jogadoresInp = document.getElementById('new-session-buyin-jogadores');
+  var jogadores = parseInt(jogadoresInp && jogadoresInp.value) || 0;
   hint.innerHTML = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:7px">' +
     '<span style="font-size:9px;font-weight:800;color:var(--text-dim);text-transform:uppercase;margin-right:1px">🪙 Fichas sugeridas</span>' +
     sug.composicao.map(function(c) {
       // valor impresso na ficha é em centavos (mesmo conjunto do Torneio) —
       // mostra o valor real em R$ do lado pra nunca confundir os dois.
-      return '<span style="display:inline-flex;align-items:center;gap:3px">' + fichaHTML(c.valor, CORES_FICHA_CASH) + '<span style="font-size:10.5px;font-weight:800;color:var(--cream-dim)">×' + c.qtd + ' <span style="font-weight:700;color:var(--text-dim)">(R$' + (c.valor/100).toFixed(2).replace('.',',') + ' cada)</span></span></span>';
+      var inv = FICHAS_CASH.filter(function(f){ return f.valor === c.valor; })[0];
+      var estoura = jogadores > 0 && inv && (c.qtd * jogadores) > inv.qtd;
+      return '<span style="display:inline-flex;align-items:center;gap:3px">' + fichaHTML(c.valor, CORES_FICHA_CASH) + '<span style="font-size:10.5px;font-weight:800;color:var(--cream-dim)">×' + c.qtd + ' <span style="font-weight:700;color:var(--text-dim)">(R$' + (c.valor/100).toFixed(2).replace('.',',') + ' cada)</span></span>' +
+        (estoura ? '<span title="Precisa de ' + (c.qtd*jogadores) + ' no total pra ' + jogadores + ' jogadores — você tem ' + inv.qtd + ', dá pra completar com a reserva" style="font-size:10px;color:var(--negative);font-weight:900">⚠️</span>' : '') +
+      '</span>';
     }).join('') +
     (sug.resto > 0 ? '<span style="font-size:9.5px;color:var(--text-dim);font-weight:700">+ R$' + sug.resto.toFixed(2).replace('.',',') + ' sem ficha exata</span>' : '') +
   '</div>';
@@ -1220,8 +1243,20 @@ function fichaHTML(valor, coresMap) {
    valor de face coincide (10/25/50/100/500), a cor real é outra (ex:
    100 é verde no Cash, azul clara no Torneio). Confirmado pelo Pedro em
    2026-08-05: 10 azul, 25 amarela, 50 rosa, 100 verde, 200 azul escura,
-   500 vermelha — sem 1000/3000 (não existem nesse conjunto). */
-var FICHAS_CASH = [10, 25, 50, 100, 200, 500];
+   500 vermelha — sem 1000/3000 (não existem nesse conjunto). `qtd` é o
+   estoque físico real (mesma quantidade das fichas 10/25/50/100 do
+   Torneio; 200/500 são novas, só ~8 de cada) — usado só pra AVISAR
+   quando o total pra vários jogadores passa do que existe (o Pedro tem
+   fichas reserva fora do app pra cobrir isso, então nunca bloqueia,
+   só informa). */
+var FICHAS_CASH = [
+  { valor: 10,  qtd: 200 },
+  { valor: 25,  qtd: 175 },
+  { valor: 50,  qtd: 75  },
+  { valor: 100, qtd: 190 },
+  { valor: 200, qtd: 8   },
+  { valor: 500, qtd: 8   }
+];
 var CORES_FICHA_CASH = {
   10:  ['#2f6fd1','#1a4a8f','#ffffff'],
   25:  ['#eec53f','#a67e10','#2c2005'],
@@ -1274,7 +1309,7 @@ function sugerirFichasCash(valor, modo) {
     if (qtd > 0) { contagem[denom] = (contagem[denom] || 0) + qtd; restante -= qtd * denom; }
   });
 
-  var denoms = [10, 25, 50, 100, 200, 500];
+  var denoms = FICHAS_CASH.map(function(f){ return f.valor; });
   var unidade = 5; // toda ficha do conjunto é múltiplo de 5 — reduz o tamanho da tabela de DP
   var alvoU = Math.floor(restante / unidade);
   var restoCent = restante - alvoU * unidade;
@@ -4748,6 +4783,7 @@ function resetNewSessionForm() {
   var tp = document.getElementById('new-tourney-payout'); if(tp) tp.value = '';
   var cbi = document.getElementById('cash-blind-intervalo'); if(cbi) cbi.value = 15;
   var cbni = document.getElementById('cash-blind-nivel-inicial'); if(cbni) cbni.value = '';
+  var bji = document.getElementById('new-session-buyin-jogadores'); if(bji) bji.value = '';
   setCashBlindAtivo(false);
   renderQuickAdd();
 }
