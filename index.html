@@ -1234,6 +1234,10 @@ function fichaHTML(valor) {
    não cacife de mesa inteira). */
 function sugerirFichasCash(valor, modo) {
   var denoms = FICHAS_INVENTARIO.map(function(f){ return f.valor; }).sort(function(a,b){ return a-b; }); // valor de face
+  // Buy-in até R$20 não precisa da ficha de 500 (R$5,00 em centavos) — o
+  // Pedro prefere mais fichas menores nesse patamar (jogo com 6-7
+  // pessoas, buy-in típico); acima de R$20 ela volta a entrar normalmente.
+  if (valor <= 20) denoms = denoms.filter(function(d){ return d !== 500; });
   var ehCentavos = modo !== 'real';
   var alvoBase, restoExtra;
   if (ehCentavos) {
