@@ -183,7 +183,7 @@
       --curio-bg: rgba(124,111,194,0.1);
       --curio-border: rgba(124,111,194,0.35);
     }
-    html, body { min-height: 100%; background: var(--felt); }
+    html, body { min-height: 100%; background: var(--felt); overscroll-behavior-y: contain; }
     body { background: radial-gradient(ellipse 120% 60% at 50% -5%, #16351f 0%, var(--felt) 55%, #0a1c12 100%); background-attachment: scroll; }
     body { font-family: 'Nunito', -apple-system, sans-serif; color: var(--text-on-felt); min-height: 100vh; padding-bottom: 3rem; -webkit-font-smoothing: antialiased; font-weight: 700; }
     #app { max-width: 480px; margin: 0 auto; }
@@ -565,6 +565,13 @@
       <span id="sessions-counter">0 / 5 oficiais</span>
     </div>
     <div class="pgm-offline-pill" id="offline-pill"><div class="pgm-offline-dot"></div>offline</div>
+    <button onclick="confirmarAtualizarApp()" title="Atualizar o app" style="background:none;border:none;color:var(--gold);cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;flex-shrink:0;align-self:flex-end;margin-right:10px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <polyline points="1 20 1 14 7 14"></polyline>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+      </svg>
+    </button>
     <button onclick="confirmarSairApp()" title="Sair do app" style="background:none;border:none;color:var(--gold);cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;flex-shrink:0;align-self:flex-end">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform:scaleX(-1)">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -5711,6 +5718,27 @@ function showAdminPanel() {
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminSair()">Sair</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="adminRedefinirTemporada()">Redefinir</button>' +
+    '</div>'
+  );
+}
+
+/* Botão de atualizar EXPLÍCITO no cabeçalho — pedido do Pedro depois de
+   perceber que o gesto de "puxar a tela pra baixo" (pull-to-refresh
+   nativo do navegador/PWA no celular) às vezes disparava sem querer e
+   recarregava a página, zerando o que já tinha sido preenchido na
+   configuração de uma sessão (Nova Sessão só vive em S.newSession, em
+   memória, até "Iniciar sessão" — um reload no meio perde tudo). Duas
+   partes da correção: 1) overscroll-behavior-y:contain no html/body
+   (CSS) trava o gesto acidental; 2) esse botão dá um jeito INTENCIONAL
+   de atualizar quando precisar de verdade, com o mesmo aviso de perda
+   de dados que o "Sair" já tinha. */
+function confirmarAtualizarApp() {
+  showModal(
+    '<div class="pgm-modal-title">Atualizar o app? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="font-size:12px;color:var(--text-dim);font-weight:700;margin-bottom:0.75rem">Recarrega a página. Se estiver no meio de configurar uma sessão nova (ainda sem clicar em "Iniciar sessão"), o que já foi preenchido se perde.</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="location.reload()">Sim, atualizar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
     '</div>'
   );
 }
