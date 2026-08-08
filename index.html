@@ -2514,6 +2514,11 @@ function doRemovePlayer(idx) {
   S.players.splice(idx,1); closeModal(); renderJogadores(); renderQuickAdd(); savePatch({ players: S.players });
 }
 
+/* Ordem: mais sessões jogadas primeiro (quem nunca jogou fica lá
+   embaixo — pedido do Pedro); empate no nº de sessões desempata com o
+   Pedro sempre em 1º; depois disso, alfabética. `i` guardado é o
+   índice ORIGINAL em S.players (não a posição ordenada) — os botões
+   editar/remover usam esse índice pra achar o jogador certo. */
 function renderJogadores() {
   var el = document.getElementById('jogadores-list');
   if(!S.players.length) {
@@ -2521,8 +2526,17 @@ function renderJogadores() {
     return;
   }
   var stats = getAllPlayerStats();
-  el.innerHTML = S.players.map(function(p, i) {
+  var ordenados = S.players.map(function(p, i){
     var st = stats.find(function(s){ return s.name===p.name; });
+    return { p: p, i: i, st: st, sessions: st ? st.totalSessions : 0 };
+  }).sort(function(a, b){
+    if(b.sessions !== a.sessions) return b.sessions - a.sessions;
+    if(a.p.name === 'Pedro') return -1;
+    if(b.p.name === 'Pedro') return 1;
+    return a.p.name.localeCompare(b.p.name, 'pt-BR');
+  });
+  el.innerHTML = ordenados.map(function(item) {
+    var p = item.p, i = item.i, st = item.st;
     var playerCurios = S.curiosidades.filter(function(cu){ return cu.playerName===p.name; });
     var curios = playerCurios.length;
     var sub = st
