@@ -3724,9 +3724,9 @@ function renderBlindTimerBlock() {
   container.style.display = 'block';
   container.innerHTML =
     '<div class="pgm-flex-between" style="margin-bottom:0.5rem">' +
-      '<div class="pgm-card-title" style="font-size:13px">⏳ Blinds ao vivo</div>' +
+      '<div class="pgm-card-title" style="font-size:13px">⏳ Ao vivo</div>' +
       '<div style="display:flex;align-items:center;gap:10px">' +
-        (!s.estruturaBlinds.simples ? '<button onclick="visualizarEstruturaBlindsAtiva()" style="background:none;border:none;color:var(--gold-light);font-size:10px;font-weight:800;text-decoration:underline;cursor:pointer;padding:0">visualizar blinds</button>' : '') +
+        (!s.estruturaBlinds.simples ? '<button onclick="visualizarEstruturaBlindsAtiva()" style="background:none;border:none;color:var(--gold-light);font-size:10.5px;font-weight:800;text-decoration:underline;cursor:pointer;padding:0">👁️ Visualizar Blinds</button>' : '') +
         '<button onclick="toggleBlindTimer()" id="blind-timer-toggle-btn" class="pgm-play-btn pgm-play-btn-sm">' + iconePlayPause(s.blindTimerPausedAt) + '</button>' +
       '</div>' +
     '</div>' +
@@ -4689,35 +4689,55 @@ function setAcordoAtivo(ativo) {
   if(ativo) renderAcordoInputs();
 }
 
-/* Os inputs de % do acordo já vêm com o nome de quem está em cada
-   posição (lido dos selects de posição, no estado em que estavam
-   quando o acordo foi ativado/qtd mudou) — só rótulo, não trava nada
-   se o admin ajustar a posição depois. Alvo da soma é o quanto essas N
-   posições JUNTAS já receberiam pela tabela normal (payout[0..N-1]),
-   não 100% — é só o "resto" que os finalistas ainda em jogo tinham
-   direito de redividir; quem já saiu antes do acordo continua com a %
-   fixa da posição dele. */
+/* Monta quem entra no acordo a partir das posições ATUAIS dos selects
+   (lidas na hora, tanto pra desenhar os campos quanto no envio final —
+   mesma fonte, nunca desalinha). Caminha pelos grupos em ORDEM (mesma
+   filosofia de getDisplayPositions): pega grupos inteiros até cobrir
+   pelo menos `qtdSolicitada` posições, nunca corta um empate ao meio —
+   por isso pode voltar mais participantes que o pedido (ex: pediu 2,
+   mas os 2 primeiros lugares são 3 pessoas empatadas → os 3 entram).
+   participantes.length é o nº real de "andares" da tabela de premiação
+   que esse grupo consome — é isso, não o qtd digitado, que define a
+   soma alvo em % do acordo. */
+function getAcordoParticipantes(s, qtdSolicitada) {
+  var n = s.players.length;
+  var ordenado = [];
+  for(var i = 0; i < n; i++) {
+    var sel = document.getElementById('pos-' + i);
+    var v = parseInt(sel && sel.value, 10);
+    if(!isNaN(v)) ordenado.push({ idx: i, place: v });
+  }
+  ordenado.sort(function(a,b){ return a.place - b.place; });
+  var participantes = [];
+  var gi = 0;
+  while(gi < ordenado.length && participantes.length < qtdSolicitada) {
+    var gj = gi;
+    while(gj < ordenado.length && ordenado[gj].place === ordenado[gi].place) gj++;
+    for(var m = gi; m < gj; m++) participantes.push(ordenado[m]);
+    gi = gj;
+  }
+  return participantes;
+}
+
 function renderAcordoInputs() {
   var s = S.activeSession;
   var qtdInp = document.getElementById('acordo-qtd');
-  var qtd = Math.max(2, parseInt(qtdInp && qtdInp.value) || 2);
+  var qtdSolicitada = Math.max(2, parseInt(qtdInp && qtdInp.value) || 2);
   var payout = s.payout || [];
-  var alvo = payout.slice(0, qtd).reduce(function(a,v){ return a+v; }, 0);
+  var participantes = getAcordoParticipantes(s, qtdSolicitada);
+  var slots = participantes.length;
+  var alvo = payout.slice(0, slots).reduce(function(a,v){ return a+v; }, 0);
   var container = document.getElementById('acordo-inputs');
   if(!container) return;
-  var linhas = '';
-  for(var pos = 1; pos <= qtd; pos++) {
-    var nomePos = '';
-    for(var i = 0; i < s.players.length; i++) {
-      var sel = document.getElementById('pos-' + i);
-      if(sel && parseInt(sel.value) === pos) { nomePos = s.players[i].name; break; }
-    }
-    var sugestao = payout[pos-1] || 0;
-    linhas += '<div class="pgm-field" style="margin-bottom:0.4rem">' +
-      '<label class="pgm-input-label">' + pos + 'º' + (nomePos ? ' — ' + escHtml(nomePos) : '') + '</label>' +
-      '<input type="number" step="0.1" id="acordo-pct-' + pos + '" class="pgm-input" value="' + sugestao + '" oninput="atualizarSaldoAcordo()">' +
+  if(!slots) { container.innerHTML = '<div style="font-size:11px;color:var(--text-dim)">Preencha as posições acima primeiro.</div>'; return; }
+  var sugestaoCadaUm = alvo / slots;
+  var linhas = participantes.map(function(part){
+    var p = s.players[part.idx];
+    return '<div class="pgm-field" style="margin-bottom:0.4rem">' +
+      '<label class="pgm-input-label">' + part.place + 'º — ' + escHtml(p.name) + '</label>' +
+      '<input type="number" step="0.1" id="acordo-pct-' + part.idx + '" class="pgm-input" value="' + sugestaoCadaUm.toFixed(1) + '" oninput="atualizarSaldoAcordo()">' +
     '</div>';
-  }
+  }).join('');
   container.innerHTML = linhas;
   atualizarSaldoAcordo();
 }
@@ -4725,14 +4745,16 @@ function renderAcordoInputs() {
 function atualizarSaldoAcordo() {
   var s = S.activeSession;
   var qtdInp = document.getElementById('acordo-qtd');
-  var qtd = Math.max(2, parseInt(qtdInp && qtdInp.value) || 2);
+  var qtdSolicitada = Math.max(2, parseInt(qtdInp && qtdInp.value) || 2);
   var payout = s.payout || [];
-  var alvo = payout.slice(0, qtd).reduce(function(a,v){ return a+v; }, 0);
+  var participantes = getAcordoParticipantes(s, qtdSolicitada);
+  var slots = participantes.length;
+  var alvo = payout.slice(0, slots).reduce(function(a,v){ return a+v; }, 0);
   var soma = 0;
-  for(var pos = 1; pos <= qtd; pos++) {
-    var inp = document.getElementById('acordo-pct-' + pos);
+  participantes.forEach(function(part){
+    var inp = document.getElementById('acordo-pct-' + part.idx);
     soma += parseFloat(inp && inp.value) || 0;
-  }
+  });
   var el = document.getElementById('acordo-saldo');
   if(!el) return;
   var dif = Math.round((soma - alvo) * 100) / 100;
@@ -4763,44 +4785,62 @@ function finishSessionClassico() {
 
   var totalIn = s.players.reduce(function(a,p){ return a + p.buyin + (p.rebuys||[]).reduce(function(r,v){ return r+v; }, 0); }, 0);
   var payout = s.payout || [];
-  var payoutEfetivo = payout.slice();
+  var premioPorIdx = new Array(n).fill(0);
   var acordo = null;
+  var slotsAcordo = 0;
+  var idxNoAcordo = {};
 
   var acordoAtivo = document.getElementById('acordo-toggle') && document.querySelectorAll('#acordo-toggle .pgm-toggle-opt')[1].classList.contains('active');
   if(acordoAtivo) {
     var qtdInp = document.getElementById('acordo-qtd');
-    var qtd = Math.max(2, parseInt(qtdInp && qtdInp.value) || 2);
-    var alvo = payout.slice(0, qtd).reduce(function(a,v){ return a+v; }, 0);
-    var percentuais = [];
-    for(var pos = 1; pos <= qtd; pos++) {
-      var inp = document.getElementById('acordo-pct-' + pos);
-      percentuais.push(parseFloat(inp && inp.value) || 0);
+    var qtdSolicitada = Math.max(2, parseInt(qtdInp && qtdInp.value) || 2);
+    var participantes = getAcordoParticipantes(s, qtdSolicitada);
+    slotsAcordo = participantes.length;
+    if(!slotsAcordo) {
+      showAlert('Não foi possível identificar quem entra no acordo — confira as posições preenchidas.');
+      return;
     }
-    var soma = percentuais.reduce(function(a,v){ return a+v; }, 0);
+    var alvo = payout.slice(0, slotsAcordo).reduce(function(a,v){ return a+v; }, 0);
+    var soma = 0;
+    var percentuais = [];
+    participantes.forEach(function(part){
+      idxNoAcordo[part.idx] = true;
+      var inp = document.getElementById('acordo-pct-' + part.idx);
+      var pct = parseFloat(inp && inp.value) || 0;
+      percentuais.push(pct);
+      soma += pct;
+      premioPorIdx[part.idx] = totalIn * pct / 100;
+    });
     if(Math.abs(soma - alvo) >= 0.05) {
       showAlert('A soma do acordo (' + soma.toFixed(1) + '%) precisa bater com ' + alvo.toFixed(1) + '% — o que essas posições já dividiam pela tabela normal.');
       return;
     }
-    for(var pi = 0; pi < qtd; pi++) payoutEfetivo[pi] = percentuais[pi];
-    acordo = { qtd: qtd, percentuais: percentuais };
+    acordo = { qtd: slotsAcordo, percentuais: percentuais };
   }
 
-  // Empate em posição é permitido (ex: 2 jogadores em 1º, quando não dá
-  // pra distinguir quem terminou na frente) — divide o prêmio combinado
-  // das posições ocupadas entre os empatados, estilo ranking esportivo
-  // (mesma filosofia de getDisplayPositions): não importa o número
-  // exato digitado pros não-empatados, o que decide quantos "andares"
-  // da tabela cada grupo ocupa é a ORDEM depois de ordenado.
-  var ordenado = places.map(function(pl, idx){ return { idx: idx, place: pl }; }).sort(function(a,b){ return a.place - b.place; });
-  var premioPorIdx = new Array(n).fill(0);
+  // Quem não entrou no acordo (ou todo mundo, se não houve acordo) segue
+  // a tabela normal a partir do "andar" seguinte ao que o acordo já
+  // consumiu. Empate em posição é permitido (ex: 2 jogadores em 1º,
+  // quando não dá pra distinguir quem terminou na frente) — divide o
+  // prêmio combinado das posições ocupadas entre os empatados, estilo
+  // ranking esportivo (mesma filosofia de getDisplayPositions): não
+  // importa o número exato digitado pros não-empatados, o que decide
+  // quantos "andares" da tabela cada grupo ocupa é a ORDEM depois de
+  // ordenado.
+  var restantes = places.map(function(pl, idx){ return { idx: idx, place: pl }; })
+    .filter(function(o){ return !idxNoAcordo[o.idx]; })
+    .sort(function(a,b){ return a.place - b.place; });
   var gi = 0;
-  while(gi < ordenado.length) {
+  while(gi < restantes.length) {
     var gj = gi;
-    while(gj < ordenado.length && ordenado[gj].place === ordenado[gi].place) gj++;
+    while(gj < restantes.length && restantes[gj].place === restantes[gi].place) gj++;
     var somaGrupo = 0;
-    for(var slot = gi; slot < gj; slot++) somaGrupo += (slot < payoutEfetivo.length) ? payoutEfetivo[slot] : 0;
+    for(var slot = gi; slot < gj; slot++) {
+      var payoutIdx = slotsAcordo + slot;
+      somaGrupo += (payoutIdx < payout.length) ? payout[payoutIdx] : 0;
+    }
     var pctCadaUm = somaGrupo / (gj - gi);
-    for(var m = gi; m < gj; m++) premioPorIdx[ordenado[m].idx] = totalIn * pctCadaUm / 100;
+    for(var m = gi; m < gj; m++) premioPorIdx[restantes[m].idx] = totalIn * pctCadaUm / 100;
     gi = gj;
   }
 
@@ -5362,6 +5402,7 @@ function showSessionDetail(sessionIndex) {
       '<div class="pgm-rname-block">' +
         '<div class="pgm-rname">' + nameHTML + '</div>' +
         '<div class="pgm-rsub">Investiu ' + fmtRaw(investido) + '</div>' +
+        '<div class="pgm-rsub" style="color:var(--gold-light);font-weight:800">💸 Recebe ' + fmtRaw(p.finalStack||0) + '</div>' +
       '</div>' +
       '<div class="pgm-rval ' + (pr>=0?'pos':'neg') + '">' + fmtR(pr) + '</div>' +
       delBtn +
