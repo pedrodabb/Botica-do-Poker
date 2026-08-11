@@ -4859,7 +4859,10 @@ function finishSessionCommon(s) {
     return '<div class="pgm-rcard' + (isWinner ? ' pgm-winner-row' : '') + '">' +
       pgmRankBadgeHTML(pos) +
       avatarHTML(p.name,'pgm-player-avatar','♟') +
-      '<div class="pgm-rname">' + escHtml(p.name) + '</div>' +
+      '<div class="pgm-rname-block">' +
+        '<div class="pgm-rname">' + escHtml(p.name) + '</div>' +
+        '<div class="pgm-rsub" style="color:var(--gold-light);font-weight:800">💸 Recebe ' + fmtRaw(p.finalStack||0) + '</div>' +
+      '</div>' +
       '<div class="pgm-rval ' + (pr>=0?'pos':'neg') + '">' + (pr>=0?'+':'') + 'R$ ' + Math.abs(pr).toFixed(2).replace('.',',') + '</div>' +
     '</div>';
   }).join('');
@@ -4875,6 +4878,7 @@ function finishSessionCommon(s) {
   showModal(
     '<div class="pgm-modal-title">🏆 Resultado · ' + date + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     (durStr ? '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">' + durStr + '</div>' : '') +
+    '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-2px 0 10px;line-height:1.5">💸 Recebe = quanto volta pra cada um via Pix · à direita = quanto ganhou ou perdeu na sessão</div>' +
     favoritarBlindsHTML +
     rowsHTML +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
