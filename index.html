@@ -454,7 +454,13 @@
     @keyframes pgmBlink { 0%,100%{opacity:1} 50%{opacity:0.3} }
     .pgm-save-toast { position:fixed; bottom:calc(1rem + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%) translateY(20px); background:rgba(231,76,60,0.92); color:#fff; font-family:'Nunito',sans-serif; font-size:12px; font-weight:800; padding:8px 16px; border-radius:20px; z-index:9999; opacity:0; pointer-events:none; transition:opacity 0.2s, transform 0.2s; white-space:nowrap; }
     .pgm-save-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
-    .pgm-close-btn:hover { color: var(--cream); }
+    /* O ✕ dos modais nunca teve estilo próprio (só :hover) — herdava o
+       botão padrão do navegador, que desenha caixa cinza e é diferente
+       em cada plataforma (Windows, Mac, Android, iOS). Agora é um alvo
+       redondo de 34px, com margem negativa pra não empurrar o título. */
+    .pgm-close-btn { width:34px; height:34px; margin:-7px -7px -7px 0; padding:0; border-radius:50%; background:none; border:none; color:var(--text-dim); font-family:'Nunito',sans-serif; font-size:17px; font-weight:900; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:color 0.15s, background 0.15s; }
+    .pgm-close-btn:hover { color: var(--cream); background: rgba(255,255,255,0.07); }
+    .pgm-close-btn:active { background: rgba(255,255,255,0.14); }
 
     .pgm-nav.admin-mode .pgm-nav-btn { font-size: 10px; }
     @media (max-width: 480px) {
@@ -487,6 +493,66 @@
          vertical, e os cards têm seu próprio respiro interno. */
       .pgm-content { padding-left: 0; padding-right: 0; }
     }
+
+    /* ===== Toque e clique consistentes em Android, iOS, Windows e Mac =====
+       Três problemas que apareciam em todo o app e eram tratados só caso
+       a caso (sino, ▲▼ do add-on, ícones do cabeçalho):
+       1. touch-action:manipulation — sem isso o iOS espera pra ver se vem
+          um segundo toque (double-tap-zoom), o que dava o zoom indesejado
+          e ainda atrasava o clique. Não atrapalha rolar nem pinçar a tela.
+       2. -webkit-tap-highlight-color — Android/iOS pintavam um retângulo
+          cinza no toque, feio ainda por cima em botão redondo. Trocado
+          por :active próprio (abaixo), que dá retorno visual de verdade.
+       3. user-select:none — segurar o dedo num botão selecionava o texto
+          dele e abria o menu de copiar, em vez de só apertar.
+       [onclick] cobre os elementos clicáveis que não são <button> (cards
+       de histórico, avatares, o ♠ do admin) sem precisar listar um a um. */
+    button, [onclick], .pgm-hist-cat-card, .pgm-history-item, label.pgm-input-label {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    button, .pgm-toggle-opt, .pgm-nav-btn, .pgm-hist-cat-card, .pgm-quadro-head {
+      -webkit-user-select: none; user-select: none;
+    }
+    .pgm-icon-btn:active, .pgm-icon-btn-neutral:active, .pgm-pill-rebuy:active,
+    .pgm-toggle-opt:active, .pgm-quadro-head:active, .pgm-rules-link:active,
+    .pgm-history-item:active, .player-card-avatar:active, .pgm-player-avatar:active {
+      transform: scale(0.95);
+    }
+    .pgm-nav-btn:active { opacity: 0.6; }
+
+    /* Em tela de toque o iOS dá zoom na página inteira ao focar um campo
+       com fonte menor que 16px — acontecia em TODO campo do app (buy-in,
+       nome, rebuy, stack final...), e depois a página ficava ampliada.
+       16px é o piso que o próprio iOS usa como gatilho; !important porque
+       vários campos trazem font-size menor no style inline. */
+    @media (pointer: coarse) {
+      input, select, textarea { font-size: 16px !important; }
+    }
+
+    /* Rolar dentro de um modal até o fim não "vaza" a rolagem pra página
+       atrás dele (e não dispara o puxar-pra-atualizar do navegador). */
+    .pgm-modal, .pgm-sheet, .pgm-alert-box { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+    /* Alvo de toque decente pros links de texto pequenos (favoritar,
+       "Visualizar Blinds", "✏️ editar") sem mudar o visual: a área
+       clicável cresce pra fora com margem negativa compensando. */
+    .pgm-rules-link { padding: 6px 4px; margin: -0.5rem -4px 0.5rem; }
+
+    /* Os botões-ícone escritos direto no HTML (✏️ ✕ ✓ das listas de
+       favoritos, rebuys, tabela de blinds) nasceram com padding:0 — a
+       área de toque ficava do tamanho exato do caractere, uns 12px,
+       bem abaixo do que o dedo acerta com confiança. Em vez de dar
+       padding de verdade (que empurraria o layout de várias listas), a
+       área cresce por um pseudo-elemento invisível: não ocupa espaço
+       nenhum, então nada se move. Cresce mais na vertical, onde há
+       folga; na horizontal fica em 4px de cada lado justamente porque as
+       linhas usam gap de 8px — 4+4 fecha o vão exato, sem um botão
+       invadir o outro. Isso importa porque ✏️ e ✕ ficam lado a lado: com
+       qualquer sobreposição, o ✕ (que vem depois no HTML, então fica por
+       cima) roubaria o toque de quem mirou em editar e apagaria a linha. */
+    button[style*="background:none"] { position: relative; }
+    button[style*="background:none"]::after { content: ''; position: absolute; inset: -8px -4px; }
   </style>
 </head>
 <body>
@@ -3782,7 +3848,10 @@ function visualizarEstruturaBlindsAtiva() {
     '<div style="display:grid;grid-template-columns:' + colsNiveis + ';gap:5px;padding-bottom:4px;border-bottom:1px solid var(--border-strong);font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase">' +
       '<div>Nv</div><div>Fase</div><div>Tempo</div><div>SB/BB</div>' + (eb.comAnte ? '<div>Ante</div>' : '') +
     '</div>' +
-    '<div style="max-height:60vh;overflow-y:auto">' + linhas + '</div>'
+    '<div style="max-height:60vh;overflow-y:auto">' + linhas + '</div>' +
+    // Sem isso, a única saída era o ✕ lá em cima — numa lista longa de
+    // níveis, obrigava a rolar tudo de volta só pra fechar.
+    '<div class="pgm-row-btns"><button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="closeModal()">Fechar</button></div>'
   );
 }
 
@@ -5648,6 +5717,28 @@ function showSeasonDetail(idx) {
 function showModal(html, soft) { const el=document.getElementById('pgm-modal'); el.innerHTML=`<div class="pgm-modal-backdrop${soft ? ' pgm-modal-backdrop-soft' : ''}"><div class="pgm-modal${soft ? ' pgm-modal-soft' : ''}">${html}</div></div>`; el.style.display='block'; }
 function closeModal() { const el=document.getElementById('pgm-modal'); el.style.display='none'; el.innerHTML=''; }
 
+/* Bug real: clicar no fundo escurecido sempre fechou o modal (listener
+   global lá embaixo), inclusive nos que têm formulário — tocar sem
+   querer na área escura no meio de "Encerrar sessão", de um rebuy ou
+   da calculadora de blinds jogava fora tudo que já tinha sido digitado,
+   sem aviso nenhum. Mesmo tipo de perda que motivou travar o
+   puxar-pra-atualizar. Agora, modal com campo só fecha pelo ✕ ou pelos
+   botões; sem campo, continua fechando pelo fundo (e pelo Esc), que é
+   o gesto esperado em qualquer app. */
+function modalPodeFecharPorFora(raiz) {
+  return !!raiz && !raiz.querySelector('input, select, textarea');
+}
+
+/* Esc fecha — expectativa de quem usa no PC (Windows/Mac). O aviso
+   (showAlert) tem prioridade porque fica empilhado por cima do modal. */
+document.addEventListener('keydown', function(e) {
+  if(e.key !== 'Escape') return;
+  var alerta = document.getElementById('pgm-alert-overlay');
+  if(alerta && alerta.style.display === 'block') { closeAlert(); return; }
+  var modal = document.getElementById('pgm-modal');
+  if(modal && modal.style.display === 'block' && modalPodeFecharPorFora(modal)) closeModal();
+});
+
 function showRulesGuide() {
   function rows(data) {
     return data.map(function(r) {
@@ -5749,7 +5840,7 @@ function adminRedefinirTemporada() {
     '<div style="font-size:11px;color:var(--text-dim);margin-bottom:0.75rem">Sessões e dados atuais não são apagados.</div>' +
     '<div class="pgm-row-btns">' +
     '<button class="pgm-btn pgm-btn-success" style="flex:1" id="btn-confirmar-temp">Confirmar</button>' +
-    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">← Voltar</button>' +
     '</div>'
   );
   setTimeout(function() {
@@ -5947,7 +6038,7 @@ function showBlindLadderAdmin() {
       '<button class="pgm-btn pgm-btn-sm" onclick="adminAdicionarNivelBlindLadder()">+ Add</button>' +
     '</div>' +
     '<div class="pgm-row-btns">' +
-      '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
+      '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">← Voltar</button>' +
       '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminRestaurarPadraoBlindLadder()">Restaurar padrão</button>' +
     '</div>'
   );
@@ -6126,7 +6217,7 @@ function doAdminDeleteSeason(idx) {
   closeModal();
 }
 
-document.addEventListener('click', e=>{ const b=e.target.closest('.pgm-modal-backdrop'); if(b&&e.target===b) closeModal(); });
+document.addEventListener('click', e=>{ const b=e.target.closest('.pgm-modal-backdrop'); if(b&&e.target===b&&modalPodeFecharPorFora(b)) closeModal(); });
 
 function updateConnectionStatus() {
   var pill = document.getElementById('offline-pill');
