@@ -260,11 +260,11 @@
     .pgm-btn-purple { background: var(--curio-bg); border-color: var(--curio-border); color: var(--curio-light); }
     .pgm-btn-purple:hover { background: rgba(124,111,194,0.18); }
 
-    .pgm-play-btn { width: 34px; height: 34px; min-width: 34px; border-radius: 50%; border: none; cursor: pointer; background: linear-gradient(160deg, var(--gold-light), var(--gold)); color: var(--felt); display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; box-shadow: 0 3px 10px -3px rgba(201,168,76,0.55); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .pgm-play-btn { width: 38px; height: 38px; min-width: 38px; border-radius: 50%; border: none; cursor: pointer; background: linear-gradient(160deg, var(--gold-light), var(--gold)); color: var(--felt); display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; box-shadow: 0 3px 10px -3px rgba(201,168,76,0.55); transition: transform 0.15s ease, box-shadow 0.15s ease; touch-action: manipulation; }
     .pgm-play-btn:hover { transform: scale(1.06); box-shadow: 0 4px 14px -3px rgba(201,168,76,0.7); }
     .pgm-play-btn:active { transform: scale(0.94); }
     .pgm-play-btn svg { display: block; }
-    .pgm-play-btn-sm { width: 28px; height: 28px; min-width: 28px; }
+    .pgm-play-btn-sm { width: 32px; height: 32px; min-width: 32px; }
 
     .pgm-input { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 10px; color: var(--cream); font-family: 'Space Mono', monospace; font-size: 14px; padding: 0.55rem 0.75rem; width: 100%; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
     .pgm-input:focus { border-color: var(--gold); }
@@ -306,7 +306,7 @@
     .player-card-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(140deg, var(--gold-light), var(--gold)); color: #12200f; border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900; flex-shrink: 0; overflow:hidden; cursor:pointer; transition:border-color 0.15s; }
     .player-card-avatar:hover { border-color:var(--gold-light); }
     .player-card-avatar img { width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;display:block;flex-shrink:0; }
-    .pgm-icon-btn-neutral { width:30px; height:30px; border-radius:50%; background:rgba(201,168,76,0.1); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--gold-light); flex-shrink:0; cursor:pointer; line-height:1; }
+    .pgm-icon-btn-neutral { width:34px; height:34px; border-radius:50%; background:rgba(201,168,76,0.1); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--gold-light); flex-shrink:0; cursor:pointer; line-height:1; touch-action:manipulation; }
     .pgm-icon-btn-neutral:hover { border-color:var(--gold-light); background:rgba(201,168,76,0.18); }
     .pgm-rcard { position:relative; display:flex; align-items:center; gap:11px; padding:8px 10px; border-radius:14px; margin-bottom:6px; background:linear-gradient(155deg, rgba(255,255,255,0.05) 0%, var(--felt-mid) 100%); border:1px solid var(--border); }
     .pgm-rpos { width:26px; height:26px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; font-family:'Space Mono',monospace; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-dim); }
@@ -337,7 +337,7 @@
     .pgm-rebuy-tag { font-family:'Nunito',sans-serif; font-weight:800; color:var(--negative); background:rgba(241,106,106,0.12); border-radius:20px; padding:1px 7px; font-size:10px; }
     .pgm-pcard-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
     .pgm-pill-rebuy { font-family:'Nunito',sans-serif; font-size:12px; font-weight:900; color:#12200f; background:linear-gradient(135deg, var(--gold-light), var(--gold)); border:none; border-radius:20px; padding:8px 14px; white-space:nowrap; cursor:pointer; }
-    .pgm-icon-btn { width:30px; height:30px; border-radius:50%; background:rgba(241,106,106,0.1); border:1px solid rgba(241,106,106,0.3); display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--negative); flex-shrink:0; cursor:pointer; line-height:1; }
+    .pgm-icon-btn { width:34px; height:34px; border-radius:50%; background:rgba(241,106,106,0.1); border:1px solid rgba(241,106,106,0.3); display:flex; align-items:center; justify-content:center; font-size:17px; color:var(--negative); flex-shrink:0; cursor:pointer; line-height:1; touch-action:manipulation; }
     .pgm-icon-btn:hover { border-color:var(--negative); background:rgba(241,106,106,0.18); }
     .player-card-name { font-size: 14px; font-weight: 900; color: var(--cream); }
     .player-card-sub { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-top: 2px; }
@@ -566,15 +566,15 @@
     </div>
     <div class="pgm-offline-pill" id="offline-pill"><div class="pgm-offline-dot"></div>offline</div>
     <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;align-self:flex-end">
-      <button onclick="location.reload()" title="Atualizar o app" style="background:none;border:none;color:var(--gold);cursor:pointer;padding:0;line-height:1;display:flex;align-items:center">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button onclick="location.reload()" title="Atualizar o app" style="background:none;border:none;color:var(--gold);cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;touch-action:manipulation">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"></polyline>
           <polyline points="1 20 1 14 7 14"></polyline>
           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
         </svg>
       </button>
-      <button onclick="confirmarSairApp()" title="Sair do app" style="background:none;border:none;color:var(--gold);cursor:pointer;padding:0;line-height:1;display:flex;align-items:center">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform:scaleX(-1)">
+      <button onclick="confirmarSairApp()" title="Sair do app" style="background:none;border:none;color:var(--gold);cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;touch-action:manipulation">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform:scaleX(-1)">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
           <polyline points="16 17 21 12 16 7"></polyline>
           <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -703,7 +703,7 @@
             Pot: <span id="active-pot" style="color:var(--gold-light);font-family:'Space Mono',monospace">R$ 0</span>
           </div>
           <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;padding-top:0.45rem;border-top:1px solid var(--border)">
-            <button onclick="toggleSessionTimer()" id="timer-toggle-btn" class="pgm-play-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg></button>
+            <button onclick="toggleSessionTimer()" id="timer-toggle-btn" class="pgm-play-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg></button>
             <span id="active-timer" style="color:var(--gold-light);font-family:'Space Mono',monospace;font-size:13px;font-weight:800">⏱️ 00:00:00</span>
           </div>
           <div class="pgm-pot-bar" style="margin-top:0.5rem;margin-bottom:0"><div id="active-pot-bar" class="pgm-pot-fill" style="width:0%"></div></div>
@@ -844,7 +844,7 @@
 </div>
 <div id="pgm-modal" style="display:none"></div>
 <div id="pgm-alert-overlay" style="display:none"></div>
-<button id="pgm-fab-sino" onclick="tocarSino()" title="Tocar sino" style="display:none;position:fixed;bottom:20px;right:20px;width:52px;height:52px;border-radius:50%;background:var(--gold);border:none;color:var(--felt);font-size:23px;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.45);z-index:900">🔔</button>
+<button id="pgm-fab-sino" onclick="tocarSino()" title="Tocar sino" style="display:none;position:fixed;bottom:20px;right:20px;width:52px;height:52px;border-radius:50%;background:var(--gold);border:none;color:var(--felt);font-size:23px;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.45);z-index:900;touch-action:manipulation">🔔</button>
 
 <script>
 /* REGRA DE ESTILO PERMANENTE: nunca usar o emoji de caveira (💀) pra nada
@@ -959,8 +959,8 @@ function fmtRaw(v) { return 'R$ '+Math.abs(v).toFixed(2).replace('.',','); }
 
 function iconePlayPause(pausado) {
   return pausado
-    ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="margin-left:2px"><path d="M8 5v14l11-7z"/></svg>'
-    : '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="margin-left:2px"><path d="M8 5v14l11-7z"/></svg>'
+    : '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
 }
 
 /* Aceita "," (padrão BR) OU "." como separador decimal — o teclado
@@ -3616,7 +3616,7 @@ function renderActiveSession() {
     const actionsHTML = saiu ? '' : `
          <button class="pgm-pill-rebuy" onclick="openRebuyModal(${i})">Rebuy</button>
          <button class="pgm-icon-btn" onclick="openPlayerActionsMenu(${i})" title="Saiu / Remover">
-           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform:scaleX(-1)">
+           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform:scaleX(-1)">
              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
              <polyline points="16 17 21 12 16 7"></polyline>
              <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -4760,12 +4760,6 @@ function finishSessionClassico() {
     showAlert('Preencha a posição final de todos os jogadores.');
     return;
   }
-  var unicos = {};
-  var duplicado = places.some(function(p){ if(unicos[p]) return true; unicos[p] = true; return false; });
-  if(duplicado) {
-    showAlert('Duas pessoas não podem ficar na mesma posição — confira e ajuste.');
-    return;
-  }
 
   var totalIn = s.players.reduce(function(a,p){ return a + p.buyin + (p.rebuys||[]).reduce(function(r,v){ return r+v; }, 0); }, 0);
   var payout = s.payout || [];
@@ -4791,11 +4785,29 @@ function finishSessionClassico() {
     acordo = { qtd: qtd, percentuais: percentuais };
   }
 
+  // Empate em posição é permitido (ex: 2 jogadores em 1º, quando não dá
+  // pra distinguir quem terminou na frente) — divide o prêmio combinado
+  // das posições ocupadas entre os empatados, estilo ranking esportivo
+  // (mesma filosofia de getDisplayPositions): não importa o número
+  // exato digitado pros não-empatados, o que decide quantos "andares"
+  // da tabela cada grupo ocupa é a ORDEM depois de ordenado.
+  var ordenado = places.map(function(pl, idx){ return { idx: idx, place: pl }; }).sort(function(a,b){ return a.place - b.place; });
+  var premioPorIdx = new Array(n).fill(0);
+  var gi = 0;
+  while(gi < ordenado.length) {
+    var gj = gi;
+    while(gj < ordenado.length && ordenado[gj].place === ordenado[gi].place) gj++;
+    var somaGrupo = 0;
+    for(var slot = gi; slot < gj; slot++) somaGrupo += (slot < payoutEfetivo.length) ? payoutEfetivo[slot] : 0;
+    var pctCadaUm = somaGrupo / (gj - gi);
+    for(var m = gi; m < gj; m++) premioPorIdx[ordenado[m].idx] = totalIn * pctCadaUm / 100;
+    gi = gj;
+  }
+
   s.players.forEach(function(p, idx) {
-    var place = places[idx];
     var investido = p.buyin + (p.rebuys||[]).reduce(function(a,r){ return a+r; }, 0);
-    var premio = (place <= payoutEfetivo.length) ? totalIn * payoutEfetivo[place-1] / 100 : 0;
-    p.place = place;
+    var premio = premioPorIdx[idx];
+    p.place = places[idx];
     p.premio = premio;
     p.finalStack = premio;
     p.profit = premio - investido;
