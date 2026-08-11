@@ -4129,11 +4129,71 @@ function getAudioCtx() {
   if(!window._audioCtxCompartilhado) {
     window._audioCtxCompartilhado = new (window.AudioContext || window.webkitAudioContext)();
   }
-  if(window._audioCtxCompartilhado.state === 'suspended') {
-    window._audioCtxCompartilhado.resume().catch(function(){});
+  var ctx = window._audioCtxCompartilhado;
+  // 'interrupted' é um estado que só o iOS/iPadOS produz (ligação
+  // recebida, ou outro app tomando o áudio do aparelho). Não estava
+  // sendo tratado — o contexto ficava parado nesse estado pra sempre e
+  // TODO alerta seguinte saía mudo, sem erro nenhum aparecendo.
+  if(ctx.state === 'suspended' || ctx.state === 'interrupted') {
+    ctx.resume().catch(function(){});
   }
-  return window._audioCtxCompartilhado;
+  return ctx;
 }
+
+/* Áudio de arquivo (aviso de rebuy) reaproveitado num elemento só, em
+   vez de um `new Audio()` a cada disparo: além de não acumular
+   elementos, é o mesmo objeto que o gesto do usuário destrava abaixo. */
+function getAudioRebuy() {
+  if(!window._audioRebuy) {
+    window._audioRebuy = new Audio('alerta-rebuy.m4a');
+    window._audioRebuy.preload = 'auto';
+  }
+  return window._audioRebuy;
+}
+
+/* ===== Por que os alertas paravam de funcionar depois de um tempo =====
+   iPhone e iPad (e o Chrome em menor grau) suspendem o contexto de áudio
+   sempre que a página vai pro segundo plano — que é exatamente o que
+   acontece numa sessão de poker: a tela apaga, alguém troca de app, o
+   celular toca. Voltando pro app, o contexto continua suspenso, e a
+   regra do iOS é que `resume()` só funciona de dentro de um gesto do
+   usuário. Como os alertas de blind disparam de um setInterval (não de
+   um toque), o resume falhava calado e a partir dali NENHUM som saía —
+   o timer seguia contando certo na tela, só que mudo. Batia com
+   "funciona no começo e depois buga".
+   A correção é destravar o áudio em qualquer toque na tela, sempre (não
+   só no primeiro): o custo é quase zero quando já está tocando, e
+   garante que o contexto esteja vivo quando o alerta seguinte precisar
+   dele. O buffer mudo de 1 frame é o que o iOS exige pra considerar o
+   contexto realmente liberado — só chamar resume() não basta. */
+function desbloquearAudio() {
+  try {
+    var ctx = getAudioCtx();
+    if(!window._audioDestravado) {
+      var src = ctx.createBufferSource();
+      src.buffer = ctx.createBuffer(1, 1, 22050);
+      src.connect(ctx.destination);
+      src.start(0);
+      window._audioDestravado = true;
+    }
+  } catch(e) {}
+  // Mesma trava vale pro arquivo do aviso de rebuy: tocar mudo uma vez
+  // dentro do gesto marca o elemento como liberado, senão o play()
+  // disparado pelo timer é bloqueado pelo navegador.
+  if(!window._audioRebuyDestravado) {
+    try {
+      var a = getAudioRebuy();
+      a.muted = true;
+      var p = a.play();
+      var soltar = function(){ try { a.pause(); a.currentTime = 0; } catch(e){} a.muted = false; window._audioRebuyDestravado = true; };
+      if(p && p.then) p.then(soltar).catch(function(){ a.muted = false; });
+      else soltar();
+    } catch(e) {}
+  }
+}
+['pointerdown','touchend','click'].forEach(function(ev){
+  document.addEventListener(ev, desbloquearAudio, { capture: true, passive: true });
+});
 
 function tocarAlertaNivel() {
   try {
@@ -4225,7 +4285,11 @@ function excluirAudioTeste(i) {
    ícones). Já passou por voz sintética e por uma gravação anterior
    (Rebuy.m4a) antes de chegar nessa versão. */
 function tocarAvisoRebuy() {
-  try { new Audio('alerta-rebuy.m4a').play().catch(function(){}); } catch(e) {}
+  try {
+    var a = getAudioRebuy();
+    a.currentTime = 0;
+    a.play().catch(function(){});
+  } catch(e) {}
   if(navigator.vibrate) { try { navigator.vibrate([200,100,200]); } catch(e) {} }
 }
 
@@ -4259,13 +4323,28 @@ function tocarSino() {
 var _wakeLock = null;
 function pedirWakeLock() {
   if(!('wakeLock' in navigator)) return;
-  navigator.wakeLock.request('screen').then(function(wl){ _wakeLock = wl; }).catch(function(){});
+  if(_wakeLock && !_wakeLock.released) return; // já está segurando, não empilha pedido
+  navigator.wakeLock.request('screen').then(function(wl){
+    _wakeLock = wl;
+    // O sistema solta o bloqueio sozinho em várias situações (bateria
+    // fraca, app em segundo plano). Sem escutar isso, _wakeLock ficava
+    // apontando pra um bloqueio morto e o pedido seguinte era ignorado
+    // pela guarda acima — a tela voltava a apagar no meio da sessão.
+    wl.addEventListener('release', function(){ if(_wakeLock === wl) _wakeLock = null; });
+  }).catch(function(){});
 }
 function liberarWakeLock() {
   if(_wakeLock) { try { _wakeLock.release(); } catch(e) {} _wakeLock = null; }
 }
 document.addEventListener('visibilitychange', function(){
-  if(document.visibilityState === 'visible' && S.activeSession && S.activeSession.blindTimerStartedAt && !S.activeSession.blindTimerPausedAt) {
+  if(document.visibilityState !== 'visible') return;
+  // Voltar pro app é o momento em que o áudio precisa ser reativado: no
+  // Android/PC o resume aqui já resolve sozinho; no iPhone/iPad ele só
+  // vale de dentro de um gesto, então quem termina o serviço é o
+  // desbloquearAudio() no primeiro toque — mas tentar aqui é de graça e
+  // cobre o caso mais comum sem depender de o Pedro tocar em algo.
+  try { getAudioCtx(); } catch(e) {}
+  if(S.activeSession && S.activeSession.blindTimerStartedAt && !S.activeSession.blindTimerPausedAt) {
     pedirWakeLock();
   }
 });
