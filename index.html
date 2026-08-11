@@ -4632,6 +4632,20 @@ function openFinishSession() {
       '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-4px 0 10px">Quem foi marcado como "Saiu da mesa" durante a sessão já vem preenchido — confira e ajuste se precisar. 1º é quem venceu.</div>' +
       '<div class="pgm-final-row header"><div>Jogador</div><div style="text-align:right">Pagou</div><div style="text-align:right">Posição</div></div>' +
       rowsClassico +
+      '<div class="pgm-section-title" style="margin-top:0.75rem">🤝 Acordo entre os finalistas (opcional)</div>' +
+      '<div style="font-size:10px;font-weight:700;color:var(--text-dim);margin:-4px 0 10px">Se os que ainda estavam na mesa combinaram uma divisão diferente da tabela, define aqui. Quem já tinha saído antes do acordo mantém a % normal da posição dele.</div>' +
+      '<div class="pgm-toggle-group" id="acordo-toggle">' +
+        '<button class="pgm-toggle-opt active" type="button" onclick="setAcordoAtivo(false)">Sem acordo</button>' +
+        '<button class="pgm-toggle-opt" type="button" onclick="setAcordoAtivo(true)">Houve acordo</button>' +
+      '</div>' +
+      '<div id="acordo-wrapper" style="display:none;margin-top:0.5rem">' +
+        '<div class="pgm-field" style="margin-bottom:0.4rem">' +
+          '<label class="pgm-input-label">Quantos jogadores entraram no acordo?</label>' +
+          '<input type="number" id="acordo-qtd" class="pgm-input" min="2" max="' + Math.min((s.payout||[]).length, n) + '" value="2" oninput="renderAcordoInputs()">' +
+        '</div>' +
+        '<div id="acordo-inputs"></div>' +
+        '<div id="acordo-saldo" style="font-size:11px;font-weight:700;color:var(--text-dim);margin-top:4px"></div>' +
+      '</div>' +
       '<div class="pgm-row-btns" style="margin-top:0.75rem">' +
       '<button class="pgm-btn pgm-btn-success" style="flex:1" onclick="finishSessionClassico()">Encerrar e salvar</button>' +
       '</div>'
@@ -4666,6 +4680,66 @@ function openFinishSession() {
   );
 }
 
+function setAcordoAtivo(ativo) {
+  document.querySelectorAll('#acordo-toggle .pgm-toggle-opt').forEach(function(b,i){
+    b.classList.toggle('active', (i===0&&!ativo)||(i===1&&ativo));
+  });
+  var wrapper = document.getElementById('acordo-wrapper');
+  if(wrapper) wrapper.style.display = ativo ? 'block' : 'none';
+  if(ativo) renderAcordoInputs();
+}
+
+/* Os inputs de % do acordo já vêm com o nome de quem está em cada
+   posição (lido dos selects de posição, no estado em que estavam
+   quando o acordo foi ativado/qtd mudou) — só rótulo, não trava nada
+   se o admin ajustar a posição depois. Alvo da soma é o quanto essas N
+   posições JUNTAS já receberiam pela tabela normal (payout[0..N-1]),
+   não 100% — é só o "resto" que os finalistas ainda em jogo tinham
+   direito de redividir; quem já saiu antes do acordo continua com a %
+   fixa da posição dele. */
+function renderAcordoInputs() {
+  var s = S.activeSession;
+  var qtdInp = document.getElementById('acordo-qtd');
+  var qtd = Math.max(2, parseInt(qtdInp && qtdInp.value) || 2);
+  var payout = s.payout || [];
+  var alvo = payout.slice(0, qtd).reduce(function(a,v){ return a+v; }, 0);
+  var container = document.getElementById('acordo-inputs');
+  if(!container) return;
+  var linhas = '';
+  for(var pos = 1; pos <= qtd; pos++) {
+    var nomePos = '';
+    for(var i = 0; i < s.players.length; i++) {
+      var sel = document.getElementById('pos-' + i);
+      if(sel && parseInt(sel.value) === pos) { nomePos = s.players[i].name; break; }
+    }
+    var sugestao = payout[pos-1] || 0;
+    linhas += '<div class="pgm-field" style="margin-bottom:0.4rem">' +
+      '<label class="pgm-input-label">' + pos + 'º' + (nomePos ? ' — ' + escHtml(nomePos) : '') + '</label>' +
+      '<input type="number" step="0.1" id="acordo-pct-' + pos + '" class="pgm-input" value="' + sugestao + '" oninput="atualizarSaldoAcordo()">' +
+    '</div>';
+  }
+  container.innerHTML = linhas;
+  atualizarSaldoAcordo();
+}
+
+function atualizarSaldoAcordo() {
+  var s = S.activeSession;
+  var qtdInp = document.getElementById('acordo-qtd');
+  var qtd = Math.max(2, parseInt(qtdInp && qtdInp.value) || 2);
+  var payout = s.payout || [];
+  var alvo = payout.slice(0, qtd).reduce(function(a,v){ return a+v; }, 0);
+  var soma = 0;
+  for(var pos = 1; pos <= qtd; pos++) {
+    var inp = document.getElementById('acordo-pct-' + pos);
+    soma += parseFloat(inp && inp.value) || 0;
+  }
+  var el = document.getElementById('acordo-saldo');
+  if(!el) return;
+  var dif = Math.round((soma - alvo) * 100) / 100;
+  el.innerHTML = 'Soma: ' + soma.toFixed(1) + '% | Precisa somar: ' + alvo.toFixed(1) + '% (o que essas posições já dividiam) ' +
+    (Math.abs(dif) < 0.05 ? '<span style="color:var(--positive)">✓ Bate</span>' : '<span style="color:var(--negative)">Diferença: ' + (dif>0?'+':'') + dif.toFixed(1) + '%</span>');
+}
+
 function updateFinishPot() {
   const s = S.activeSession, totalIn = s.players.reduce((a,p)=>a+p.buyin+p.rebuys.reduce((r,v)=>r+v,0),0);
   let sum=0; s.players.forEach((_,i)=>{ sum+=parseMoedaBR(document.getElementById('stack-'+i).value); });
@@ -4695,16 +4769,38 @@ function finishSessionClassico() {
 
   var totalIn = s.players.reduce(function(a,p){ return a + p.buyin + (p.rebuys||[]).reduce(function(r,v){ return r+v; }, 0); }, 0);
   var payout = s.payout || [];
+  var payoutEfetivo = payout.slice();
+  var acordo = null;
+
+  var acordoAtivo = document.getElementById('acordo-toggle') && document.querySelectorAll('#acordo-toggle .pgm-toggle-opt')[1].classList.contains('active');
+  if(acordoAtivo) {
+    var qtdInp = document.getElementById('acordo-qtd');
+    var qtd = Math.max(2, parseInt(qtdInp && qtdInp.value) || 2);
+    var alvo = payout.slice(0, qtd).reduce(function(a,v){ return a+v; }, 0);
+    var percentuais = [];
+    for(var pos = 1; pos <= qtd; pos++) {
+      var inp = document.getElementById('acordo-pct-' + pos);
+      percentuais.push(parseFloat(inp && inp.value) || 0);
+    }
+    var soma = percentuais.reduce(function(a,v){ return a+v; }, 0);
+    if(Math.abs(soma - alvo) >= 0.05) {
+      showAlert('A soma do acordo (' + soma.toFixed(1) + '%) precisa bater com ' + alvo.toFixed(1) + '% — o que essas posições já dividiam pela tabela normal.');
+      return;
+    }
+    for(var pi = 0; pi < qtd; pi++) payoutEfetivo[pi] = percentuais[pi];
+    acordo = { qtd: qtd, percentuais: percentuais };
+  }
 
   s.players.forEach(function(p, idx) {
     var place = places[idx];
     var investido = p.buyin + (p.rebuys||[]).reduce(function(a,r){ return a+r; }, 0);
-    var premio = (place <= payout.length) ? totalIn * payout[place-1] / 100 : 0;
+    var premio = (place <= payoutEfetivo.length) ? totalIn * payoutEfetivo[place-1] / 100 : 0;
     p.place = place;
     p.premio = premio;
     p.finalStack = premio;
     p.profit = premio - investido;
   });
+  if(acordo) s.acordo = acordo;
 
   s.duration = s.startedAt ? (Date.now() - s.startedAt) : null;
   stopSessionTimer();
