@@ -4067,6 +4067,15 @@ function visualizarEstruturaBlindsAtiva() {
 }
 
 function atualizarBlindTimerDisplay() {
+  // Bug real: limpar o setInterval em logoutApp() não bastava — o
+  // listener do Firebase (_fbListen) tem seu PRÓPRIO caminho direto até
+  // aqui (via renderActiveSession(), fora do interval), e _fbSignOut()
+  // pode disparar esse listener mais uma vez com dado transitório bem
+  // na hora de sair, "parecendo" troca de nível e tocando o alerta sem
+  // ninguém ter mudado de nível de verdade. window._saindoDoApp corta
+  // isso na raiz assim que o Sair é clicado — a página vai recarregar
+  // de qualquer forma, não tem problema não redesenhar mais esse card.
+  if(window._saindoDoApp) return;
   var s = S.activeSession;
   if(!s || !s.estruturaBlinds) return;
   // Sem essa trava, o setInterval de 1s (que roda sozinho, redesenhando a
@@ -6394,9 +6403,14 @@ function confirmarSairApp() {
 }
 
 function logoutApp() {
-  // Corta qualquer alerta de blind em voo antes de recarregar a página —
-  // reforço de segurança pro bug do aviso de rebuy tocando sozinho perto
-  // do Sair (ver comentário em desbloquearAudio()).
+  // Corta qualquer alerta de blind em voo antes de recarregar a página.
+  // window._saindoDoApp (checado logo no topo de atualizarBlindTimerDisplay)
+  // é o que realmente resolve — _fbSignOut() pode disparar o listener do
+  // Firebase mais uma vez com dado transitório, e esse caminho não passa
+  // pelo setInterval (que só corta o timer, não o listener). Setado ANTES
+  // de _fbSignOut() de propósito, pra já estar valendo quando esse efeito
+  // colateral acontecer.
+  window._saindoDoApp = true;
   if(window._blindTimerInterval) { clearInterval(window._blindTimerInterval); window._blindTimerInterval = null; }
   try { var a = getAudioRebuy(); a.pause(); a.muted = true; a.currentTime = 0; } catch(e) {}
   localStorage.removeItem('pgm_auth_exp');
