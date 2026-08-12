@@ -347,40 +347,12 @@
     .pgm-scroll-fade svg { animation: pgmScrollBounce 1.3s ease-in-out infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
     @keyframes pgmScrollBounce { 0%,100% { transform: translateY(0); opacity: 0.6; } 50% { transform: translateY(5px); opacity: 1; } }
 
-    /* Abaixo de 900px as duas colunas empilham (a de baixo é o cartão de
-       info+timer, a de baixo é a lista+botões) — antes disso, o card, a
-       lista (com teto de 52vh) e os dois pares de botão juntos passavam
-       da tela, e pra chegar em "Encerrar sessão" tinha que rolar a
-       PÁGINA toda, escondendo o card de info no processo (bug real
-       reportado pelo Pedro). Agora #active-session-state vira uma coluna
-       flex do tamanho exato do que sobra de tela abaixo do cabeçalho —
-       o card de info fica com altura natural, e só o miolo (lista) é
-       elástico e rola sozinho; os botões ficam presos embaixo,
-       sempre visíveis, sem depender de rolar a página.
-       --altura-header-nav vem de ajustarAlturaSessaoAtiva() (JS) — não
-       dá pra cravar isso só em CSS porque o cabeçalho muda de tamanho na
-       quebra de 480px e também se a régua de "offline" aparecer. O
-       fallback de 110px cobre o instante antes do JS medir pela 1ª vez. */
-    @media (max-width: 899px) {
-      /* !important só aqui: o JS de sempre alterna essa tela com
-         style.display='block'/'none' direto no elemento (é assim que a
-         troca "sem sessão" ↔ "sessão ativa" funciona em vários pontos do
-         código) — um style inline vence QUALQUER regra normal de CSS,
-         media query incluída. Sem o !important essa reorganização nunca
-         chega a aparecer, porque cai por baixo do 'block' que o JS acabou
-         de aplicar. */
-      #active-session-state {
-        display: flex !important; flex-direction: column;
-        height: calc(100vh - var(--altura-header-nav, 110px) - 3rem);
-        height: calc(100dvh - var(--altura-header-nav, 110px) - 3rem);
-      }
-      #active-session-state > .pgm-cols { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-      #active-session-state > .pgm-cols > .pgm-col:first-child { flex: 0 0 auto; }
-      #active-session-col-lista { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
-      #active-players-rows-wrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-      #active-players-rows { flex: 1 1 auto; min-height: 90px; max-height: none; }
-      #active-session-col-lista .pgm-row-btns { flex: 0 0 auto; }
-    }
+    /* Abaixo de 900px, voltou a ser fluxo normal de página (Pedro testou
+       a versão com altura travada + só a lista rolando e achou que
+       "não tem espaço, ficou travada" — revertido a pedido dele em
+       2026-08-11). A lista de jogadores continua com overflow-y:auto
+       (ver acima), mas sem max-height forçado ela só cresce junto com o
+       conteúdo — quem rola é a página inteira, como sempre foi. */
     @media (min-width: 900px) {
       /* Sem o título "Fichas em jogo", a coluna da lista (grid item)
          alinha pela borda externa com o card ao lado — align-items:start
