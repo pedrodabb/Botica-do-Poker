@@ -4391,13 +4391,24 @@ function desbloquearAudio() {
   // Mesma trava vale pro arquivo do aviso de rebuy: tocar mudo uma vez
   // dentro do gesto marca o elemento como liberado, senão o play()
   // disparado pelo timer é bloqueado pelo navegador.
+  // Bug real (iPad): esse "destravar" tocava alerta-rebuy.m4a mudo pra
+  // liberar o elemento — mas se o arquivo ainda não tinha terminado de
+  // carregar (1º toque da página, arquivo sem cache), o iOS às vezes não
+  // respeita .muted a tempo enquanto o áudio termina de bufferizar, e
+  // escapava um pedacinho audível do aviso de verdade. Isso batia direto
+  // com "toca sozinho quando eu saio" — clicar em Sair logo depois de
+  // logar (comum ao testar) costuma ser um dos primeiros toques da
+  // página, então era esse destravamento (não um alerta de verdade)
+  // quem tocava. volume:0 além de muted:true é um reforço bem
+  // documentado pra esse tipo de falha do iOS.
   if(!window._audioRebuyDestravado) {
     try {
       var a = getAudioRebuy();
       a.muted = true;
+      a.volume = 0;
       var p = a.play();
-      var soltar = function(){ try { a.pause(); a.currentTime = 0; } catch(e){} a.muted = false; window._audioRebuyDestravado = true; };
-      if(p && p.then) p.then(soltar).catch(function(){ a.muted = false; });
+      var soltar = function(){ try { a.pause(); a.currentTime = 0; } catch(e){} a.muted = false; a.volume = 1; window._audioRebuyDestravado = true; };
+      if(p && p.then) p.then(soltar).catch(function(){ a.muted = false; a.volume = 1; });
       else soltar();
     } catch(e) {}
   }
@@ -6383,6 +6394,11 @@ function confirmarSairApp() {
 }
 
 function logoutApp() {
+  // Corta qualquer alerta de blind em voo antes de recarregar a página —
+  // reforço de segurança pro bug do aviso de rebuy tocando sozinho perto
+  // do Sair (ver comentário em desbloquearAudio()).
+  if(window._blindTimerInterval) { clearInterval(window._blindTimerInterval); window._blindTimerInterval = null; }
+  try { var a = getAudioRebuy(); a.pause(); a.muted = true; a.currentTime = 0; } catch(e) {}
   localStorage.removeItem('pgm_auth_exp');
   if(window._fbSignOut) window._fbSignOut();
   closeModal();
