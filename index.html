@@ -348,6 +348,13 @@
     .pgm-scroll-fade.visible { opacity: 1; }
     .pgm-scroll-fade svg { animation: pgmScrollBounce 1.3s ease-in-out infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
     @keyframes pgmScrollBounce { 0%,100% { transform: translateY(0); opacity: 0.6; } 50% { transform: translateY(5px); opacity: 1; } }
+    /* Mesmo indicador, só que preso à TELA (não a um container) — pra
+       quando quem rola é a página inteira (celular, ver comentário na
+       regra de #active-players-rows acima). z-index abaixo de modal
+       (1000) mas acima do conteúdo normal. */
+    .pgm-scroll-fade-pagina { position: fixed; left: 0; right: 0; bottom: 0; height: 50px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: calc(10px + env(safe-area-inset-bottom)); pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 90; background: linear-gradient(to bottom, transparent, var(--felt) 70%); }
+    .pgm-scroll-fade-pagina.visible { opacity: 1; }
+    .pgm-scroll-fade-pagina svg { animation: pgmScrollBounce 1.3s ease-in-out infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
 
     /* Abaixo de 900px, voltou a ser fluxo normal de página (Pedro testou
        a versão com altura travada + só a lista rolando e achou que
@@ -1229,6 +1236,7 @@ function showTab(n) {
      medição de altura sai zerada e o indicador fica preso em "sem
      rolagem" mesmo tendo. Recalcula agora que a aba realmente apareceu. */
   if(n==='sessao' && S.activeSession) atualizarIndicadorRolagem(document.getElementById('active-players-rows'), { corFundo: 'var(--felt-mid)' });
+  ativarIndicadorRolagemPagina();
 }
 
 function setSessionModality(m) {
@@ -3879,6 +3887,7 @@ function renderActiveSession() {
     </div>`;
   }).join('');
   ativarIndicadorRolagem(document.getElementById('active-players-rows'), { corFundo: 'var(--felt-mid)' });
+  ativarIndicadorRolagemPagina();
   renderBlindTimerBlock();
 }
 
@@ -6036,6 +6045,30 @@ function atualizarIndicadorRolagem(elRolavel, opcoes) {
   ind.classList.toggle('visible', sobra > 4);
 }
 
+/* Versão pra quando quem rola é a PÁGINA inteira (celular, onde a lista
+   de jogadores virou fluxo normal em vez de rolar sozinha — sem isso a
+   seta de "tem mais pra baixo" tinha sumido de vez pra quem usa
+   celular). Um único elemento fixo, criado uma vez e reaproveitado;
+   liga sozinho no scroll/resize da janela e no ResizeObserver do body
+   (pega mudança de altura da página sem precisar de um evento de
+   scroll, ex: trocar de aba, expandir um quadro). */
+function ativarIndicadorRolagemPagina() {
+  var ind = document.getElementById('pgm-scroll-fade-pagina');
+  if(!ind) {
+    ind = document.createElement('div');
+    ind.id = 'pgm-scroll-fade-pagina';
+    ind.className = 'pgm-scroll-fade-pagina';
+    ind.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--gold-light)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+    document.body.appendChild(ind);
+    window.addEventListener('scroll', ativarIndicadorRolagemPagina, { passive: true });
+    window.addEventListener('resize', ativarIndicadorRolagemPagina);
+    if(window.ResizeObserver) new ResizeObserver(ativarIndicadorRolagemPagina).observe(document.body);
+  }
+  var doc = document.documentElement;
+  var sobra = doc.scrollHeight - window.scrollY - window.innerHeight;
+  ind.classList.toggle('visible', sobra > 4);
+}
+
 /* Guarda COMO voltar pra tela anterior quando um modal abre por cima de
    outro — hoje a foto do jogador, que pode ser aberta de dentro do
    detalhe da sessão, da devolução Pix ou da lista de curiosidades. Sem
@@ -6890,6 +6923,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('new-session-date').value = new Date().toISOString().split('T')[0];
     initConnectionMonitor();
     ajustarAlturaSessaoAtiva();
+    ativarIndicadorRolagemPagina();
     load(); updateOverview(); resetNewSessionForm();
     if(S.activeSession){
       document.getElementById('no-session-state').style.display='none';
