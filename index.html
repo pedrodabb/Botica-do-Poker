@@ -1151,6 +1151,23 @@ function initFirebaseSync() {
     const localTime = S._lastUpdate || 0;
     if(remoteTime < localTime) return;
 
+    /* Bug real corrigido: ao logar, a 1ª renderização da sessão ativa usa
+       o cache local (load(), síncrono) — pode estar desatualizado, ex:
+       outro aparelho pausou/avançou o timer de blind enquanto esse
+       estava fechado. Quando o Firebase confirma o dado real (aqui,
+       instantes depois), o "nível mudou" em relação ao cache velho, e o
+       app tocava os alertas de troca de nível (inclusive o de fim do
+       rebuy) como se tivesse mudado de nível NAQUELE instante — na
+       prática soava "do nada" bem na hora de entrar a senha. Zera o
+       rastreamento de nível na 1ª confirmação real do Firebase (só uma
+       vez por carregamento de página) pra essa correção nunca soar como
+       alerta; trocas de nível de verdade, depois disso, continuam
+       tocando normalmente em qualquer aparelho com a tela aberta. */
+    if(!window._primeiroSyncFirebaseFeito) {
+      window._primeiroSyncFirebaseFeito = true;
+      window._blindTimerUltimoNivel = undefined;
+    }
+
     const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession','tempCode','_lastUpdate','authConfig','favoritosBlinds','blindLadderCash'];
     keys.forEach(k=>{ if(data[k]!==undefined) S[k]=data[k]; });
     S.activeSession = data.activeSession || null;
