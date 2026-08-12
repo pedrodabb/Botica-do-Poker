@@ -326,11 +326,13 @@
     .pgm-rval-block { flex-shrink:0; text-align:right; }
     .pgm-rval-label { font-size:9px; font-weight:900; color:var(--text-dim); letter-spacing:0.06em; text-transform:uppercase; line-height:1; margin-bottom:2px; }
 
-    /* A lista de jogadores da sessão ativa rola sozinha: dá pra procurar
-       alguém ou conferir quem já saiu sem arrastar o site inteiro junto.
-       overscroll-behavior impede que a rolagem "vaze" pro corpo da
-       página ao chegar no fim da lista. */
-    #active-players-rows { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-right: 5px; }
+    /* No celular a lista é fluxo normal (quem rola é a página inteira,
+       ver bloco de min-width:900px mais abaixo pra explicação completa).
+       Bug real corrigido: overflow-y:auto + overscroll-behavior:contain
+       aqui SEM altura travada virava um "mini scroll" (1px de folga já
+       basta) que prendia o primeiro gesto de arrastar e travava a
+       rolagem da página — "a rolagem só tá funcionando uma vez". */
+    #active-players-rows { padding-right: 5px; }
     #active-players-rows::-webkit-scrollbar { width: 6px; }
     #active-players-rows::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 3px; }
     #active-players-rows::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
@@ -357,8 +359,11 @@
       /* Sem o título "Fichas em jogo", a coluna da lista (grid item)
          alinha pela borda externa com o card ao lado — align-items:start
          do .pgm-cols já cuida disso sozinho, sem precisar de ajuste
-         manual (testado: 0px de diferença entre os dois topos). */
-      #active-players-rows { max-height: 55vh; }
+         manual (testado: 0px de diferença entre os dois topos).
+         overflow/overscroll só entram aqui (desktop/iPad largo), onde a
+         altura É travada de verdade — no celular isso vira fluxo normal
+         de página (ver comentário acima, na regra base). */
+      #active-players-rows { max-height: 55vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
     }
     .pgm-player-avatar { width:28px;height:28px;border-radius:50%;background:rgba(201,168,76,0.12);border:1.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;overflow:hidden;cursor:pointer;vertical-align:middle; }
     .pgm-player-avatar:hover { border-color:var(--gold-light); }
