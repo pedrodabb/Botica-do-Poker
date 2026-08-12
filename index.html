@@ -327,15 +327,56 @@
     .pgm-rval-label { font-size:9px; font-weight:900; color:var(--text-dim); letter-spacing:0.06em; text-transform:uppercase; line-height:1; margin-bottom:2px; }
 
     /* A lista de jogadores da sessão ativa rola sozinha: dá pra procurar
-       alguém ou conferir quem já saiu sem arrastar o site inteiro junto,
-       e os botões de ação (+ Jogador, Encerrar sessão) não somem da
-       tela. overscroll-behavior impede que a rolagem "vaze" pro corpo da
+       alguém ou conferir quem já saiu sem arrastar o site inteiro junto.
+       overscroll-behavior impede que a rolagem "vaze" pro corpo da
        página ao chegar no fim da lista. */
-    #active-players-rows { max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-right: 5px; }
+    #active-players-rows { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-right: 5px; }
     #active-players-rows::-webkit-scrollbar { width: 6px; }
     #active-players-rows::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 3px; }
     #active-players-rows::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
     #active-players-rows { scrollbar-width: thin; scrollbar-color: var(--gold-dim) rgba(255,255,255,0.04); }
+
+    /* Abaixo de 900px as duas colunas empilham (a de baixo é o cartão de
+       info+timer, a de baixo é a lista+botões) — antes disso, o card, a
+       lista (com teto de 52vh) e os dois pares de botão juntos passavam
+       da tela, e pra chegar em "Encerrar sessão" tinha que rolar a
+       PÁGINA toda, escondendo o card de info no processo (bug real
+       reportado pelo Pedro). Agora #active-session-state vira uma coluna
+       flex do tamanho exato do que sobra de tela abaixo do cabeçalho —
+       o card de info fica com altura natural, e só o miolo (lista) é
+       elástico e rola sozinho; os botões ficam presos embaixo,
+       sempre visíveis, sem depender de rolar a página.
+       --altura-header-nav vem de ajustarAlturaSessaoAtiva() (JS) — não
+       dá pra cravar isso só em CSS porque o cabeçalho muda de tamanho na
+       quebra de 480px e também se a régua de "offline" aparecer. O
+       fallback de 110px cobre o instante antes do JS medir pela 1ª vez. */
+    @media (max-width: 899px) {
+      /* !important só aqui: o JS de sempre alterna essa tela com
+         style.display='block'/'none' direto no elemento (é assim que a
+         troca "sem sessão" ↔ "sessão ativa" funciona em vários pontos do
+         código) — um style inline vence QUALQUER regra normal de CSS,
+         media query incluída. Sem o !important essa reorganização nunca
+         chega a aparecer, porque cai por baixo do 'block' que o JS acabou
+         de aplicar. */
+      #active-session-state {
+        display: flex !important; flex-direction: column;
+        height: calc(100vh - var(--altura-header-nav, 110px) - 3rem);
+        height: calc(100dvh - var(--altura-header-nav, 110px) - 3rem);
+      }
+      #active-session-state > .pgm-cols { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+      #active-session-state > .pgm-cols > .pgm-col:first-child { flex: 0 0 auto; }
+      #active-session-col-lista { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+      #active-players-rows-wrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+      #active-players-rows { flex: 1 1 auto; min-height: 90px; max-height: none; }
+      #active-session-col-lista .pgm-row-btns { flex: 0 0 auto; }
+    }
+    @media (min-width: 900px) {
+      /* Sem o título "Fichas em jogo", a coluna da lista (grid item)
+         alinha pela borda externa com o card ao lado — align-items:start
+         do .pgm-cols já cuida disso sozinho, sem precisar de ajuste
+         manual (testado: 0px de diferença entre os dois topos). */
+      #active-players-rows { max-height: 55vh; }
+    }
     .pgm-player-avatar { width:28px;height:28px;border-radius:50%;background:rgba(201,168,76,0.12);border:1.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;overflow:hidden;cursor:pointer;vertical-align:middle; }
     .pgm-player-avatar:hover { border-color:var(--gold-light); }
     .pgm-player-avatar img { width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;display:block;flex-shrink:0; }
@@ -642,8 +683,6 @@
       .pgm-hist-cat-icon { font-size:32px; }
       .pgm-history-title { font-size:14px; }
       .pgm-history-sub, .pgm-history-date { font-size:12.5px; }
-      /* Com a tela alta do PC dá pra mostrar mais gente antes de rolar. */
-      #active-players-rows { max-height: 58vh; }
     }
     @media (min-width: 1400px) {
       #app { max-width: 1240px; }
@@ -881,9 +920,8 @@
           <div class="pgm-pot-bar" style="margin-top:0.5rem;margin-bottom:0"><div id="active-pot-bar" class="pgm-pot-fill" style="width:0%"></div></div>
         </div>
         </div>
-        <div class="pgm-col">
-        <div class="pgm-section-title">Fichas em jogo</div>
-        <div>
+        <div class="pgm-col" id="active-session-col-lista">
+        <div id="active-players-rows-wrap">
           <div id="active-players-rows"></div>
         </div>
         <div class="pgm-row-btns">
@@ -3773,11 +3811,32 @@ function startSession() {
   startSessionTimer();
 }
 
+/* Mede a altura real do cabeçalho+navbar (que é sticky, então some da
+   rolagem mas continua ocupando espaço) e grava numa variável CSS —
+   é o que #active-session-state usa (abaixo de 900px) pra saber quanto
+   sobra de tela pra si mesma, deixando só a LISTA de jogadores rolar
+   dentro de uma altura própria, com o card de info e os botões de ação
+   sempre à vista, sem precisar rolar a página. Não dá pra fazer isso só
+   em CSS porque a altura do cabeçalho muda de tamanho na quebra de
+   480px (.pgm-header/.pgm-nav-btn ficam menores) e também se a régua
+   offline aparecer — então é medido de verdade, não calculado no chute.
+   Chamada no carregamento, ao redimensionar/girar o aparelho, e sempre
+   que a sessão ativa é redesenhada (a régua offline pode entrar/sair
+   nesse meio tempo). */
+function ajustarAlturaSessaoAtiva() {
+  var barra = document.querySelector('.pgm-header-nav-sticky');
+  if(!barra) return;
+  document.documentElement.style.setProperty('--altura-header-nav', Math.ceil(barra.getBoundingClientRect().height) + 'px');
+}
+window.addEventListener('resize', ajustarAlturaSessaoAtiva);
+window.addEventListener('orientationchange', ajustarAlturaSessaoAtiva);
+
 function renderActiveSession() {
   if(!S.activeSession) return;
   const s = S.activeSession;
   var fabSino = document.getElementById('pgm-fab-sino');
   if(fabSino) fabSino.style.display = 'flex';
+  ajustarAlturaSessaoAtiva();
   document.getElementById('active-session-title').textContent = s.num ? `Sessão ${s.num}` : (s.label || 'Sessão Casual');
   document.getElementById('active-session-badge').className = 'pgm-badge '+(s.type==='oficial'?'pgm-badge-gold':(s.type==='torneio'?'pgm-badge-torneio':'pgm-badge-casual'));
   document.getElementById('active-session-badge').textContent = s.type==='oficial'?'🏆 Liga':(s.type==='torneio'?'🥊 Torneio':'🥃 Casual');
@@ -6789,6 +6848,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     document.getElementById('reg-player-name').addEventListener('keydown', e=>{ if(e.key==='Enter') registerPlayer(); });
     document.getElementById('new-session-date').value = new Date().toISOString().split('T')[0];
     initConnectionMonitor();
+    ajustarAlturaSessaoAtiva();
     load(); updateOverview(); resetNewSessionForm();
     if(S.activeSession){
       document.getElementById('no-session-state').style.display='none';
