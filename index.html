@@ -320,6 +320,22 @@
     .pgm-rname-block { flex:1; min-width:0; }
     .pgm-rname-block .pgm-rname { font-size:13.5px; }
     .pgm-rsub { font-size:10.5px; color:var(--text-dim); font-family:'Space Mono',monospace; margin-top:1px; }
+    /* O valor da direita aparecia como número solto, sem dizer o que
+       era — agora vem com o rótulo "Saldo" em cima, no mesmo estilo dos
+       rótulos da esquerda (Investiu / Recebe). */
+    .pgm-rval-block { flex-shrink:0; text-align:right; }
+    .pgm-rval-label { font-size:9px; font-weight:900; color:var(--text-dim); letter-spacing:0.06em; text-transform:uppercase; line-height:1; margin-bottom:2px; }
+
+    /* A lista de jogadores da sessão ativa rola sozinha: dá pra procurar
+       alguém ou conferir quem já saiu sem arrastar o site inteiro junto,
+       e os botões de ação (+ Jogador, Encerrar sessão) não somem da
+       tela. overscroll-behavior impede que a rolagem "vaze" pro corpo da
+       página ao chegar no fim da lista. */
+    #active-players-rows { max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-right: 5px; }
+    #active-players-rows::-webkit-scrollbar { width: 6px; }
+    #active-players-rows::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 3px; }
+    #active-players-rows::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
+    #active-players-rows { scrollbar-width: thin; scrollbar-color: var(--gold-dim) rgba(255,255,255,0.04); }
     .pgm-player-avatar { width:28px;height:28px;border-radius:50%;background:rgba(201,168,76,0.12);border:1.5px solid var(--border-strong);display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;overflow:hidden;cursor:pointer;vertical-align:middle; }
     .pgm-player-avatar:hover { border-color:var(--gold-light); }
     .pgm-player-avatar img { width:100%;height:100%;min-width:100%;min-height:100%;object-fit:cover;display:block;flex-shrink:0; }
@@ -584,6 +600,50 @@
       /* Praticar tem mesa de tamanho fixo e a aba de áudios é uma lista
          curta — esticar não ajuda em nada, então ficam centralizados. */
       #tab-treino, #tab-teste { max-width: 620px; margin-left: auto; margin-right: auto; }
+
+      /* Com a tela maior sobrava espaço demais entre as coisas e tudo
+         parecia miúdo — os tamanhos vinham dimensionados pra caber em
+         375px de celular. Aqui foto, texto e respiro crescem junto com
+         a tela (só daqui pra cima; no celular fica tudo como estava). */
+      .pgm-player-avatar { width:34px; height:34px; font-size:14px; }
+      .pgm-rcard .pgm-player-avatar { width:44px; height:44px; font-size:16px; }
+      .pgm-pcard .pgm-player-avatar { width:52px; height:52px; font-size:18px; }
+      .player-card-avatar { width:56px; height:56px; font-size:20px; }
+      .pgm-rcard { gap:14px; padding:11px 14px; margin-bottom:8px; }
+      .pgm-rname, .pgm-rname-block .pgm-rname { font-size:15px; }
+      .pgm-rval { font-size:16px; }
+      .pgm-rsub { font-size:12px; }
+      .pgm-rpos { width:30px; height:30px; font-size:14px; }
+      .pgm-rpos.gold, .pgm-rpos.silver, .pgm-rpos.bronze { font-size:16px; }
+      .pgm-pcard { gap:14px; padding:13px; margin-bottom:10px; }
+      .pgm-pcard-name { font-size:16px; }
+      .pgm-pcard-meta { font-size:13px; }
+      .pgm-pill-rebuy { font-size:13px; padding:9px 16px; }
+      .player-card { gap:14px; padding:0.9rem; margin-bottom:10px; }
+      .player-card-name { font-size:16px; }
+      .player-card-sub { font-size:12.5px; }
+      .pgm-ranking-row { gap:14px; padding:0.95rem; margin-bottom:10px; }
+      .pgm-rank-name { font-size:16px; }
+      .pgm-rank-sessions, .pgm-rank-detail { font-size:12.5px; }
+      .pgm-rank-avg { font-size:17px; }
+      .pgm-rank-pos { font-size:20px; min-width:32px; }
+      .pgm-card { padding:1.15rem; }
+      .pgm-card-title { font-size:16px; }
+      .pgm-section-title { font-size:12px; }
+      .pgm-btn { font-size:14px; padding:0.7rem 1.2rem; }
+      .pgm-btn-sm { font-size:13px; padding:0.5rem 0.9rem; }
+      .pgm-input { font-size:15px; padding:0.65rem 0.85rem; }
+      .pgm-input-label { font-size:14px; }
+      .pgm-toggle-opt { font-size:13px; padding:0.45rem 0.7rem; }
+      .curio-text { font-size:14px; }
+      .curio-player { font-size:14px; }
+      .pgm-hist-cat-title { font-size:15px; }
+      .pgm-hist-cat-count { font-size:13px; }
+      .pgm-hist-cat-icon { font-size:32px; }
+      .pgm-history-title { font-size:14px; }
+      .pgm-history-sub, .pgm-history-date { font-size:12.5px; }
+      /* Com a tela alta do PC dá pra mostrar mais gente antes de rolar. */
+      #active-players-rows { max-height: 58vh; }
     }
     @media (min-width: 1400px) {
       #app { max-width: 1240px; }
@@ -2718,6 +2778,7 @@ function showPlayerCurios(name) {
 
   html += '<div class="pgm-row-btns" style="margin-top:1rem"><button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button></div>';
   showModal(html);
+  definirVoltarModal(function(){ showPlayerCurios(name); });
 }
 
 var _timerInterval = null;
@@ -5122,7 +5183,10 @@ function finishSessionCommon(s) {
         '<div class="pgm-rname">' + escHtml(p.name) + '</div>' +
         '<div class="pgm-rsub" style="color:var(--gold-light);font-weight:800">💸 Recebe ' + fmtRaw(p.finalStack||0) + '</div>' +
       '</div>' +
-      '<div class="pgm-rval ' + (pr>=0?'pos':'neg') + '">' + (pr>=0?'+':'') + 'R$ ' + Math.abs(pr).toFixed(2).replace('.',',') + '</div>' +
+      '<div class="pgm-rval-block">' +
+        '<div class="pgm-rval-label">Saldo</div>' +
+        '<div class="pgm-rval ' + (pr>=0?'pos':'neg') + '">' + (pr>=0?'+':'') + 'R$ ' + Math.abs(pr).toFixed(2).replace('.',',') + '</div>' +
+      '</div>' +
     '</div>';
   }).join('');
 
@@ -5623,7 +5687,10 @@ function showSessionDetail(sessionIndex) {
         '<div class="pgm-rsub">Investiu ' + fmtRaw(investido) + '</div>' +
         '<div class="pgm-rsub" style="color:var(--gold-light);font-weight:800">💸 Recebe ' + fmtRaw(p.finalStack||0) + '</div>' +
       '</div>' +
-      '<div class="pgm-rval ' + (pr>=0?'pos':'neg') + '">' + fmtR(pr) + '</div>' +
+      '<div class="pgm-rval-block">' +
+        '<div class="pgm-rval-label">Saldo</div>' +
+        '<div class="pgm-rval ' + (pr>=0?'pos':'neg') + '">' + fmtR(pr) + '</div>' +
+      '</div>' +
       delBtn +
       '</div>';
   }).join('');
@@ -5659,6 +5726,9 @@ function showSessionDetail(sessionIndex) {
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" id="btn-del-sess-detail">Apagar</button>' +
     '</div>'
   );
+  // Abrir a foto de um jogador daqui passa a ter "← Voltar" pra este
+  // detalhe, em vez de fechar tudo e obrigar a navegar de novo.
+  definirVoltarModal(function(){ showSessionDetail(sessionIndex); });
   setTimeout(function() {
     var btn = document.getElementById('btn-del-sess-detail');
     if(btn) btn.addEventListener('click', function() {
@@ -5699,10 +5769,11 @@ function showDevolucaoPix(sessionIndex) {
     '</div>' +
     (bateuPot ? '' : '<div class="pgm-warn" style="margin-top:0.6rem;font-size:11px">⚠️ Total a devolver (' + fmtRaw(totalDevolver) + ') diferente do pot (' + fmtRaw(pot) + ') — confira os stacks finais registrados.</div>') +
     '<div class="pgm-row-btns" style="margin-top:1rem">' +
-    '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="showSessionDetail(' + sessionIndex + ')">Voltar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="showSessionDetail(' + sessionIndex + ')">← Voltar</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
     '</div>'
   );
+  definirVoltarModal(function(){ showDevolucaoPix(sessionIndex); });
 }
 
 function confirmRemovePlayerFromSession(sessionIndex, playerIndex) {
@@ -5864,8 +5935,27 @@ function showSeasonDetail(idx) {
   }, 80);
 }
 
-function showModal(html, soft) { const el=document.getElementById('pgm-modal'); el.innerHTML=`<div class="pgm-modal-backdrop${soft ? ' pgm-modal-backdrop-soft' : ''}"><div class="pgm-modal${soft ? ' pgm-modal-soft' : ''}">${html}</div></div>`; el.style.display='block'; }
-function closeModal() { const el=document.getElementById('pgm-modal'); el.style.display='none'; el.innerHTML=''; }
+function showModal(html, soft) { _voltarModal = null; const el=document.getElementById('pgm-modal'); el.innerHTML=`<div class="pgm-modal-backdrop${soft ? ' pgm-modal-backdrop-soft' : ''}"><div class="pgm-modal${soft ? ' pgm-modal-soft' : ''}">${html}</div></div>`; el.style.display='block'; }
+function closeModal() { _voltarModal = null; const el=document.getElementById('pgm-modal'); el.style.display='none'; el.innerHTML=''; }
+
+/* Guarda COMO voltar pra tela anterior quando um modal abre por cima de
+   outro — hoje a foto do jogador, que pode ser aberta de dentro do
+   detalhe da sessão, da devolução Pix ou da lista de curiosidades. Sem
+   isso o único jeito de sair era o ✕, que fechava tudo e obrigava a
+   navegar desde o começo pra voltar onde estava.
+   Guarda a FUNÇÃO que reabre, não o HTML da tela: restaurar HTML
+   perderia os listeners que essas telas registram por addEventListener
+   (compartilhar resultado, excluir curiosidade), que não sobrevivem a
+   um innerHTML. showModal() zera antes de cada abertura e quem quer ser
+   "retornável" se registra logo depois — assim nunca sobra um Voltar
+   apontando pra uma tela que não é mais a de trás. */
+var _voltarModal = null;
+function definirVoltarModal(fn) { _voltarModal = fn; }
+function voltarModalAnterior() {
+  var fn = _voltarModal;
+  _voltarModal = null;
+  if(fn) fn(); else closeModal();
+}
 
 /* Bug real: clicar no fundo escurecido sempre fechou o modal (listener
    global lá embaixo), inclusive nos que têm formulário — tocar sem
@@ -6417,6 +6507,9 @@ function avatarHTML(name, cssClass, fallback) {
 function openPhotoModal(encodedName) {
   var name = decodeURIComponent(encodedName);
   var photo = getPlayerPhoto(name);
+  // showModal() zera o _voltarModal, então o destino de volta precisa
+  // ser lido ANTES e reposto depois de montar esta tela.
+  var voltarPara = _voltarModal;
   showModal(
     '<div class="pgm-modal-title">📷 ' + escHtml(name) + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;padding:0.5rem 0">' +
@@ -6426,8 +6519,10 @@ function openPhotoModal(encodedName) {
       '<input type="file" id="photo-file-input" accept="image/*" style="display:none">' +
       '<button class="pgm-btn" style="width:100%" onclick="document.getElementById(\'photo-file-input\').click()">📁 Escolher foto</button>' +
       (photo ? '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" style="width:100%" onclick="removePlayerPhoto(\'' + encodeURIComponent(name) + '\')">Remover foto</button>' : '') +
+      '<button class="pgm-btn pgm-btn-sm" style="width:100%" onclick="' + (voltarPara ? 'voltarModalAnterior()' : 'closeModal()') + '">' + (voltarPara ? '← Voltar' : 'Fechar') + '</button>' +
     '</div>'
   );
+  definirVoltarModal(voltarPara);
   setTimeout(function() {
     var input = document.getElementById('photo-file-input');
     if(input) input.addEventListener('change', function() {
@@ -6457,7 +6552,9 @@ function compressAndSavePhoto(name, file) {
         savePatch({ players: S.players });
         renderJogadores();
         renderActiveSession();
-        closeModal();
+        // Volta pra tela de onde a foto foi aberta (detalhe da sessão,
+        // por exemplo) em vez de fechar tudo; sem destino, só fecha.
+        voltarModalAnterior();
       }
     };
     img.src = e.target.result;
@@ -6473,7 +6570,7 @@ function removePlayerPhoto(encodedName) {
     savePatch({ players: S.players });
     renderJogadores();
     renderActiveSession();
-    closeModal();
+    voltarModalAnterior();
   }
 }
 
