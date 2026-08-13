@@ -1454,21 +1454,25 @@ function calcExtraRebuy(maxRebuys) {
   return soma;
 }
 
-/* Add-on = bônus de fichas físicas, mesmo preço em R$ — convenção real de
-   torneio de poker: rebuy comum SEMPRE dá o mesmo stack do buy-in (nunca
-   mais, senão vira vantagem infinita pra quem tem dinheiro sobrando); o
-   add-on é o evento ÚNICO, no fim da janela de recompra (addonAposNivel) —
-   no jogo do Pedro, é o único momento em que dá pra recomprar fichas
-   (rebuy só acontece quando alguém perde tudo, e só pode recomprar aí) —
-   que dá fichas a mais pelo mesmo valor, pra compensar blind já mais alto
-   e stacks dos outros já maiores. Valor FIXO (1000 fichas, pedido
-   explícito do Pedro — não é percentual do cacife), regra clara e igual
-   em qualquer estrutura. Só sugestão: o app não rastreia fichas físicas
-   por jogador (isso é feito na mesa), então isso nunca é obrigatório nem
+/* Bônus de fichas físicas na recompra, mesmo preço em R$ — pedido do
+   Pedro em 2026-08-12: rebuy comum (jogador perde tudo e recompra) vem
+   com 10% a mais; no ÚLTIMO nível da janela de recompra (o momento que
+   o resto do mundo do poker chama de "add-on"), sobe pra 20% — compensa
+   o blind já bem mais alto nesse ponto. Percentual (não mais um valor
+   fixo de 1000 fichas como antes) arredondado pra centena — ficha que
+   de fato existe no inventário (FICHAS_INVENTARIO), nunca inventando
+   denominação miúda. Só sugestão: o app não rastreia fichas físicas por
+   jogador (isso é feito na mesa), então isso nunca é obrigatório nem
    afeta o valor em R$ do rebuy. */
-var ADDON_BONUS_FICHAS = 1000;
-function calcAddonBonusFichas(valorRebuy) {
-  return { bonus: ADDON_BONUS_FICHAS, total: valorRebuy + ADDON_BONUS_FICHAS };
+var REBUY_BONUS_PCT = 0.10;
+var ADDON_BONUS_PCT = 0.20;
+function calcBonusFichasRebuy(valorRebuy) {
+  var bonusRebuy = Math.round((valorRebuy * REBUY_BONUS_PCT) / 100) * 100;
+  var bonusAddon = Math.round((valorRebuy * ADDON_BONUS_PCT) / 100) * 100;
+  return {
+    rebuy: { bonus: bonusRebuy, total: valorRebuy + bonusRebuy },
+    addon: { bonus: bonusAddon, total: valorRebuy + bonusAddon }
+  };
 }
 
 /* Cores das fichas físicas do Pedro (confirmadas por ele em 2026-07-28).
@@ -2605,11 +2609,12 @@ function renderBlindTable(r, soft) {
       notasTxt
   });
 
-  var rebuyBonus = calcAddonBonusFichas(r.valorRebuy);
+  var bonusInfo = calcBonusFichasRebuy(r.valorRebuy);
   var quadroRebuy = r.comRebuy ? quadroHTML({
     titulo: '🔄 Rebuy e add-on',
     resumo: 'até nv ' + r.addonAposNivel,
-    corpo: '<div style="font-size:11.5px;color:var(--cream-dim);font-weight:700;line-height:1.7">Rebuy (quando um jogador perde tudo) vem <strong style="color:var(--gold-light)">' + rebuyBonus.bonus.toLocaleString('pt-BR') + ' fichas a mais</strong> que o cacife: <strong style="color:var(--gold-light)">' + rebuyBonus.total.toLocaleString('pt-BR') + ' fichas</strong> em vez de ' + r.valorRebuy.toLocaleString('pt-BR') + ' (mesmo preço em R$) — ajuda quem voltou pra mesa a competir com blind já mais alto e stacks maiores dos outros. Na hora da recompra, na sessão ativa, dá pra marcar se foi Meio ou Inteiro.</div>' +
+    corpo: '<div style="font-size:11.5px;color:var(--cream-dim);font-weight:700;line-height:1.7">Rebuy (quando um jogador perde tudo) vem <strong style="color:var(--gold-light)">' + bonusInfo.rebuy.bonus.toLocaleString('pt-BR') + ' fichas a mais</strong> (10%) que o cacife: <strong style="color:var(--gold-light)">' + bonusInfo.rebuy.total.toLocaleString('pt-BR') + ' fichas</strong> em vez de ' + r.valorRebuy.toLocaleString('pt-BR') + ' (mesmo preço em R$). Na hora da recompra, na sessão ativa, dá pra marcar se foi Meio ou Inteiro.</div>' +
+      '<div style="font-size:11.5px;color:var(--cream-dim);font-weight:700;line-height:1.7;margin-top:7px">No último nível da janela (add-on), o bônus sobe pra <strong style="color:var(--gold-light)">' + bonusInfo.addon.bonus.toLocaleString('pt-BR') + ' fichas a mais</strong> (20%): <strong style="color:var(--gold-light)">' + bonusInfo.addon.total.toLocaleString('pt-BR') + ' fichas</strong> — compensa o blind já bem mais alto nesse ponto.</div>' +
       '<div style="font-size:11.5px;color:var(--cream-dim);font-weight:700;line-height:1.7;margin-top:7px">Fica aberto até o fim do nível <strong style="color:var(--gold-light)">' + r.addonAposNivel + '</strong>, ou seja <strong style="color:var(--gold-light)">' + formatarDuracao(minAteAddon) + '</strong> de jogo — perto da virada do meio pro fim do torneio.</div>' +
       '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:7px;line-height:1.5">Sem limite de quantas vezes recomprar — na prática ninguém controla isso à risca.</div>'
   }) : '';
@@ -4036,13 +4041,14 @@ function visualizarEstruturaBlindsAtiva() {
   var colsNiveis = eb.comAnte ? '24px 1fr 46px 92px 46px' : '24px 1fr 46px 92px';
   var temAddon = eb.comRebuy && eb.addonAposNivel;
   var addonBBValor = (temAddon && eb.niveis[eb.addonAposNivel-1]) ? Math.round((eb.valorRebuy||eb.cacife) / eb.niveis[eb.addonAposNivel-1].bb) : 0;
+  var bonusInfo = eb.comRebuy ? calcBonusFichasRebuy(eb.valorRebuy || eb.cacife) : null;
   var addonBanda = temAddon ? (
     '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin:5px 0;font-size:10px;font-weight:800;color:#7ab8f5;text-align:center;line-height:1.5">' +
       '<div>🔵 FIM DO REBUY — ADD-ON DISPONÍVEL</div>' +
       '<span style="font-weight:700;opacity:0.85">' + (eb.valorRebuy||eb.cacife).toLocaleString('pt-BR') + ' fichas ≈ ' + addonBBValor + ' big blinds</span>' +
+      (bonusInfo ? '<div style="margin-top:3px">🎁 +' + bonusInfo.addon.bonus.toLocaleString('pt-BR') + ' fichas (20%): ' + bonusInfo.addon.total.toLocaleString('pt-BR') + ' no total</div>' : '') +
     '</div>'
   ) : '';
-  var rebuyBonus = eb.comRebuy ? calcAddonBonusFichas(eb.valorRebuy || eb.cacife) : null;
   var linhas = eb.niveis.map(function(n) {
     return '<div style="display:grid;grid-template-columns:' + colsNiveis + ';gap:5px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11.5px">' +
       '<div style="font-family:Space Mono,monospace;color:var(--text-dim)">' + n.nivel + '</div>' +
@@ -4055,7 +4061,7 @@ function visualizarEstruturaBlindsAtiva() {
   showModal(
     '<div class="pgm-modal-title">⏳ Estrutura de blinds <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     (eb.cacife ? '<div style="font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:0.6rem">Cacife: ' + eb.cacife.toLocaleString('pt-BR') + ' fichas</div>' : '') +
-    (rebuyBonus ? '<div style="font-size:11px;font-weight:700;color:#7ab8f5;margin-bottom:0.6rem">🎁 Rebuy (perdeu tudo) vem com ' + rebuyBonus.bonus.toLocaleString('pt-BR') + ' fichas a mais: ' + rebuyBonus.total.toLocaleString('pt-BR') + ' fichas</div>' : '') +
+    (bonusInfo ? '<div style="font-size:11px;font-weight:700;color:#7ab8f5;margin-bottom:0.6rem">🎁 Rebuy (perdeu tudo) vem com ' + bonusInfo.rebuy.bonus.toLocaleString('pt-BR') + ' fichas a mais (10%): ' + bonusInfo.rebuy.total.toLocaleString('pt-BR') + ' fichas</div>' : '') +
     '<div style="display:grid;grid-template-columns:' + colsNiveis + ';gap:5px;padding-bottom:4px;border-bottom:1px solid var(--border-strong);font-size:9px;font-weight:900;color:var(--text-dim);text-transform:uppercase">' +
       '<div>Nv</div><div>Fase</div><div>Tempo</div><div>SB/BB</div>' + (eb.comAnte ? '<div>Ante</div>' : '') +
     '</div>' +
@@ -4781,18 +4787,27 @@ function openRebuyModal(idx) {
   const defaultRebuy = S.activeSession.rebuy || S.activeSession.buyin;
   const isClassico = S.activeSession.tourneyMode === 'classico';
   const eb = S.activeSession.estruturaBlinds;
-  /* Rebuy = jogador perdeu tudo e volta com o cacife + um bônus fixo de
-     fichas (não é sobre add-on — são coisas separadas; add-on é a janela
-     de recompra em si, ver addonAposNivel/aviso de voz em
-     atualizarBlindTimerDisplay). Sempre aparece que tem estrutura de
-     rebuy, não só num nível específico. Puramente informativo (o app não
-     rastreia fichas físicas por jogador, só R$), então nunca bloqueia
-     nem muda o valor do campo — só orienta quanto entregar na mesa. */
+  /* Rebuy = jogador perdeu tudo e volta com o cacife + um bônus de
+     fichas — 10% normalmente, 20% se a recompra acontece no ÚLTIMO
+     nível da janela (o que o resto do poker chama de add-on: blind já
+     bem mais alto nesse ponto, ver addonAposNivel/aviso de voz em
+     atualizarBlindTimerDisplay). Detecta isso pelo NÍVEL AO VIVO
+     (calcNivelBlindAtual), a mesma checagem já usada pelo aviso de voz —
+     sem timer rodando ainda (raro numa sessão já em andamento), cai no
+     10% por segurança. Sempre aparece que tem estrutura de rebuy, não só
+     num nível específico. Puramente informativo (o app não rastreia
+     fichas físicas por jogador, só R$), então nunca bloqueia nem muda o
+     valor do campo — só orienta quanto entregar na mesa. */
   var addonInfo = '';
   if(isClassico && eb && eb.comRebuy) {
-    var bonus = calcAddonBonusFichas(eb.valorRebuy || eb.cacife || defaultRebuy);
+    var bonusInfo = calcBonusFichasRebuy(eb.valorRebuy || eb.cacife || defaultRebuy);
+    var atualNivel = calcNivelBlindAtual(S.activeSession);
+    var ehAddon = !!(atualNivel && atualNivel.nivel && eb.addonAposNivel && atualNivel.nivel.nivel === eb.addonAposNivel);
+    var bonus = ehAddon ? bonusInfo.addon : bonusInfo.rebuy;
+    var rotulo = ehAddon ? 'Add-on (último nível da janela)' : 'Rebuy';
+    var pctTxt = ehAddon ? '20%' : '10%';
     addonInfo = '<div style="background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:6px;padding:6px 8px;margin-bottom:0.75rem;font-size:10.5px;font-weight:700;color:#7ab8f5;line-height:1.5">' +
-      '🎁 Rebuy vem com ' + bonus.bonus.toLocaleString('pt-BR') + ' fichas a mais: dê ' + bonus.total.toLocaleString('pt-BR') + ' fichas físicas em vez de ' + (eb.valorRebuy||eb.cacife).toLocaleString('pt-BR') + ', mesmo valor em R$. Ajuste na mesa.' +
+      '🎁 ' + rotulo + ' vem com ' + bonus.bonus.toLocaleString('pt-BR') + ' fichas a mais (' + pctTxt + '): dê ' + bonus.total.toLocaleString('pt-BR') + ' fichas físicas em vez de ' + (eb.valorRebuy||eb.cacife).toLocaleString('pt-BR') + ', mesmo valor em R$. Ajuste na mesa.' +
     '</div>';
   }
   showModal(`
