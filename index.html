@@ -2709,8 +2709,11 @@ function renderLigaPicker() {
   var ativo = S.newSession.type === 'oficial';
   wrapper.style.display = ativo ? 'block' : 'none';
   if(!ativo) return;
+  /* Sempre cai na PRIMEIRA liga criada, não a mais recente — pedido do
+     Pedro: "é sempre por ordem, a 1ª feita continua sendo a primeira".
+     Criar ligas de teste não pode fazer a 1ª "sumir" do topo. */
   if(!S.newSession.season || S.ligasAbertas.indexOf(S.newSession.season) === -1) {
-    S.newSession.season = S.ligasAbertas[S.ligasAbertas.length-1];
+    S.newSession.season = S.ligasAbertas[0];
   }
   var opts = document.getElementById('liga-picker-opts');
   if(!opts) return;
@@ -5451,12 +5454,15 @@ function resetNewSessionForm() {
 
 /* Qual liga está sendo VISUALIZADA (ranking/progresso) — separado de
    S.newSession.season (qual liga a PRÓXIMA sessão vai pertencer). Cai
-   sempre pra liga mais recente das abertas se a que estava selecionada
-   foi encerrada/deixou de existir. Só é relevante de verdade quando há
-   mais de uma liga aberta ao mesmo tempo (ver "🆕 Nova Liga"). */
+   sempre pra PRIMEIRA liga criada (não a mais recente) se a que estava
+   selecionada foi encerrada/apagada — bug real reportado pelo Pedro:
+   "a liga que era a 1ª virou terceira" (a app ficava trocando o padrão
+   pra qualquer liga de teste recém-criada; a ordem real de S.ligasAbertas
+   nunca mudou, só o QUE aparecia selecionado por padrão). "É sempre por
+   ordem, a 1ª feita continua sendo a primeira." */
 function ligaAtualVisualizacao() {
   if(!window._ligaVisualizando || S.ligasAbertas.indexOf(window._ligaVisualizando) === -1) {
-    window._ligaVisualizando = S.ligasAbertas[S.ligasAbertas.length-1];
+    window._ligaVisualizando = S.ligasAbertas[0];
   }
   return window._ligaVisualizando;
 }
@@ -5467,16 +5473,77 @@ function selecionarLigaVisualizacao(season) {
   renderRanking();
 }
 
+/* Aparece sempre que há 2+ ligas abertas (pra escolher qual ver) OU o
+   admin está logado (pra ter acesso ao ⚙️ de gerenciar) — com só 1 liga
+   aberta e sem admin, fica escondido (nada pra escolher/gerenciar). */
 function renderLigaVisualizacaoSwitch() {
   var el = document.getElementById('liga-visualizacao-switch');
   if(!el) return;
-  if(S.ligasAbertas.length < 2) { el.innerHTML = ''; return; }
+  if(S.ligasAbertas.length < 2 && !_adminAuth) { el.innerHTML = ''; return; }
   var atual = ligaAtualVisualizacao();
-  el.innerHTML = '<div class="pgm-toggle-group" style="flex-wrap:wrap;height:auto">' +
-    S.ligasAbertas.map(function(n){
-      return '<button type="button" class="pgm-toggle-opt' + (n===atual?' active':'') + '" onclick="selecionarLigaVisualizacao(' + n + ')">Liga ' + n + '</button>';
-    }).join('') +
-  '</div>';
+  el.innerHTML = S.ligasAbertas.map(function(n){
+    var ativa = n===atual;
+    return '<div style="display:inline-flex;align-items:stretch;margin:0 6px 6px 0">' +
+      '<button type="button" onclick="selecionarLigaVisualizacao(' + n + ')" style="background:' + (ativa?'var(--gold)':'var(--felt-mid)') + ';color:' + (ativa?'var(--felt)':'var(--cream-dim)') + ';border:1px solid var(--border-strong);border-radius:8px' + (_adminAuth?' 0 0 8px':'') + ';font-family:Nunito,sans-serif;font-size:12px;font-weight:800;padding:6px 10px;cursor:pointer">Liga ' + n + '</button>' +
+      (_adminAuth ? '<button type="button" onclick="showLigaAdminMenu(' + n + ')" title="Gerenciar Liga ' + n + '" style="background:var(--felt-mid);border:1px solid var(--border-strong);border-left:none;border-radius:0 8px 8px 0;color:var(--text-dim);cursor:pointer;font-size:12px;padding:6px 8px">⚙️</button>' : '') +
+    '</div>';
+  }).join('');
+}
+
+/* Gerenciar UMA liga específica — pedido do Pedro em 2026-08-14: tirar
+   Encerrar/Apagar Liga do painel Admin (ficou "acumulando funções" lá,
+   crescendo a cada nova ação de liga) e pôr um botão ao lado de CADA
+   liga na própria aba Ligas, com opção de apagar a liga inteira OU uma
+   sessão específica dela. */
+function showLigaAdminMenu(season) {
+  if(!_adminAuth) return;
+  var sessoes = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===season; });
+  var linhasSessoes = sessoes.length
+    ? sessoes.map(function(s){
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;font-weight:700">' +
+          '<span>Sessão ' + s.num + (s.date ? ' · ' + s.date : '') + '</span>' +
+          '<button class="pgm-close-btn" onclick="confirmApagarSessao(\'' + s._uid + '\')" title="Apagar essa sessão" style="color:var(--negative);font-size:13px">✕</button>' +
+        '</div>';
+      }).join('')
+    : '<div style="font-size:12px;color:var(--text-dim);font-weight:700;padding:0.4rem 0">Nenhuma sessão ainda.</div>';
+  showModal(
+    '<div class="pgm-modal-title">Liga ' + season + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-row-btns" style="margin-bottom:0.85rem">' +
+      '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="perguntarEncerrarLigaEspecifica(' + season + ')">🏁 Encerrar</button>' +
+      '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" style="flex:1" onclick="perguntarApagarLigaEspecifica(' + season + ')">🗑️ Apagar liga</button>' +
+    '</div>' +
+    '<div style="font-size:10px;font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Sessões dessa liga</div>' +
+    linhasSessoes +
+    '<div class="pgm-row-btns" style="margin-top:0.85rem"><button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="closeModal()">Fechar</button></div>'
+  );
+}
+
+function confirmApagarSessao(uid) {
+  if(!_adminAuth) return;
+  var s = S.sessions.find(function(x){ return x._uid===uid; });
+  if(!s) return;
+  var season = sessaoLiga(s);
+  showModal(
+    '<div class="pgm-modal-title">Apagar Sessão ' + (s.num||'') + '? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-warn">Vai apagar essa sessão pra sempre. <strong>Não pode ser desfeito!</strong></div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doApagarSessao(\'' + uid + '\')">Sim, apagar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="showLigaAdminMenu(' + season + ')">Cancelar</button>' +
+    '</div>'
+  );
+}
+
+function doApagarSessao(uid) {
+  if(!_adminAuth) return;
+  var s = S.sessions.find(function(x){ return x._uid===uid; });
+  var season = s ? sessaoLiga(s) : null;
+  S.sessions = S.sessions.filter(function(x){ return x._uid!==uid; });
+  savePatch({ sessions: S.sessions });
+  updateOverview();
+  renderRanking();
+  renderHistorico();
+  renderLigaPicker();
+  if(season !== null) showLigaAdminMenu(season); else closeModal();
 }
 
 function updateOverview() {
@@ -6365,8 +6432,10 @@ function checkAdminSenha() {
     // Sem isso, o botão "🧪 Acelerar níveis" (admin only, no card Blinds ao
     // vivo) só aparecia no próximo re-render por acaso (ação de jogador,
     // sync do Firebase) — podia demorar. renderBlindTimerBlock() reconstrói
-    // o card na hora, já com _adminAuth true.
+    // o card na hora, já com _adminAuth true. Mesma lógica pro ⚙️ de
+    // gerenciar liga (aba Ligas).
     if(S.activeSession) renderBlindTimerBlock();
+    renderLigaVisualizacaoSwitch();
     closeModal();
   } else {
     const err = document.getElementById('admin-erro');
@@ -6407,25 +6476,11 @@ function adminRedefinirTemporada() {
    antigo botão "Reset" (ficava escondido no fim da coluna esquerda da
    aba Ligas, e apagava TUDO indiscriminadamente — todas as ligas
    abertas juntas, sem escopo nenhum, o que virou perigoso/errado assim
-   que passou a existir mais de uma liga aberta ao mesmo tempo). Agora
-   fica no painel Admin junto de Redefinir/Encerrar Liga (mais fácil de
-   achar) e escolhe qual liga apagar, igual o Encerrar. Mesmo padrão de
-   segurança "digite CONFIRMAR" que o Reset antigo já usava. */
-function confirmApagarLiga() {
-  if(!_adminAuth) return;
-  if(S.activeSession) { showAlert('Encerre a sessão ativa antes de apagar uma liga.'); return; }
-  if(S.ligasAbertas.length === 1) { perguntarApagarLigaEspecifica(S.ligasAbertas[0]); return; }
-  showModal(
-    '<div class="pgm-modal-title">Apagar qual liga? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div class="pgm-warn">Diferente de "Encerrar Liga": isso apaga pra sempre, sem guardar em Temporadas Anteriores.</div>' +
-    S.ligasAbertas.map(function(n){
-      var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===n; }).length;
-      return '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" style="width:100%;margin-bottom:6px" onclick="perguntarApagarLigaEspecifica(' + n + ')">Liga ' + n + ' (' + qtd + ' sessões)</button>';
-    }).join('') +
-    '<div class="pgm-row-btns" style="margin-top:0.5rem"><button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="showAdminPanel()">← Voltar</button></div>'
-  );
-}
-
+   que passou a existir mais de uma liga aberta ao mesmo tempo). Chamada
+   a partir do ⚙️ de uma liga específica (showLigaAdminMenu) — não tem
+   mais uma tela própria de "escolher qual liga", porque quem chama já
+   sabe qual liga está gerenciando. Mesmo padrão de segurança "digite
+   CONFIRMAR" que o antigo botão "Reset" já usava. */
 function perguntarApagarLigaEspecifica(season) {
   var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===season; }).length;
   showModal(
@@ -6435,7 +6490,7 @@ function perguntarApagarLigaEspecifica(season) {
     '<input type="text" id="input-confirma-apagar-liga" class="pgm-input" style="text-align:center;text-transform:uppercase" autocomplete="off"></div>' +
     '<div class="pgm-row-btns">' +
     '<button class="pgm-btn pgm-btn-danger" style="flex:1;opacity:0.4;pointer-events:none" id="btn-confirma-apagar-liga">Sim, apagar tudo</button>' +
-    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">Cancelar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="showLigaAdminMenu(' + season + ')">Cancelar</button>' +
     '</div>'
   );
   setTimeout(function() {
@@ -6472,6 +6527,7 @@ function doApagarLiga(season) {
   updateOverview();
   renderRanking();
   renderHistorico();
+  renderLigaPicker();
   closeModal();
   showAlert('Liga ' + season + ' apagada pra sempre.');
 }
@@ -6490,6 +6546,7 @@ function adminSair() {
   if(tabAcum && tabAcum.classList.contains('active')) showTab('sessao');
   var tabTeste = document.getElementById('tab-teste');
   if(tabTeste && tabTeste.classList.contains('active')) showTab('sessao');
+  renderLigaVisualizacaoSwitch();
   closeModal();
 }
 
@@ -6549,14 +6606,11 @@ function showAdminPanel() {
     tcHTML +
     authHTML +
     blindLadderHTML +
-    '<div class="pgm-row-btns" style="margin-top:1rem">' +
+    '<div style="font-size:11px;color:var(--text-dim);font-weight:700;margin-top:0.75rem;line-height:1.5">Pra encerrar ou apagar uma liga específica, use o ⚙️ ao lado dela na aba Ligas.</div>' +
+    '<div class="pgm-row-btns" style="margin-top:0.75rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminSair()">Sair</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="adminRedefinirTemporada()">Redefinir</button>' +
-    '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="confirmEncerrarLiga()">🏁 Encerrar Liga</button>' +
-    '</div>' +
-    '<div class="pgm-row-btns" style="margin-top:0.5rem;padding-top:0.75rem;border-top:1px solid var(--border)">' +
-    '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" style="flex:1" onclick="confirmApagarLiga()">🗑️ Apagar Liga (permanente)</button>' +
     '</div>'
   );
 }
@@ -6567,28 +6621,17 @@ function showAdminPanel() {
    atual pra abrir a próxima" — criar liga nova ficou disponível pra
    qualquer jogador direto na Nova Sessão (ver renderLigaPicker /
    criarNovaLigaInline, sem admin, pedido explícito dele), não mais só
-   pelo painel admin. O que continua fazendo sentido aqui, no admin, é
-   o oposto: ENCERRAR uma liga específica (arquivar suas sessões,
-   remover ela de ligasAbertas) — ação mais "definitiva" que faz sentido
-   ficar restrita. S.pastSeasons (usado por "Temporadas Anteriores",
+   pelo painel admin. O que continua fazendo sentido aqui é o oposto:
+   ENCERRAR uma liga específica (arquivar suas sessões, remover ela de
+   ligasAbertas) — ação mais "definitiva" que faz sentido ficar
+   restrita a admin. S.pastSeasons (usado por "Temporadas Anteriores",
    Total ★ etc.) nunca era escrito em lugar nenhum do código antes disso
    — só lido — então não existia NENHUM jeito de fato arquivar uma liga
-   preservando as outras. */
-function confirmEncerrarLiga() {
-  if(!_adminAuth) return;
-  if(S.activeSession) { showAlert('Encerre a sessão ativa antes de encerrar uma liga.'); return; }
-  if(S.ligasAbertas.length === 1) { perguntarEncerrarLigaEspecifica(S.ligasAbertas[0]); return; }
-  showModal(
-    '<div class="pgm-modal-title">Encerrar qual liga? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem">As sessões dela ficam guardadas em "Temporadas Anteriores", sem apagar nada. As outras ligas continuam abertas normalmente.</div>' +
-    S.ligasAbertas.map(function(n){
-      var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===n; }).length;
-      return '<button class="pgm-btn pgm-btn-sm" style="width:100%;margin-bottom:6px" onclick="perguntarEncerrarLigaEspecifica(' + n + ')">Liga ' + n + ' (' + qtd + ' sessões)</button>';
-    }).join('') +
-    '<div class="pgm-row-btns" style="margin-top:0.5rem"><button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="showAdminPanel()">← Voltar</button></div>'
-  );
-}
-
+   preservando as outras. Chamada a partir do ⚙️ de uma liga específica
+   (showLigaAdminMenu) — sem tela própria de "escolher qual liga",
+   porque quem chama já sabe qual está gerenciando (pedido do Pedro:
+   tirar isso do painel Admin genérico, que estava "acumulando
+   funções", e pôr ao lado de cada liga na aba Ligas). */
 function perguntarEncerrarLigaEspecifica(season) {
   var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===season; }).length;
   showModal(
@@ -6596,7 +6639,7 @@ function perguntarEncerrarLigaEspecifica(season) {
     '<div style="font-size:13px;font-weight:700;color:var(--cream-dim);line-height:1.6;margin-bottom:1rem">As ' + qtd + ' sessões ficam guardadas em "Temporadas Anteriores", sem apagar nada.' + (S.ligasAbertas.length>1 ? ' As outras ligas continuam abertas normalmente.' : ' Como é a única liga aberta, uma nova (Liga ' + (S.season+1) + ') começa automaticamente no lugar dela.') + '</div>' +
     '<div class="pgm-row-btns">' +
     '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doEncerrarLiga(' + season + ')">Sim, encerrar</button>' +
-    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">← Voltar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="showLigaAdminMenu(' + season + ')">← Voltar</button>' +
     '</div>'
   );
 }
@@ -6620,6 +6663,7 @@ function doEncerrarLiga(season) {
   updateOverview();
   renderRanking();
   renderHistorico();
+  renderLigaPicker();
   closeModal();
   showAlert('Liga ' + season + ' arquivada em "Temporadas Anteriores".');
 }
