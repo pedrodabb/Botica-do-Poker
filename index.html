@@ -3782,7 +3782,30 @@ function lerEstruturaBlindsSimples() {
 function startSession() {
   var type = S.newSession.type;
   var oficialCount = S.sessions.filter(function(s){ return s.type==='oficial'; }).length;
-  if(type==='oficial' && oficialCount>=5) { showAlert('Temporada já tem 5 sessões oficiais!'); return; }
+  /* O limite de 5 sessões oficiais existe pra bater com a regra de
+     pontuação (descarta a pior sessão de cada jogador — só entra em
+     ação com 5+ sessões, ver renderRanking()), mas travar direto
+     impedia começar uma nova Liga sem antes "fechar" a temporada
+     (Redefinir, no painel admin). Pedido do Pedro: virar OPÇÃO, não
+     bloqueio — confirma achando ok e segue, sem perder o aviso.
+     calcularPontosComEmpate/renderRanking já lidam bem com mais de 5
+     sessões (só descartam a pior, não travam em nenhum teto). */
+  if(type==='oficial' && oficialCount>=5) {
+    showModal(
+      '<div class="pgm-modal-title">Temporada já tem ' + oficialCount + ' sessões <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+      '<div style="font-size:13px;font-weight:700;color:var(--cream-dim);line-height:1.5;margin-bottom:1rem">Criar mais uma sessão de Liga mesmo sem ter fechado essa temporada (Redefinir, no painel admin)? O ranking continua funcionando normal, só descartando a pior sessão de cada jogador.</div>' +
+      '<div class="pgm-row-btns">' +
+      '<button class="pgm-btn pgm-btn-success" style="flex:1" onclick="closeModal(); startSessionConfirmado();">Sim, criar mesmo assim</button>' +
+      '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
+      '</div>'
+    );
+    return;
+  }
+  startSessionConfirmado();
+}
+
+function startSessionConfirmado() {
+  var type = S.newSession.type;
   if(!S.newSession.players.length) { showAlert('Adicione pelo menos um jogador.'); return; }
   var buyin = parseMoedaBR(document.getElementById('new-session-buyin').value);
   if(!buyin || buyin <= 0) { showAlert('Informe o valor do buy-in.'); return; }
@@ -3790,6 +3813,7 @@ function startSession() {
   var date  = document.getElementById('new-session-date').value || new Date().toISOString().split('T')[0];
   var labelEl = document.getElementById('new-session-label');
   var label = (labelEl && labelEl.value.trim()) ? labelEl.value.trim() : (type==='torneio' ? 'Torneio' : null);
+  var oficialCount = S.sessions.filter(function(s){ return s.type==='oficial'; }).length;
   var num   = type==='oficial' ? oficialCount+1 : null;
 
   var tourneyMode = null, startingStack = null, payout = null, estruturaBlinds = null;
