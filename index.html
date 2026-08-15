@@ -820,6 +820,10 @@
               <button class="pgm-toggle-opt" onclick="setSessionType('casual')">🥃 Casual</button>
             </div>
           </div>
+          <div style="margin-bottom:0.75rem" id="liga-picker-wrapper">
+            <label class="pgm-input-label">Qual liga?</label>
+            <div id="liga-picker-opts"></div>
+          </div>
           <div style="margin-bottom:0.25rem;display:none" id="tourney-mode-wrapper">
             <label class="pgm-input-label">Modo do Torneio</label>
             <div class="pgm-toggle-group" id="tourney-mode-toggle">
@@ -1040,7 +1044,8 @@
     <div id="tab-ranking" class="pgm-tab-content">
      <div class="pgm-cols pgm-cols-aside">
       <div class="pgm-col">
-      <div class="pgm-section-title">Visão Geral — Temporada <span id="ranking-season-num">1</span></div>
+      <div class="pgm-section-title">Visão Geral — Liga <span id="ranking-season-num">1</span></div>
+      <div id="liga-visualizacao-switch" style="margin-bottom:0.75rem"></div>
       <div class="pgm-card" style="margin-bottom:1rem">
         <div class="pgm-card-header">
           <div class="pgm-card-title">Progresso</div>
@@ -1079,11 +1084,12 @@
    explicitamente pra tirar). */
 const S = {
   season: 1,
+  ligasAbertas: [1],
   sessions: [],
   pastSeasons: [],
   players: [],
   curiosidades: [],
-  newSession: { type: 'oficial', players: [] },
+  newSession: { type: 'oficial', players: [], season: 1 },
   activeSession: null,
   authConfig: { senhaMesaAtiva: true, googleAtivo: false },
   favoritosBlinds: [],
@@ -1134,7 +1140,19 @@ function sanitizeData() {
   if(S.activeSession) { fixPlayers(S.activeSession.players); fixUid(S.activeSession); }
   S.sessions.forEach(function(s){ fixPlayers(s.players); fixUid(s); });
   S.pastSeasons.forEach(function(ps){ ps.sessions.forEach(function(s){ fixPlayers(s.players); fixUid(s); }); });
+  /* Migração: antes só existia UMA temporada "em vigor" (S.season) por
+     vez. Agora dá pra ter várias ligas abertas ao mesmo tempo — quem
+     controla isso é S.ligasAbertas (array de números). Dado antigo (sem
+     esse campo, ou sessões sem s.season) assume que tudo pertence à
+     única liga que já existia. */
+  if(!S.ligasAbertas || !S.ligasAbertas.length) S.ligasAbertas = [S.season];
+  S.sessions.forEach(function(s){ if(s.type==='oficial' && !s.season) s.season = S.season; });
 }
+
+/* Toda sessão de Liga tem s.season desde 2026-08-14; dado mais antigo
+   nunca ganhou o campo — sanitizeData() cobre a maioria, mas isso serve
+   de fallback extra em qualquer leitura direta. */
+function sessaoLiga(s) { return s.season || S.season; }
 
 function load() {
   try {
@@ -1168,7 +1186,7 @@ function initFirebaseSync() {
       window._blindTimerUltimoNivel = undefined;
     }
 
-    const keys = ['season','sessions','pastSeasons','players','curiosidades','newSession','tempCode','_lastUpdate','authConfig','favoritosBlinds','blindLadderCash'];
+    const keys = ['season','ligasAbertas','sessions','pastSeasons','players','curiosidades','newSession','tempCode','_lastUpdate','authConfig','favoritosBlinds','blindLadderCash'];
     keys.forEach(k=>{ if(data[k]!==undefined) S[k]=data[k]; });
     S.activeSession = data.activeSession || null;
     var hadMissingUid = S.sessions.some(function(s){ return !s._uid; });
@@ -2674,11 +2692,62 @@ function quadroHTML(o) {
 function setSessionType(t) {
   S.newSession.type = t;
   document.querySelectorAll('#session-type-toggle .pgm-toggle-opt').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='oficial')||(i===1&&t==='casual')));
-  const oficialCount = S.sessions.filter(s=>s.type==='oficial').length;
-  const inp = document.getElementById('new-session-num');
-  if(inp) inp.value = t==='oficial' ? (oficialCount<5 ? oficialCount+1 : 'Completa') : 'Casual';
+  renderLigaPicker();
+  atualizarNumSessaoDisplay();
   var nameField = document.getElementById('casual-name-field');
   if(nameField) nameField.style.display = t === 'casual' ? 'block' : 'none';
+}
+
+/* Seletor de "qual liga" na Nova Sessão — pedido do Pedro em 2026-08-14
+   depois de ver "Nova Liga" (painel admin): ele não queria fechar a
+   liga atual pra abrir outra, queria as duas ABERTAS ao mesmo tempo,
+   escolhendo na hora de criar a sessão a qual liga ela pertence. Só
+   lista S.ligasAbertas (nunca as já encerradas/arquivadas). "+ Nova
+   Liga" cria uma liga na hora, sem exigir admin — pedido explícito
+   ("isso não precisa ser pelo admin não"), já que criar sessão em si
+   também nunca foi admin-only. */
+function renderLigaPicker() {
+  var wrapper = document.getElementById('liga-picker-wrapper');
+  if(!wrapper) return;
+  var ativo = S.newSession.type === 'oficial';
+  wrapper.style.display = ativo ? 'block' : 'none';
+  if(!ativo) return;
+  if(!S.newSession.season || S.ligasAbertas.indexOf(S.newSession.season) === -1) {
+    S.newSession.season = S.ligasAbertas[S.ligasAbertas.length-1];
+  }
+  var opts = document.getElementById('liga-picker-opts');
+  if(!opts) return;
+  opts.innerHTML = '<div class="pgm-toggle-group" style="flex-wrap:wrap;height:auto">' +
+    S.ligasAbertas.map(function(n){
+      var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===n; }).length;
+      return '<button type="button" class="pgm-toggle-opt' + (n===S.newSession.season?' active':'') + '" onclick="selecionarLigaSessao(' + n + ')">Liga ' + n + ' <span style="opacity:0.7;font-size:10px">(' + qtd + ')</span></button>';
+    }).join('') +
+    '<button type="button" class="pgm-toggle-opt" onclick="criarNovaLigaInline()" style="color:var(--gold-light)">+ Nova Liga</button>' +
+  '</div>';
+}
+
+function selecionarLigaSessao(season) {
+  S.newSession.season = season;
+  renderLigaPicker();
+  atualizarNumSessaoDisplay();
+}
+
+function criarNovaLigaInline() {
+  var proximo = Math.max.apply(null, S.ligasAbertas) + 1;
+  S.ligasAbertas.push(proximo);
+  S.season = Math.max(S.season, proximo);
+  S.newSession.season = proximo;
+  savePatch({ ligasAbertas: S.ligasAbertas, season: S.season });
+  renderLigaPicker();
+  atualizarNumSessaoDisplay();
+}
+
+function atualizarNumSessaoDisplay() {
+  var inp = document.getElementById('new-session-num');
+  if(!inp) return;
+  if(S.newSession.type !== 'oficial') { inp.value = 'Casual'; return; }
+  var oficialCount = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===S.newSession.season; }).length;
+  inp.value = oficialCount+1;
 }
 
 function registerPlayer() {
@@ -3781,19 +3850,20 @@ function lerEstruturaBlindsSimples() {
 
 function startSession() {
   var type = S.newSession.type;
-  var oficialCount = S.sessions.filter(function(s){ return s.type==='oficial'; }).length;
+  var oficialCount = type==='oficial' ? S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===S.newSession.season; }).length : 0;
   /* O limite de 5 sessões oficiais existe pra bater com a regra de
      pontuação (descarta a pior sessão de cada jogador — só entra em
      ação com 5+ sessões, ver renderRanking()), mas travar direto
-     impedia começar uma nova Liga sem antes "fechar" a temporada
-     (Redefinir, no painel admin). Pedido do Pedro: virar OPÇÃO, não
-     bloqueio — confirma achando ok e segue, sem perder o aviso.
-     calcularPontosComEmpate/renderRanking já lidam bem com mais de 5
-     sessões (só descartam a pior, não travam em nenhum teto). */
+     impedia começar uma nova sessão nessa liga. Pedido do Pedro: virar
+     OPÇÃO, não bloqueio — confirma achando ok e segue, sem perder o
+     aviso. calcularPontosComEmpate/renderRanking já lidam bem com mais
+     de 5 sessões (só descartam a pior, não travam em nenhum teto).
+     Escopado por liga (S.newSession.season) desde que virou possível
+     ter várias ligas abertas ao mesmo tempo (ver renderLigaPicker). */
   if(type==='oficial' && oficialCount>=5) {
     showModal(
-      '<div class="pgm-modal-title">Temporada já tem ' + oficialCount + ' sessões <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-      '<div style="font-size:13px;font-weight:700;color:var(--cream-dim);line-height:1.5;margin-bottom:1rem">Criar mais uma sessão de Liga mesmo sem ter fechado essa temporada (Redefinir, no painel admin)? O ranking continua funcionando normal, só descartando a pior sessão de cada jogador.</div>' +
+      '<div class="pgm-modal-title">Liga ' + S.newSession.season + ' já tem ' + oficialCount + ' sessões <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+      '<div style="font-size:13px;font-weight:700;color:var(--cream-dim);line-height:1.5;margin-bottom:1rem">Criar mais uma sessão nessa liga mesmo assim? O ranking continua funcionando normal, só descartando a pior sessão de cada jogador. Se preferir, dá pra escolher outra liga (ou criar uma nova) no campo "Qual liga?" ali em cima.</div>' +
       '<div class="pgm-row-btns">' +
       '<button class="pgm-btn pgm-btn-success" style="flex:1" onclick="closeModal(); startSessionConfirmado();">Sim, criar mesmo assim</button>' +
       '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
@@ -3813,8 +3883,9 @@ function startSessionConfirmado() {
   var date  = document.getElementById('new-session-date').value || new Date().toISOString().split('T')[0];
   var labelEl = document.getElementById('new-session-label');
   var label = (labelEl && labelEl.value.trim()) ? labelEl.value.trim() : (type==='torneio' ? 'Torneio' : null);
-  var oficialCount = S.sessions.filter(function(s){ return s.type==='oficial'; }).length;
+  var oficialCount = type==='oficial' ? S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===S.newSession.season; }).length : 0;
   var num   = type==='oficial' ? oficialCount+1 : null;
+  var season = type==='oficial' ? S.newSession.season : null;
 
   var tourneyMode = null, startingStack = null, payout = null, estruturaBlinds = null;
   if(type === 'torneio') {
@@ -3842,7 +3913,7 @@ function startSessionConfirmado() {
     estruturaBlinds = rbCash.estrutura;
   }
 
-  S.activeSession = { _uid: 's'+Date.now()+Math.random().toString(36).slice(2,8), num: num, type: type, date: date, buyin: buyin, rebuy: rebuy,
+  S.activeSession = { _uid: 's'+Date.now()+Math.random().toString(36).slice(2,8), num: num, season: season, type: type, date: date, buyin: buyin, rebuy: rebuy,
     tourneyMode: tourneyMode, startingStack: startingStack, payout: payout,
     label: label, curiosidades: [], startedAt: Date.now(), pausedAt: null, totalPaused: 0,
     estruturaBlinds: estruturaBlinds,
@@ -5366,9 +5437,6 @@ function finishSessionCommon(s) {
 }
 
 function resetNewSessionForm() {
-  const oficialCount = S.sessions.filter(s=>s.type==='oficial').length;
-  const inp = document.getElementById('new-session-num');
-  if(inp) inp.value = oficialCount<5 ? oficialCount+1 : 'Completa';
   const ni = document.getElementById('new-player-name');
   if(ni) ni.value='';
   document.getElementById('players-list-new').innerHTML='';
@@ -5384,13 +5452,45 @@ function resetNewSessionForm() {
   renderQuickAdd();
 }
 
+/* Qual liga está sendo VISUALIZADA (ranking/progresso) — separado de
+   S.newSession.season (qual liga a PRÓXIMA sessão vai pertencer). Cai
+   sempre pra liga mais recente das abertas se a que estava selecionada
+   foi encerrada/deixou de existir. Só é relevante de verdade quando há
+   mais de uma liga aberta ao mesmo tempo (ver "🆕 Nova Liga"). */
+function ligaAtualVisualizacao() {
+  if(!window._ligaVisualizando || S.ligasAbertas.indexOf(window._ligaVisualizando) === -1) {
+    window._ligaVisualizando = S.ligasAbertas[S.ligasAbertas.length-1];
+  }
+  return window._ligaVisualizando;
+}
+
+function selecionarLigaVisualizacao(season) {
+  window._ligaVisualizando = season;
+  updateOverview();
+  renderRanking();
+}
+
+function renderLigaVisualizacaoSwitch() {
+  var el = document.getElementById('liga-visualizacao-switch');
+  if(!el) return;
+  if(S.ligasAbertas.length < 2) { el.innerHTML = ''; return; }
+  var atual = ligaAtualVisualizacao();
+  el.innerHTML = '<div class="pgm-toggle-group" style="flex-wrap:wrap;height:auto">' +
+    S.ligasAbertas.map(function(n){
+      return '<button type="button" class="pgm-toggle-opt' + (n===atual?' active':'') + '" onclick="selecionarLigaVisualizacao(' + n + ')">Liga ' + n + '</button>';
+    }).join('') +
+  '</div>';
+}
+
 function updateOverview() {
-  const oficiais = S.sessions.filter(s=>s.type==='oficial');
+  var liga = ligaAtualVisualizacao();
+  const oficiais = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===liga; });
   const casuais = S.sessions.filter(s=>s.type==='casual');
   const n = oficiais.length;
   document.getElementById('sessions-counter').textContent = `${n} / 5 oficiais${casuais.length?' · '+casuais.length+' casual':''}`;
   document.getElementById('progress-bar').style.width = (n/5*100)+'%';
-  document.getElementById('season-label').textContent = `Temporada ${S.season}`;
+  document.getElementById('season-label').textContent = `Liga ${liga}`;
+  renderLigaVisualizacaoSwitch();
   let html='';
   for(let i=1;i<=5;i++){
     const d = oficiais.find(s=>s.num===i);
@@ -5398,8 +5498,6 @@ function updateOverview() {
                : `<div class="session-mini-chip smc-empty">${i}</div>`;
   }
   document.getElementById('sessions-circles').innerHTML = html;
-  const ni = document.getElementById('new-session-num');
-  if(ni) { const t=S.newSession?S.newSession.type:'oficial'; ni.value=t==='oficial'?(n<5?n+1:'Completa'):'— Casual'; }
 }
 
 function getAllPlayerStats() {
@@ -5560,7 +5658,8 @@ function calcularPontosComEmpate(players, isTorneio) {
   return resultado;
 }
 function renderRanking() {
-  const oficiais = S.sessions.filter(function(s){ return s.type==='oficial'; });
+  var liga = ligaAtualVisualizacao();
+  const oficiais = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===liga; });
   const map = {};
   const sessoesPorJogador = {};
 
@@ -5596,7 +5695,8 @@ function renderRanking() {
     if(b.points !== a.points) return b.points - a.points;
     return b.profit - a.profit;
   });
-  document.getElementById('ranking-season-num').textContent = S.season;
+  document.getElementById('ranking-season-num').textContent = liga;
+  renderLigaVisualizacaoSwitch();
 
   document.getElementById('ranking-list').innerHTML = ranked.length
     ? (function(){
@@ -5656,7 +5756,7 @@ function renderHistorico() {
   var html = '';
 
   html += '<div class="pgm-section-title">Sessões</div>';
-  var sessoesCards = catCard('🏆', 'Sessões de Liga — Temporada ' + S.season, oficiaisIdx.length, 'liga', 'gold') +
+  var sessoesCards = catCard('🏆', 'Sessões de Liga', oficiaisIdx.length, 'liga', 'gold') +
                       catCard('🥃', 'Sessões Casuais', casuaisIdx.length, 'casual', 'casual');
   html += sessoesCards ? '<div class="pgm-hist-cat-grid">' + sessoesCards + '</div>' : emptyNote('Nenhuma sessão ainda.');
 
@@ -5675,7 +5775,7 @@ function renderHistorico() {
   el.querySelectorAll('[data-histcat]').forEach(function(card) {
     card.addEventListener('click', function() {
       var cat = this.dataset.histcat;
-      if(cat === 'liga') showHistoricoCategoria('🏆 Sessões de Liga — Temporada ' + S.season, 'oficial');
+      if(cat === 'liga') showHistoricoCategoria('🏆 Sessões de Liga', 'oficial');
       else if(cat === 'casual') showHistoricoCategoria('🥃 Sessões Casuais', 'casual');
       else if(cat === 'torneio') showHistoricoCategoria('🥊 Torneios', 'torneio');
       else if(cat === 'temporadas') showTemporadasAnteriores();
@@ -6371,16 +6471,19 @@ function adminSair() {
 }
 
 function showAdminPanel() {
-  var totalTemps = S.pastSeasons.length + 1;
-  var totalSessOficiais = S.sessions.filter(function(s){ return s.type === 'oficial'; }).length;
+  var totalTemps = S.pastSeasons.length + S.ligasAbertas.length;
 
   var temporadaHTML =
     '<div class="pgm-card" style="margin-bottom:0.85rem;padding:0.85rem 1rem">' +
-      '<div style="font-size:10px;font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Temporada em vigor</div>' +
-      '<div style="display:flex;align-items:baseline;justify-content:space-between">' +
-        '<div style="font-size:22px;font-weight:900;color:var(--gold-light)">Temporada ' + S.season + '</div>' +
-        '<div style="font-size:11px;color:var(--text-dim);font-weight:700;text-align:right">' + totalSessOficiais + (totalSessOficiais===1?' sessão oficial':' sessões oficiais') + '<br>' + totalTemps + (totalTemps===1?' temporada no total':' temporadas no total') + '</div>' +
-      '</div>' +
+      '<div style="font-size:10px;font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Ligas abertas</div>' +
+      S.ligasAbertas.map(function(n){
+        var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===n; }).length;
+        return '<div style="display:flex;align-items:baseline;justify-content:space-between' + (n!==S.ligasAbertas[S.ligasAbertas.length-1] ? ';margin-bottom:4px' : '') + '">' +
+          '<div style="font-size:20px;font-weight:900;color:var(--gold-light)">Liga ' + n + '</div>' +
+          '<div style="font-size:11px;color:var(--text-dim);font-weight:700">' + qtd + (qtd===1?' sessão oficial':' sessões oficiais') + '</div>' +
+        '</div>';
+      }).join('') +
+      '<div style="font-size:10px;color:var(--text-dim);font-weight:700;margin-top:6px;border-top:1px solid var(--border);padding-top:5px">' + totalTemps + (totalTemps===1?' liga no total (contando arquivadas)':' ligas no total (contando arquivadas)') + '</div>' +
     '</div>';
 
   var tc = S.tempCode;
@@ -6427,57 +6530,72 @@ function showAdminPanel() {
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminSair()">Sair</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="adminRedefinirTemporada()">Redefinir</button>' +
-    '<button class="pgm-btn pgm-btn-success pgm-btn-sm" onclick="confirmNovaLiga()">🆕 Nova Liga</button>' +
+    '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="confirmEncerrarLiga()">🏁 Encerrar Liga</button>' +
     '</div>'
   );
 }
 
-/* "Redefinir" (acima) só troca o NÚMERO da temporada — não mexe em mais
-   nada, então a contagem de "Sessão N" continuava vindo de S.sessions
-   (que nunca é filtrado por temporada) e mostrava o mesmo número de
-   antes, mesmo depois de redefinir. Bug real de UX descoberto pelo
-   Pedro: ele tinha uma temporada com só 4 sessões e queria começar uma
-   Temporada 2 de verdade (contagem voltando pra 1), guardando essas 4
-   sessões acessíveis — pedido inicial ("criar uma nova liga mesmo sem
-   ter terminado outra") não era sobre "encerrar" no sentido de apagar,
-   é sobre isso: abrir uma temporada nova sem precisar completar o ciclo
-   de 5 sessões da atual. S.pastSeasons (usado por "Temporadas
-   Anteriores", Total ★ etc.) nunca era escrito em lugar nenhum do
-   código — só lido — então não existia NENHUM jeito de fato começar
-   uma temporada nova preservando a anterior.
-   confirmNovaLiga()/doNovaLiga() arquivam a temporada atual inteira
-   (sessões de todo tipo + curiosidades) num novo item de S.pastSeasons,
-   zeram S.sessions e S.curiosidades (a contagem de "Sessão N" volta pra
-   1), e incrementam S.season — a temporada anterior fica intacta e
-   acessível em "Temporadas Anteriores" (Histórico). */
-function confirmNovaLiga() {
+/* Pedido original do Pedro ("criar uma nova liga mesmo sem ter
+   terminado outra") virou, depois de conversar, um modelo de VÁRIAS
+   ligas abertas ao mesmo tempo (S.ligasAbertas) em vez de "encerrar a
+   atual pra abrir a próxima" — criar liga nova ficou disponível pra
+   qualquer jogador direto na Nova Sessão (ver renderLigaPicker /
+   criarNovaLigaInline, sem admin, pedido explícito dele), não mais só
+   pelo painel admin. O que continua fazendo sentido aqui, no admin, é
+   o oposto: ENCERRAR uma liga específica (arquivar suas sessões,
+   remover ela de ligasAbertas) — ação mais "definitiva" que faz sentido
+   ficar restrita. S.pastSeasons (usado por "Temporadas Anteriores",
+   Total ★ etc.) nunca era escrito em lugar nenhum do código antes disso
+   — só lido — então não existia NENHUM jeito de fato arquivar uma liga
+   preservando as outras. */
+function confirmEncerrarLiga() {
   if(!_adminAuth) return;
-  if(S.activeSession) { showAlert('Encerre a sessão ativa antes de começar uma nova liga.'); return; }
-  var totalSess = S.sessions.length;
-  var totalOficiais = S.sessions.filter(function(s){ return s.type==='oficial'; }).length;
+  if(S.activeSession) { showAlert('Encerre a sessão ativa antes de encerrar uma liga.'); return; }
+  if(S.ligasAbertas.length === 1) { perguntarEncerrarLigaEspecifica(S.ligasAbertas[0]); return; }
   showModal(
-    '<div class="pgm-modal-title">Começar Temporada ' + (S.season+1) + '? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div style="font-size:13px;font-weight:700;color:var(--cream-dim);line-height:1.6;margin-bottom:1rem">As ' + totalSess + ' sessões da Temporada ' + S.season + ' (' + totalOficiais + ' de Liga) ficam guardadas em "Temporadas Anteriores", sem apagar nada. A contagem volta pra Sessão 1 na Temporada ' + (S.season+1) + '.</div>' +
+    '<div class="pgm-modal-title">Encerrar qual liga? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:0.75rem">As sessões dela ficam guardadas em "Temporadas Anteriores", sem apagar nada. As outras ligas continuam abertas normalmente.</div>' +
+    S.ligasAbertas.map(function(n){
+      var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===n; }).length;
+      return '<button class="pgm-btn pgm-btn-sm" style="width:100%;margin-bottom:6px" onclick="perguntarEncerrarLigaEspecifica(' + n + ')">Liga ' + n + ' (' + qtd + ' sessões)</button>';
+    }).join('') +
+    '<div class="pgm-row-btns" style="margin-top:0.5rem"><button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="showAdminPanel()">← Voltar</button></div>'
+  );
+}
+
+function perguntarEncerrarLigaEspecifica(season) {
+  var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===season; }).length;
+  showModal(
+    '<div class="pgm-modal-title">Encerrar Liga ' + season + '? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="font-size:13px;font-weight:700;color:var(--cream-dim);line-height:1.6;margin-bottom:1rem">As ' + qtd + ' sessões ficam guardadas em "Temporadas Anteriores", sem apagar nada.' + (S.ligasAbertas.length>1 ? ' As outras ligas continuam abertas normalmente.' : ' Como é a única liga aberta, uma nova (Liga ' + (S.season+1) + ') começa automaticamente no lugar dela.') + '</div>' +
     '<div class="pgm-row-btns">' +
-    '<button class="pgm-btn pgm-btn-success" style="flex:1" onclick="doNovaLiga()">Sim, começar</button>' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doEncerrarLiga(' + season + ')">Sim, encerrar</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">← Voltar</button>' +
     '</div>'
   );
 }
 
-function doNovaLiga() {
+function doEncerrarLiga(season) {
   if(!_adminAuth) return;
-  if(S.activeSession) { showAlert('Encerre a sessão ativa antes de começar uma nova liga.'); return; }
-  S.pastSeasons.push({ season: S.season, sessions: S.sessions.slice(), curiosidades: S.curiosidades.slice() });
-  S.sessions = [];
-  S.curiosidades = [];
-  S.season = S.season + 1;
-  savePatch({ pastSeasons: S.pastSeasons, sessions: S.sessions, curiosidades: S.curiosidades, season: S.season });
+  if(S.activeSession) { showAlert('Encerre a sessão ativa antes de encerrar uma liga.'); return; }
+  var sessoesLiga = S.sessions.filter(function(s){ return s.type==='oficial' && s.season===season; });
+  var restantes = S.sessions.filter(function(s){ return !(s.type==='oficial' && s.season===season); });
+  S.pastSeasons.push({ season: season, sessions: sessoesLiga, curiosidades: [] });
+  S.sessions = restantes;
+  S.ligasAbertas = S.ligasAbertas.filter(function(n){ return n!==season; });
+  /* Sempre precisa sobrar pelo menos 1 liga aberta pra dar pra criar
+     sessão — se essa era a última, abre a próxima automaticamente. */
+  if(!S.ligasAbertas.length) {
+    S.season = S.season + 1;
+    S.ligasAbertas = [S.season];
+  }
+  savePatch({ pastSeasons: S.pastSeasons, sessions: S.sessions, ligasAbertas: S.ligasAbertas, season: S.season });
+  window._ligaVisualizando = null;
   updateOverview();
   renderRanking();
   renderHistorico();
   closeModal();
-  showAlert('Temporada ' + S.season + ' começando agora — a contagem de Liga volta pra Sessão 1.');
+  showAlert('Liga ' + season + ' arquivada em "Temporadas Anteriores".');
 }
 
 function confirmarSairApp() {
