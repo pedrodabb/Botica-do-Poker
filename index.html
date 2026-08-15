@@ -5509,8 +5509,9 @@ function showLigaAdminMenu(season) {
   showModal(
     '<div class="pgm-modal-title">Liga ' + season + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div class="pgm-row-btns" style="margin-bottom:0.85rem">' +
+      '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="perguntarRenomearLiga(' + season + ')">✏️ Renomear</button>' +
       '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="perguntarEncerrarLigaEspecifica(' + season + ')">🏁 Encerrar</button>' +
-      '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" style="flex:1" onclick="perguntarApagarLigaEspecifica(' + season + ')">🗑️ Apagar liga</button>' +
+      '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" style="flex:1" onclick="perguntarApagarLigaEspecifica(' + season + ')">🗑️ Apagar</button>' +
     '</div>' +
     '<div style="font-size:10px;font-weight:900;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Sessões dessa liga</div>' +
     linhasSessoes +
@@ -6445,29 +6446,54 @@ function checkAdminSenha() {
   }
 }
 
-function adminRedefinirTemporada() {
+/* Renomear uma liga específica — substituiu "Redefinir temporada", que
+   só mudava S.season (um contador solto de "próximo número a usar"),
+   sem tocar em NENHUMA liga aberta de verdade nem nas sessões dela.
+   Bug real reportado pelo Pedro: "eu redefini a liga, o número dela,
+   mas quando na tela inicial não mudou" — batia exatamente com isso,
+   já que S.ligasAbertas e s.season de cada sessão continuavam intactos.
+   Agora fica no menu ⚙️ de cada liga (mesmo padrão de Encerrar/Apagar),
+   troca o número dela em S.ligasAbertas E em toda sessão oficial que
+   pertence a ela, então reflete de verdade em qualquer tela que lê
+   esse número. */
+function perguntarRenomearLiga(season) {
   showModal(
-    '<div class="pgm-modal-title">Redefinir temporada <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div class="pgm-field"><label class="pgm-input-label">Número da temporada</label>' +
-    '<input type="number" id="input-nova-temp" class="pgm-input" value="' + S.season + '" min="1" style="text-align:center"></div>' +
-    '<div style="font-size:11px;color:var(--text-dim);margin-bottom:0.75rem">Sessões e dados atuais não são apagados.</div>' +
+    '<div class="pgm-modal-title">Renomear Liga ' + season + ' <button class="pgm-close-btn" onclick="showLigaAdminMenu(' + season + ')">✕</button></div>' +
+    '<div class="pgm-field"><label class="pgm-input-label">Novo número</label>' +
+    '<input type="number" id="input-renomear-liga" class="pgm-input" value="' + season + '" min="1" style="text-align:center"></div>' +
+    '<div style="font-size:11px;color:var(--text-dim);margin-bottom:0.75rem">Muda o número em todas as sessões dessa liga.</div>' +
     '<div class="pgm-row-btns">' +
-    '<button class="pgm-btn pgm-btn-success" style="flex:1" id="btn-confirmar-temp">Confirmar</button>' +
-    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">← Voltar</button>' +
+    '<button class="pgm-btn pgm-btn-success" style="flex:1" id="btn-confirmar-renomear-liga">Confirmar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="showLigaAdminMenu(' + season + ')">← Voltar</button>' +
     '</div>'
   );
   setTimeout(function() {
-    var btn = document.getElementById('btn-confirmar-temp');
+    var btn = document.getElementById('btn-confirmar-renomear-liga');
     if(btn) btn.addEventListener('click', function() {
-      var val = parseInt(document.getElementById('input-nova-temp').value);
-      if(val >= 1) {
-        S.season = val;
-        savePatch({ season: S.season });
-        updateOverview();
-        closeModal();
-      }
+      var val = parseInt(document.getElementById('input-renomear-liga').value);
+      if(val >= 1) doRenomearLiga(season, val);
     });
   }, 80);
+}
+
+function doRenomearLiga(oldSeason, newSeason) {
+  if(!_adminAuth) return;
+  if(oldSeason === newSeason) { showLigaAdminMenu(oldSeason); return; }
+  if(S.ligasAbertas.indexOf(newSeason) !== -1) { showAlert('Já existe uma Liga ' + newSeason + ' aberta. Escolha outro número.'); return; }
+  var idx = S.ligasAbertas.indexOf(oldSeason);
+  if(idx === -1) return;
+  S.ligasAbertas[idx] = newSeason;
+  S.sessions.forEach(function(s){ if(s.type==='oficial' && s.season===oldSeason) s.season = newSeason; });
+  if(newSeason > S.season) S.season = newSeason;
+  if(S.newSession && S.newSession.season === oldSeason) S.newSession.season = newSeason;
+  if(window._ligaVisualizando === oldSeason) window._ligaVisualizando = newSeason;
+  savePatch({ ligasAbertas: S.ligasAbertas, sessions: S.sessions, season: S.season });
+  updateOverview();
+  renderRanking();
+  renderHistorico();
+  renderLigaPicker();
+  showLigaAdminMenu(newSeason);
+  showAlert('Liga renomeada pra ' + newSeason + '.');
 }
 
 /* Apagar Liga (permanente, sem arquivar) — pedido explícito do Pedro
@@ -6606,11 +6632,10 @@ function showAdminPanel() {
     tcHTML +
     authHTML +
     blindLadderHTML +
-    '<div style="font-size:11px;color:var(--text-dim);font-weight:700;margin-top:0.75rem;line-height:1.5">Pra encerrar ou apagar uma liga específica, use o ⚙️ ao lado dela na aba Ligas.</div>' +
+    '<div style="font-size:11px;color:var(--text-dim);font-weight:700;margin-top:0.75rem;line-height:1.5">Pra renomear, encerrar ou apagar uma liga específica, use o ⚙️ ao lado dela na aba Ligas.</div>' +
     '<div class="pgm-row-btns" style="margin-top:0.75rem">' +
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminSair()">Sair</button>' +
-    '<button class="pgm-btn pgm-btn-sm" onclick="adminRedefinirTemporada()">Redefinir</button>' +
     '</div>'
   );
 }
