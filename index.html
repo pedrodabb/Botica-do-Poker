@@ -6504,39 +6504,22 @@ function doRenomearLiga(oldSeason, newSeason) {
    abertas juntas, sem escopo nenhum, o que virou perigoso/errado assim
    que passou a existir mais de uma liga aberta ao mesmo tempo). Chamada
    a partir do ⚙️ de uma liga específica (showLigaAdminMenu) — não tem
-   mais uma tela própria de "escolher qual liga", porque quem chama já
-   sabe qual liga está gerenciando. Mesmo padrão de segurança "digite
-   CONFIRMAR" que o antigo botão "Reset" já usava. */
+   tela própria de "escolher qual liga", porque quem chama já sabe qual
+   liga está gerenciando. O "digite CONFIRMAR" que o antigo botão
+   "Reset" usava foi tirado — Pedro: "não precisa de senha, eu já estou
+   no admin" (já estar autenticado como admin é o suficiente; pedir pra
+   digitar uma palavra em cima disso parecia uma segunda senha). Sim/Não
+   simples, mesmo padrão do Encerrar Liga e do Apagar Sessão. */
 function perguntarApagarLigaEspecifica(season) {
   var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===season; }).length;
   showModal(
     '<div class="pgm-modal-title">Apagar Liga ' + season + '? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div class="pgm-warn">Vai apagar as ' + qtd + ' sessões da Liga ' + season + ' — sem arquivar. <strong>Não pode ser desfeito!</strong></div>' +
-    '<div class="pgm-field"><label class="pgm-input-label">Digite CONFIRMAR para liberar</label>' +
-    '<input type="text" id="input-confirma-apagar-liga" class="pgm-input" style="text-align:center;text-transform:uppercase" autocomplete="off"></div>' +
     '<div class="pgm-row-btns">' +
-    '<button class="pgm-btn pgm-btn-danger" style="flex:1;opacity:0.4;pointer-events:none" id="btn-confirma-apagar-liga">Sim, apagar tudo</button>' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1" onclick="doApagarLiga(' + season + ')">Sim, apagar</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="showLigaAdminMenu(' + season + ')">Cancelar</button>' +
     '</div>'
   );
-  setTimeout(function() {
-    var input = document.getElementById('input-confirma-apagar-liga');
-    var btn = document.getElementById('btn-confirma-apagar-liga');
-    if(input) {
-      input.focus();
-      input.addEventListener('input', function() {
-        var val = this.value.trim().toUpperCase();
-        if(val === 'CONFIRMAR') {
-          btn.style.opacity = '1';
-          btn.style.pointerEvents = 'auto';
-        } else {
-          btn.style.opacity = '0.4';
-          btn.style.pointerEvents = 'none';
-        }
-      });
-    }
-    if(btn) btn.addEventListener('click', function(){ doApagarLiga(season); });
-  }, 80);
 }
 
 function doApagarLiga(season) {
