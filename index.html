@@ -1054,9 +1054,6 @@
         <div class="pgm-pot-bar"><div id="progress-bar" class="pgm-pot-fill" style="width:0%"></div></div>
         <div id="sessions-circles" class="sessions-done-row"></div>
       </div>
-      <div id="apagar-temp-atual-wrapper" style="display:none;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)">
-        <button class="pgm-btn pgm-btn-danger" onclick="confirmApagarTemporadaAtual()" style="width:100%">Reset</button>
-      </div>
       </div>
       <div class="pgm-col">
       <div class="pgm-section-title">Ranking da Temporada Atual</div>
@@ -6365,8 +6362,6 @@ function checkAdminSenha() {
     if(navTeste) navTeste.style.display = 'block';
     var nav = document.querySelector('.pgm-nav');
     if(nav) nav.classList.add('admin-mode');
-    var apagarWrapper = document.getElementById('apagar-temp-atual-wrapper');
-    if(apagarWrapper) apagarWrapper.style.display = 'block';
     // Sem isso, o botão "🧪 Acelerar níveis" (admin only, no card Blinds ao
     // vivo) só aparecia no próximo re-render por acaso (ação de jogador,
     // sync do Firebase) — podia demorar. renderBlindTimerBlock() reconstrói
@@ -6406,22 +6401,46 @@ function adminRedefinirTemporada() {
   }, 80);
 }
 
-function confirmApagarTemporadaAtual() {
-  if(!_adminAuth) { showAlert('Entre no modo admin para apagar.'); return; }
-  var totalSess = S.sessions.length;
+/* Apagar Liga (permanente, sem arquivar) — pedido explícito do Pedro
+   ("não consegui achar a função de apagar como admin"), diferente de
+   Encerrar Liga (que arquiva em Temporadas Anteriores). Substituiu o
+   antigo botão "Reset" (ficava escondido no fim da coluna esquerda da
+   aba Ligas, e apagava TUDO indiscriminadamente — todas as ligas
+   abertas juntas, sem escopo nenhum, o que virou perigoso/errado assim
+   que passou a existir mais de uma liga aberta ao mesmo tempo). Agora
+   fica no painel Admin junto de Redefinir/Encerrar Liga (mais fácil de
+   achar) e escolhe qual liga apagar, igual o Encerrar. Mesmo padrão de
+   segurança "digite CONFIRMAR" que o Reset antigo já usava. */
+function confirmApagarLiga() {
+  if(!_adminAuth) return;
+  if(S.activeSession) { showAlert('Encerre a sessão ativa antes de apagar uma liga.'); return; }
+  if(S.ligasAbertas.length === 1) { perguntarApagarLigaEspecifica(S.ligasAbertas[0]); return; }
   showModal(
-    '<div class="pgm-modal-title">Reset da temporada? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
-    '<div class="pgm-warn">Vai apagar TODAS as ' + totalSess + ' sessões (Liga, Casuais e Torneios) da Temporada ' + S.season + ' — sem arquivar. <strong>Não pode ser desfeito!</strong></div>' +
+    '<div class="pgm-modal-title">Apagar qual liga? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-warn">Diferente de "Encerrar Liga": isso apaga pra sempre, sem guardar em Temporadas Anteriores.</div>' +
+    S.ligasAbertas.map(function(n){
+      var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===n; }).length;
+      return '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" style="width:100%;margin-bottom:6px" onclick="perguntarApagarLigaEspecifica(' + n + ')">Liga ' + n + ' (' + qtd + ' sessões)</button>';
+    }).join('') +
+    '<div class="pgm-row-btns" style="margin-top:0.5rem"><button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="showAdminPanel()">← Voltar</button></div>'
+  );
+}
+
+function perguntarApagarLigaEspecifica(season) {
+  var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===season; }).length;
+  showModal(
+    '<div class="pgm-modal-title">Apagar Liga ' + season + '? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-warn">Vai apagar as ' + qtd + ' sessões da Liga ' + season + ' — sem arquivar. <strong>Não pode ser desfeito!</strong></div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Digite CONFIRMAR para liberar</label>' +
-    '<input type="text" id="input-confirma-reset" class="pgm-input" style="text-align:center;text-transform:uppercase" autocomplete="off"></div>' +
+    '<input type="text" id="input-confirma-apagar-liga" class="pgm-input" style="text-align:center;text-transform:uppercase" autocomplete="off"></div>' +
     '<div class="pgm-row-btns">' +
-    '<button class="pgm-btn pgm-btn-danger" style="flex:1;opacity:0.4;pointer-events:none" id="btn-confirm-apagar-temp-atual">Sim, apagar tudo</button>' +
-    '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Cancelar</button>' +
+    '<button class="pgm-btn pgm-btn-danger" style="flex:1;opacity:0.4;pointer-events:none" id="btn-confirma-apagar-liga">Sim, apagar tudo</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">Cancelar</button>' +
     '</div>'
   );
   setTimeout(function() {
-    var input = document.getElementById('input-confirma-reset');
-    var btn = document.getElementById('btn-confirm-apagar-temp-atual');
+    var input = document.getElementById('input-confirma-apagar-liga');
+    var btn = document.getElementById('btn-confirma-apagar-liga');
     if(input) {
       input.focus();
       input.addEventListener('input', function() {
@@ -6435,20 +6454,26 @@ function confirmApagarTemporadaAtual() {
         }
       });
     }
-    if(btn) btn.addEventListener('click', doApagarTemporadaAtual);
+    if(btn) btn.addEventListener('click', function(){ doApagarLiga(season); });
   }, 80);
 }
 
-function doApagarTemporadaAtual() {
-  S.sessions = [];
-  S.curiosidades = [];
-  S.activeSession = null;
+function doApagarLiga(season) {
+  if(!_adminAuth) return;
+  if(S.activeSession) { showAlert('Encerre a sessão ativa antes de apagar uma liga.'); return; }
+  S.sessions = S.sessions.filter(function(s){ return !(s.type==='oficial' && sessaoLiga(s)===season); });
+  S.ligasAbertas = S.ligasAbertas.filter(function(n){ return n!==season; });
+  if(!S.ligasAbertas.length) {
+    S.season = S.season + 1;
+    S.ligasAbertas = [S.season];
+  }
+  savePatch({ sessions: S.sessions, ligasAbertas: S.ligasAbertas, season: S.season });
+  window._ligaVisualizando = null;
   updateOverview();
-  renderHistorico();
   renderRanking();
-  save();
+  renderHistorico();
   closeModal();
-  showTab('sessao');
+  showAlert('Liga ' + season + ' apagada pra sempre.');
 }
 
 function adminSair() {
@@ -6461,8 +6486,6 @@ function adminSair() {
   if(nt) nt.style.display = 'none';
   var nav = document.querySelector('.pgm-nav');
   if(nav) nav.classList.remove('admin-mode');
-  var apagarWrapper = document.getElementById('apagar-temp-atual-wrapper');
-  if(apagarWrapper) apagarWrapper.style.display = 'none';
   var tabAcum = document.getElementById('tab-acumulado');
   if(tabAcum && tabAcum.classList.contains('active')) showTab('sessao');
   var tabTeste = document.getElementById('tab-teste');
@@ -6531,6 +6554,9 @@ function showAdminPanel() {
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminSair()">Sair</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="adminRedefinirTemporada()">Redefinir</button>' +
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="confirmEncerrarLiga()">🏁 Encerrar Liga</button>' +
+    '</div>' +
+    '<div class="pgm-row-btns" style="margin-top:0.5rem;padding-top:0.75rem;border-top:1px solid var(--border)">' +
+    '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" style="flex:1" onclick="confirmApagarLiga()">🗑️ Apagar Liga (permanente)</button>' +
     '</div>'
   );
 }
