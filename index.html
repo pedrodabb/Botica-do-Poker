@@ -6427,8 +6427,57 @@ function showAdminPanel() {
     '<button class="pgm-btn pgm-btn-sm" onclick="closeModal()">Fechar</button>' +
     '<button class="pgm-btn pgm-btn-danger pgm-btn-sm" onclick="adminSair()">Sair</button>' +
     '<button class="pgm-btn pgm-btn-sm" onclick="adminRedefinirTemporada()">Redefinir</button>' +
+    '<button class="pgm-btn pgm-btn-success pgm-btn-sm" onclick="confirmNovaLiga()">🆕 Nova Liga</button>' +
     '</div>'
   );
+}
+
+/* "Redefinir" (acima) só troca o NÚMERO da temporada — não mexe em mais
+   nada, então a contagem de "Sessão N" continuava vindo de S.sessions
+   (que nunca é filtrado por temporada) e mostrava o mesmo número de
+   antes, mesmo depois de redefinir. Bug real de UX descoberto pelo
+   Pedro: ele tinha uma temporada com só 4 sessões e queria começar uma
+   Temporada 2 de verdade (contagem voltando pra 1), guardando essas 4
+   sessões acessíveis — pedido inicial ("criar uma nova liga mesmo sem
+   ter terminado outra") não era sobre "encerrar" no sentido de apagar,
+   é sobre isso: abrir uma temporada nova sem precisar completar o ciclo
+   de 5 sessões da atual. S.pastSeasons (usado por "Temporadas
+   Anteriores", Total ★ etc.) nunca era escrito em lugar nenhum do
+   código — só lido — então não existia NENHUM jeito de fato começar
+   uma temporada nova preservando a anterior.
+   confirmNovaLiga()/doNovaLiga() arquivam a temporada atual inteira
+   (sessões de todo tipo + curiosidades) num novo item de S.pastSeasons,
+   zeram S.sessions e S.curiosidades (a contagem de "Sessão N" volta pra
+   1), e incrementam S.season — a temporada anterior fica intacta e
+   acessível em "Temporadas Anteriores" (Histórico). */
+function confirmNovaLiga() {
+  if(!_adminAuth) return;
+  if(S.activeSession) { showAlert('Encerre a sessão ativa antes de começar uma nova liga.'); return; }
+  var totalSess = S.sessions.length;
+  var totalOficiais = S.sessions.filter(function(s){ return s.type==='oficial'; }).length;
+  showModal(
+    '<div class="pgm-modal-title">Começar Temporada ' + (S.season+1) + '? <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div style="font-size:13px;font-weight:700;color:var(--cream-dim);line-height:1.6;margin-bottom:1rem">As ' + totalSess + ' sessões da Temporada ' + S.season + ' (' + totalOficiais + ' de Liga) ficam guardadas em "Temporadas Anteriores", sem apagar nada. A contagem volta pra Sessão 1 na Temporada ' + (S.season+1) + '.</div>' +
+    '<div class="pgm-row-btns">' +
+    '<button class="pgm-btn pgm-btn-success" style="flex:1" onclick="doNovaLiga()">Sim, começar</button>' +
+    '<button class="pgm-btn pgm-btn-sm" onclick="showAdminPanel()">← Voltar</button>' +
+    '</div>'
+  );
+}
+
+function doNovaLiga() {
+  if(!_adminAuth) return;
+  if(S.activeSession) { showAlert('Encerre a sessão ativa antes de começar uma nova liga.'); return; }
+  S.pastSeasons.push({ season: S.season, sessions: S.sessions.slice(), curiosidades: S.curiosidades.slice() });
+  S.sessions = [];
+  S.curiosidades = [];
+  S.season = S.season + 1;
+  savePatch({ pastSeasons: S.pastSeasons, sessions: S.sessions, curiosidades: S.curiosidades, season: S.season });
+  updateOverview();
+  renderRanking();
+  renderHistorico();
+  closeModal();
+  showAlert('Temporada ' + S.season + ' começando agora — a contagem de Liga volta pra Sessão 1.');
 }
 
 function confirmarSairApp() {
