@@ -5093,8 +5093,12 @@ function doCancelarSessao() {
      pra sempre em segundo plano. atualizarBlindTimerDisplay() já
      protege contra alertar sem S.activeSession, mas o interval solto é
      desperdício e um risco à toa; corta aqui, na raiz, igual já é
-     feito em logoutApp(). */
+     feito em logoutApp(). Mesma coisa pro setTimeout do gatilho de push
+     instantâneo (agendarGatilhoPushInstantaneo) — ele é agendado com
+     base no tempo restante da sessão QUE ESTÁ SENDO cancelada; sem
+     cancelar, dispara sozinho lá na frente e chama o Worker do nada. */
   if(window._blindTimerInterval) { clearInterval(window._blindTimerInterval); window._blindTimerInterval = null; }
+  if(window._blindPushInstantTimeout) { clearTimeout(window._blindPushInstantTimeout); window._blindPushInstantTimeout = null; }
   S.activeSession = null;
   document.getElementById('no-session-state').style.display = 'block';
   document.getElementById('active-session-state').style.display = 'none';
@@ -5387,8 +5391,10 @@ function finishSessionCommon(s) {
   const sessaoFinalizada = JSON.parse(JSON.stringify(s));
   S.sessions.push(sessaoFinalizada);
   // Mesmo motivo de doCancelarSessao(): sem isso o setInterval do timer
-  // de blind continuava rodando depois da sessão encerrada.
+  // de blind e o setTimeout do gatilho de push instantâneo continuavam
+  // rodando/agendados depois da sessão encerrada.
   if(window._blindTimerInterval) { clearInterval(window._blindTimerInterval); window._blindTimerInterval = null; }
+  if(window._blindPushInstantTimeout) { clearTimeout(window._blindPushInstantTimeout); window._blindPushInstantTimeout = null; }
   S.activeSession = null;
   document.getElementById('no-session-state').style.display = 'block';
   document.getElementById('active-session-state').style.display = 'none';
