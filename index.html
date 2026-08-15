@@ -1183,7 +1183,19 @@ function initFirebaseSync() {
       window._blindTimerUltimoNivel = undefined;
     }
 
-    const keys = ['season','ligasAbertas','sessions','pastSeasons','players','curiosidades','newSession','tempCode','_lastUpdate','authConfig','favoritosBlinds','blindLadderCash'];
+    /* 'newSession' NUNCA entra aqui de propósito — é o rascunho LOCAL do
+       formulário "Nova Sessão" (jogadores ainda não confirmados), nunca
+       deveria ter sido sincronizado entre aparelhos (o rascunho de um
+       jogador não tem nada a ver com o de outro). Bug real corrigido:
+       o Firebase Realtime Database não guarda array vazio — quando
+       save() (não savePatch) escrevia o S inteiro com
+       newSession.players:[] (comum, ninguém digitando nada no momento),
+       o campo "players" sumia do dado salvo; o próximo sync trazia de
+       volta newSession SEM players, e addPlayer() quebrava
+       ("Cannot read properties of undefined") pra qualquer jogador
+       tentando adicionar alguém na Nova Sessão. Tirar 'newSession' da
+       lista corta o problema pela raiz — o rascunho fica só local. */
+    const keys = ['season','ligasAbertas','sessions','pastSeasons','players','curiosidades','tempCode','_lastUpdate','authConfig','favoritosBlinds','blindLadderCash'];
     keys.forEach(k=>{ if(data[k]!==undefined) S[k]=data[k]; });
     S.activeSession = data.activeSession || null;
     var hadMissingUid = S.sessions.some(function(s){ return !s._uid; });
@@ -5075,6 +5087,14 @@ function confirmCancelarSessao() {
 
 function doCancelarSessao() {
   stopSessionTimer();
+  /* Bug real: cancelar a sessão nunca parava o setInterval do timer de
+     blind (só parava sozinho no próximo renderBlindTimerBlock(), que
+     nem sempre roda de novo depois disso) — o timer ficava tickando
+     pra sempre em segundo plano. atualizarBlindTimerDisplay() já
+     protege contra alertar sem S.activeSession, mas o interval solto é
+     desperdício e um risco à toa; corta aqui, na raiz, igual já é
+     feito em logoutApp(). */
+  if(window._blindTimerInterval) { clearInterval(window._blindTimerInterval); window._blindTimerInterval = null; }
   S.activeSession = null;
   document.getElementById('no-session-state').style.display = 'block';
   document.getElementById('active-session-state').style.display = 'none';
@@ -5366,6 +5386,9 @@ function finishSessionCommon(s) {
   s.players.forEach(p=>{ if(!S.players.find(r=>r.name.toLowerCase()===p.name.toLowerCase())) S.players.push({name:p.name,createdAt:Date.now()}); });
   const sessaoFinalizada = JSON.parse(JSON.stringify(s));
   S.sessions.push(sessaoFinalizada);
+  // Mesmo motivo de doCancelarSessao(): sem isso o setInterval do timer
+  // de blind continuava rodando depois da sessão encerrada.
+  if(window._blindTimerInterval) { clearInterval(window._blindTimerInterval); window._blindTimerInterval = null; }
   S.activeSession = null;
   document.getElementById('no-session-state').style.display = 'block';
   document.getElementById('active-session-state').style.display = 'none';
