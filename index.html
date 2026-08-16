@@ -1136,7 +1136,23 @@ function sanitizeData() {
   }
   if(S.activeSession) { fixPlayers(S.activeSession.players); fixUid(S.activeSession); }
   S.sessions.forEach(function(s){ fixPlayers(s.players); fixUid(s); });
-  S.pastSeasons.forEach(function(ps){ ps.sessions.forEach(function(s){ fixPlayers(s.players); fixUid(s); }); });
+  /* Bug real corrigido (2026-08-15): o Firebase Realtime Database não
+     guarda array vazio — uma liga encerrada sem nenhuma sessão (ou
+     qualquer outro caso de ps.sessions:[]) perdia o campo "sessions"
+     inteiro ao salvar, e voltava undefined no próximo sync. Isso
+     quebrava ps.sessions.forEach com "Cannot read properties of
+     undefined" — e como sanitizeData() roda dentro do listener do
+     Firebase ANTES do código que troca a tela pra sessão ativa, esse
+     erro travava a sincronização INTEIRA: a sessão ativa (e os
+     jogadores dela) parava de aparecer pra todo mundo, mesmo com o
+     dado correto chegando certinho do servidor. Normaliza aqui (não só
+     protege esse loop) porque o resto do código (showSeasonDetail,
+     renderAcumulado, getKnownPlayers, etc.) lê ps.sessions em vários
+     lugares assumindo que é sempre um array. */
+  S.pastSeasons.forEach(function(ps){
+    if(!ps.sessions) ps.sessions = [];
+    ps.sessions.forEach(function(s){ fixPlayers(s.players); fixUid(s); });
+  });
   /* Migração: antes só existia UMA temporada "em vigor" (S.season) por
      vez. Agora dá pra ter várias ligas abertas ao mesmo tempo — quem
      controla isso é S.ligasAbertas (array de números). Dado antigo (sem
