@@ -1,5 +1,5 @@
 // Botica do Poker - Service Worker
-const CACHE = 'botica-v2';
+const CACHE = 'botica-v3';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 // Push notification (timer de blinds) — isolado em try/catch pra um
