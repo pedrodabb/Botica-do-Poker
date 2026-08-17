@@ -278,6 +278,26 @@
     .pgm-input-label { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 900; color: var(--nav); letter-spacing: 0.01em; margin-bottom: 0.35rem; display: block; }
     .pgm-field { margin-bottom: 0.75rem; }
 
+    /* Dropdown próprio (não o <select> nativo, que não dá pra estilizar
+       por dentro em nenhum navegador). Usado no seletor de liga: com
+       várias ligas abertas, mostrar todas como botões lado a lado
+       entulhava a tela (Pedro: "as ligas ficam se acumulando ali na
+       tela principal") — o padrão da web é campo fechado que abre a
+       lista ao clicar. */
+    .pgm-select { position: relative; }
+    .pgm-select-trigger { background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); border-radius: 10px; color: var(--cream); font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; padding: 0.55rem 0.75rem; width: 100%; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; transition: border-color 0.15s; }
+    .pgm-select-trigger:hover, .pgm-select.aberto .pgm-select-trigger { border-color: var(--gold); }
+    .pgm-select-seta { color: var(--gold-light); font-size: 11px; flex-shrink: 0; transition: transform 0.18s; }
+    .pgm-select.aberto .pgm-select-seta { transform: rotate(180deg); }
+    .pgm-select-painel { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #16271b; border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 60; overflow: hidden; max-height: 260px; overflow-y: auto; overscroll-behavior: contain; }
+    .pgm-select.aberto .pgm-select-painel { display: block; }
+    .pgm-select-opt { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; background: none; border: none; border-bottom: 1px solid var(--border); color: var(--cream-dim); font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; padding: 0.6rem 0.75rem; cursor: pointer; text-align: left; transition: background 0.12s; }
+    .pgm-select-opt:last-child { border-bottom: none; }
+    .pgm-select-opt:hover { background: rgba(255,255,255,0.05); }
+    .pgm-select-opt.sel { background: rgba(201,168,76,0.16); color: var(--gold-light); }
+    .pgm-select-opt-sub { font-size: 11px; font-weight: 700; color: var(--text-dim); }
+    .pgm-select-opt.nova { color: var(--gold-light); border-top: 1px solid var(--border-strong); }
+
     .pgm-toggle-group { display: flex; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 3px; gap: 3px; }
     .pgm-toggle-opt { flex: 1; background: none; border: none; color: var(--text-dim); font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; padding: 0.35rem 0.6rem; border-radius: 6px; cursor: pointer; transition: all 0.15s; text-align: center; }
 #session-type-toggle .pgm-toggle-opt:first-child { margin-left: -1px; }
@@ -358,7 +378,12 @@
        rolagem por inércia, só voltando pro lugar certo quando o dedo
        solta. transform:translateZ(0) força esse elemento a virar sua
        própria camada de composição (GPU), o jeito padrão de evitar isso. */
+    /* pointer-events fica em none no fundo (não bloqueia o que está por
+       baixo) mas volta a auto na seta em si, que é clicável — clicar
+       desce a tela, ver ativarIndicadorRolagemPagina(). */
     .pgm-scroll-fade-pagina { position: fixed; left: 0; right: 0; bottom: 0; height: 50px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: calc(10px + env(safe-area-inset-bottom)); pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 90; background: linear-gradient(to bottom, transparent, var(--felt) 70%); transform: translateZ(0); will-change: transform; }
+    .pgm-scroll-fade-pagina.visible { pointer-events: auto; cursor: pointer; }
+    .pgm-scroll-fade-pagina svg { pointer-events: auto; }
     .pgm-scroll-fade-pagina.visible { opacity: 1; }
     .pgm-scroll-fade-pagina svg { animation: pgmScrollBounce 1.3s ease-in-out infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
 
@@ -2779,17 +2804,57 @@ function renderLigaPicker() {
   }
   var opts = document.getElementById('liga-picker-opts');
   if(!opts) return;
-  opts.innerHTML = '<div class="pgm-toggle-group" style="flex-wrap:wrap;height:auto">' +
-    S.ligasAbertas.map(function(n){
-      var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===n; }).length;
-      return '<button type="button" class="pgm-toggle-opt' + (n===S.newSession.season?' active':'') + '" onclick="selecionarLigaSessao(' + n + ')">Liga ' + n + ' <span style="opacity:0.7;font-size:10px">(' + qtd + ')</span></button>';
-    }).join('') +
-    '<button type="button" class="pgm-toggle-opt" onclick="criarNovaLigaInline()" style="color:var(--gold-light)">+ Nova Liga</button>' +
-  '</div>';
+  /* Dropdown (campo fechado que abre a lista) em vez de todos os botões
+     lado a lado — com várias ligas abertas os botões se acumulavam e
+     tomavam meia tela da Nova Sessão. Mantém o preserva o estado
+     aberto/fechado entre re-renders (window._ligaPickerAberto) pra
+     escolher uma liga não fechar a lista por efeito colateral do
+     próprio re-render. */
+  var sel = S.newSession.season;
+  var qtdSel = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===sel; }).length;
+  opts.innerHTML =
+    '<div class="pgm-select' + (window._ligaPickerAberto ? ' aberto' : '') + '" id="liga-select">' +
+      '<button type="button" class="pgm-select-trigger" onclick="toggleLigaPicker(event)">' +
+        '<span>Liga ' + sel + '</span>' +
+        '<span style="display:flex;align-items:center;gap:8px">' +
+          '<span class="pgm-select-opt-sub">' + qtdSel + (qtdSel===1?' sessão':' sessões') + '</span>' +
+          '<span class="pgm-select-seta">▼</span>' +
+        '</span>' +
+      '</button>' +
+      '<div class="pgm-select-painel">' +
+        S.ligasAbertas.map(function(n){
+          var qtd = S.sessions.filter(function(s){ return s.type==='oficial' && sessaoLiga(s)===n; }).length;
+          return '<button type="button" class="pgm-select-opt' + (n===sel?' sel':'') + '" onclick="selecionarLigaSessao(' + n + ')">' +
+            '<span>Liga ' + n + '</span>' +
+            '<span class="pgm-select-opt-sub">' + qtd + (qtd===1?' sessão':' sessões') + '</span>' +
+          '</button>';
+        }).join('') +
+        '<button type="button" class="pgm-select-opt nova" onclick="criarNovaLigaInline()">+ Nova Liga</button>' +
+      '</div>' +
+    '</div>';
 }
+
+function toggleLigaPicker(ev) {
+  if(ev) ev.stopPropagation();
+  window._ligaPickerAberto = !window._ligaPickerAberto;
+  var el = document.getElementById('liga-select');
+  if(el) el.classList.toggle('aberto', !!window._ligaPickerAberto);
+}
+
+/* Clicar fora fecha o dropdown — comportamento esperado de qualquer
+   select na web. */
+document.addEventListener('click', function(e) {
+  if(!window._ligaPickerAberto) return;
+  var el = document.getElementById('liga-select');
+  if(el && !el.contains(e.target)) {
+    window._ligaPickerAberto = false;
+    el.classList.remove('aberto');
+  }
+});
 
 function selecionarLigaSessao(season) {
   S.newSession.season = season;
+  window._ligaPickerAberto = false; // escolheu: fecha, igual select nativo
   renderLigaPicker();
   atualizarNumSessaoDisplay();
 }
@@ -2799,6 +2864,7 @@ function criarNovaLigaInline() {
   S.ligasAbertas.push(proximo);
   S.season = Math.max(S.season, proximo);
   S.newSession.season = proximo;
+  window._ligaPickerAberto = false;
   savePatch({ ligasAbertas: S.ligasAbertas, season: S.season });
   renderLigaPicker();
   atualizarNumSessaoDisplay();
@@ -6366,12 +6432,15 @@ function atualizarIndicadorRolagem(elRolavel, opcoes) {
 }
 
 /* Versão pra quando quem rola é a PÁGINA inteira (celular, onde a lista
-   de jogadores virou fluxo normal em vez de rolar sozinha — sem isso a
-   seta de "tem mais pra baixo" tinha sumido de vez pra quem usa
-   celular). Um único elemento fixo, criado uma vez e reaproveitado;
-   liga sozinho no scroll/resize da janela e no ResizeObserver do body
-   (pega mudança de altura da página sem precisar de um evento de
-   scroll, ex: trocar de aba, expandir um quadro). */
+   de jogadores é fluxo normal em vez de rolar sozinha).
+   Comportamento (2026-08-17, ajustado a pedido do Pedro pra bater com o
+   padrão da web): a seta só aparece parada no TOPO da página, some na
+   hora em que a rolagem começa, e é clicável — clicar desce a tela.
+   Sumir imediatamente ao rolar também resolve de vez o bug visual de
+   ela "escorregar pro meio da tela" durante o gesto de arrastar (iOS
+   Safari e alguns WebViews Android descolam elementos position:fixed
+   durante a rolagem por inércia): se ela não está visível enquanto rola,
+   não há o que escorregar. */
 function ativarIndicadorRolagemPagina() {
   var ind = document.getElementById('pgm-scroll-fade-pagina');
   if(!ind) {
@@ -6379,14 +6448,25 @@ function ativarIndicadorRolagemPagina() {
     ind.id = 'pgm-scroll-fade-pagina';
     ind.className = 'pgm-scroll-fade-pagina';
     ind.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--gold-light)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+    ind.addEventListener('click', function(){
+      window.scrollBy({ top: Math.round(window.innerHeight * 0.85), behavior: 'smooth' });
+    });
     document.body.appendChild(ind);
-    window.addEventListener('scroll', ativarIndicadorRolagemPagina, { passive: true });
+    /* Esconde JÁ no primeiro pixel de rolagem (sem esperar recalcular
+       nada), e só reavalia quando a rolagem para de verdade. */
+    window.addEventListener('scroll', function(){
+      var el = document.getElementById('pgm-scroll-fade-pagina');
+      if(el) el.classList.remove('visible');
+      clearTimeout(window._scrollFadeTimer);
+      window._scrollFadeTimer = setTimeout(ativarIndicadorRolagemPagina, 160);
+    }, { passive: true });
     window.addEventListener('resize', ativarIndicadorRolagemPagina);
     if(window.ResizeObserver) new ResizeObserver(ativarIndicadorRolagemPagina).observe(document.body);
   }
   var doc = document.documentElement;
   var sobra = doc.scrollHeight - window.scrollY - window.innerHeight;
-  ind.classList.toggle('visible', sobra > 4);
+  // Só no topo: depois que a pessoa já rolou, ela não precisa mais da dica.
+  ind.classList.toggle('visible', sobra > 4 && window.scrollY < 40);
 }
 
 /* Guarda COMO voltar pra tela anterior quando um modal abre por cima de
