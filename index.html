@@ -352,7 +352,13 @@
        quando quem rola é a página inteira (celular, ver comentário na
        regra de #active-players-rows acima). z-index abaixo de modal
        (1000) mas acima do conteúdo normal. */
-    .pgm-scroll-fade-pagina { position: fixed; left: 0; right: 0; bottom: 0; height: 50px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: calc(10px + env(safe-area-inset-bottom)); pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 90; background: linear-gradient(to bottom, transparent, var(--felt) 70%); }
+    /* Bug real: no celular, a seta "escorregava" pro meio da tela durante
+       o gesto de arrastar — o iOS Safari (e alguns WebViews Android) tem
+       um bug conhecido de descolar elementos position:fixed durante a
+       rolagem por inércia, só voltando pro lugar certo quando o dedo
+       solta. transform:translateZ(0) força esse elemento a virar sua
+       própria camada de composição (GPU), o jeito padrão de evitar isso. */
+    .pgm-scroll-fade-pagina { position: fixed; left: 0; right: 0; bottom: 0; height: 50px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: calc(10px + env(safe-area-inset-bottom)); pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 90; background: linear-gradient(to bottom, transparent, var(--felt) 70%); transform: translateZ(0); will-change: transform; }
     .pgm-scroll-fade-pagina.visible { opacity: 1; }
     .pgm-scroll-fade-pagina svg { animation: pgmScrollBounce 1.3s ease-in-out infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
 
@@ -816,12 +822,12 @@
           <div style="margin-bottom:0.25rem" id="cash-type-wrapper">
             <label class="pgm-input-label">Tipo</label>
             <div class="pgm-toggle-group" id="session-type-toggle">
-              <button class="pgm-toggle-opt active" onclick="setSessionType('oficial')">🏆 Liga</button>
-              <button class="pgm-toggle-opt" onclick="setSessionType('casual')">🥃 Casual</button>
+              <button class="pgm-toggle-opt active" onclick="setSessionType('casual')">🥃 Casual</button>
+              <button class="pgm-toggle-opt" onclick="setSessionType('oficial')">🏆 Liga</button>
             </div>
           </div>
           <div style="margin-bottom:0.75rem;display:none" id="liga-picker-wrapper">
-            <label class="pgm-input-label">Qual liga?</label>
+            <label class="pgm-input-label">Selecionar liga</label>
             <div id="liga-picker-opts"></div>
           </div>
           <div style="margin-bottom:0.25rem;display:none" id="tourney-mode-wrapper">
@@ -1086,7 +1092,7 @@ const S = {
   pastSeasons: [],
   players: [],
   curiosidades: [],
-  newSession: { type: 'oficial', players: [], season: 1 },
+  newSession: { type: 'casual', players: [], season: 1 },
   activeSession: null,
   authConfig: { senhaMesaAtiva: true, googleAtivo: false },
   favoritosBlinds: [],
@@ -1264,6 +1270,25 @@ function maskMoedaOninput(el) {
   el.value = v;
 }
 
+/* Máscara com vírgula AUTOMÁTICA (estilo "app de banco": digita só
+   números, a vírgula entra sozinha da direita pra esquerda — ex:
+   "1225" vira "12,25") — usada só nos campos de RESULTADO final (saiu
+   da mesa / encerrar sessão em Cash Game), pedido explícito do Pedro
+   em 2026-08-15. Diferente de propósito de maskMoedaOninput() (buy-in,
+   rebuy), que continua exigindo digitar a vírgula na mão desde
+   2026-07-30 — aquela decisão foi sobre digitar um valor CHEIO rápido
+   (12 = R$12); aqui é sobre digitar um resultado que costuma vir com
+   centavos (sobra de divisão de fichas), onde a vírgula automática é
+   mais rápida de digitar. */
+function maskMoedaAutoOninput(el) {
+  var digits = el.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  if(!digits) { el.value = ''; return; }
+  while(digits.length < 3) digits = '0' + digits;
+  var inteiro = digits.slice(0, -2).replace(/^0+(?=\d)/, '') || '0';
+  var centavos = digits.slice(-2);
+  el.value = inteiro + ',' + centavos;
+}
+
 function maskPayoutOninput(el) {
   var digits = el.value.replace(/\D/g, '');
   if(digits === '100') { el.value = '100'; return; }
@@ -1312,10 +1337,19 @@ function setSessionModality(m) {
     var inp = document.getElementById('new-session-num');
     if(inp) inp.value = 'Torneio';
     setTourneyMode(S.newSession.tourneyMode || 'classico');
+    /* Bug real: "Qual liga?" (Selecionar liga) ficava aparecendo em
+       sessão de Torneio — o toggle Liga/Casual só existe pro Cash
+       Game (fica escondido em #cash-type-wrapper acima), mas o
+       picker de liga é um bloco À PARTE, com sua própria visibilidade
+       controlada por renderLigaPicker(). Só setar S.newSession.type
+       direto (sem passar por setSessionType()) nunca chamava
+       renderLigaPicker() de novo, então o picker ficava do jeito que
+       estava antes de trocar pra Torneio. Chama aqui pra esconder. */
+    renderLigaPicker();
   } else {
     var tcf = document.getElementById('tourney-classic-fields');
     if(tcf) tcf.style.display = 'none';
-    setSessionType('oficial');
+    setSessionType('casual');
     atualizarBlindWrapperSimples();
   }
   atualizarSugestaoFichasBuyin();
@@ -2716,7 +2750,7 @@ function quadroHTML(o) {
 
 function setSessionType(t) {
   S.newSession.type = t;
-  document.querySelectorAll('#session-type-toggle .pgm-toggle-opt').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='oficial')||(i===1&&t==='casual')));
+  document.querySelectorAll('#session-type-toggle .pgm-toggle-opt').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='casual')||(i===1&&t==='oficial')));
   renderLigaPicker();
   atualizarNumSessaoDisplay();
   var nameField = document.getElementById('casual-name-field');
@@ -4844,7 +4878,7 @@ function openLeftTableModal(idx) {
     '<div class="pgm-modal-title">× ' + escHtml(p.name) + ' saiu da mesa <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
     '<div style="font-size:12px;color:var(--text-dim);margin-bottom:0.75rem">Investiu: ' + fmtRaw(investido) + '</div>' +
     '<div class="pgm-field"><label class="pgm-input-label">Stack final (R$)</label>' +
-    '<input type="text" inputmode="decimal" id="left-table-stack" class="pgm-input" placeholder="0" autofocus oninput="maskMoedaOninput(this)"></div>' +
+    '<input type="text" inputmode="decimal" id="left-table-stack" class="pgm-input" placeholder="0" autofocus oninput="maskMoedaAutoOninput(this)"></div>' +
     '<div class="pgm-row-btns"><button class="pgm-btn pgm-btn-success" style="flex:1" id="btn-confirm-left">Confirmar saída</button></div>'
   );
   setTimeout(function() {
@@ -5186,8 +5220,8 @@ function openFinishSession() {
     var investido = p.buyin + p.rebuys.reduce(function(a,r){ return a+r; }, 0);
     var jaSaiu = p.leftTable;
     var inputHTML = jaSaiu
-      ? '<input type="text" inputmode="decimal" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px;opacity:0.6" value="' + (p.finalStack||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '" readonly oninput="maskMoedaOninput(this);updateFinishPot()">'
-      : '<input type="text" inputmode="decimal" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0" oninput="maskMoedaOninput(this);updateFinishPot()">';
+      ? '<input type="text" inputmode="decimal" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px;opacity:0.6" value="' + (p.finalStack||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '" readonly oninput="maskMoedaAutoOninput(this);updateFinishPot()">'
+      : '<input type="text" inputmode="decimal" id="stack-' + i + '" class="pgm-input" style="padding:4px 8px;font-size:13px" placeholder="0" oninput="maskMoedaAutoOninput(this);updateFinishPot()">';
     return '<div class="pgm-final-row">' +
       '<div class="pgm-player-name" style="font-size:12px;display:flex;align-items:center;gap:6px;' + (jaSaiu?'opacity:0.6':'') + '">' + avatarHTML(p.name,'pgm-player-avatar','♟') + escHtml(p.name) + (jaSaiu?' <span style="font-size:9px;color:var(--text-dim)">(saiu)</span>':'') + '</div>' +
       '<div class="pgm-money neu" style="font-size:12px">' + fmtRaw(investido) + '</div>' +
@@ -5485,9 +5519,9 @@ function resetNewSessionForm() {
   const ni = document.getElementById('new-player-name');
   if(ni) ni.value='';
   document.getElementById('players-list-new').innerHTML='';
-  S.newSession = { type:'oficial', players:[] };
+  S.newSession = { type:'casual', players:[] };
   setSessionModality('cash');
-  setSessionType('oficial');
+  setSessionType('casual');
   var ts = document.getElementById('new-tourney-stack'); if(ts) ts.value = '';
   var tp = document.getElementById('new-tourney-payout'); if(tp) tp.value = '';
   var cbi = document.getElementById('cash-blind-intervalo'); if(cbi) cbi.value = 15;
