@@ -229,6 +229,12 @@
     .treino-feedback-correct { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.4); }
     .treino-feedback-wrong { background: rgba(241,106,106,0.1); border: 1px solid rgba(241,106,106,0.35); }
     .pgm-hist-cat-grid { display: flex; flex-direction: column; gap: 10px; }
+    /* Cada seção do Histórico (título + cards) é um bloco só — no
+       celular elas empilham com este respiro entre si; no PC viram
+       células do grid e quem separa passa a ser o `gap` (ver
+       .pgm-lista-fluida). */
+    .pgm-hist-secao + .pgm-hist-secao { margin-top: 1.25rem; }
+    .pgm-mt-so-mobile { margin-top: 0.5rem; }
     .pgm-hist-cat-card { display: flex; align-items: center; gap: 12px; padding: 1rem; border-radius: 14px; cursor: pointer; transition: transform 0.15s, background 0.15s; border: 1px solid var(--border); background: rgba(255,255,255,0.03); }
     .pgm-hist-cat-card:active { transform: scale(0.98); }
     .pgm-hist-cat-card.gold { border-color: rgba(201,168,76,0.35); background: rgba(201,168,76,0.06); }
@@ -680,10 +686,30 @@
          lado deles. */
       .pgm-cols-aside { grid-template-columns: 340px minmax(0,1fr); }
       .pgm-so-mobile { display: none; }
+      /* Respiro que só faz sentido com as colunas empilhadas (celular):
+         no PC o elemento vira o 1º item da coluna e o margin fazia as
+         duas colunas começarem desalinhadas. */
+      .pgm-mt-so-mobile { margin-top: 0; }
+      .pgm-col > .pgm-section-title:first-child { margin-top: 0; }
       /* Listas de cards passam a preencher a largura em várias colunas,
-         em vez de uma fila só espremida no meio da tela. */
-      .pgm-lista-fluida { columns: 2; column-gap: 1rem; }
-      .pgm-lista-fluida > * { break-inside: avoid; -webkit-column-break-inside: avoid; }
+         em vez de uma fila só espremida no meio da tela.
+         Era `columns` (fluxo tipo jornal), trocado por GRID em
+         2026-08-17: `columns` distribui por ALTURA, então os cards
+         caíam em posições irregulares, os topos não batiam entre as
+         colunas e a leitura virava coluna-a-coluna em vez de
+         esquerda-pra-direita — era isso que dava a sensação de "quadros
+         desalinhados" no PC. Grid alinha os topos de cada fileira
+         (align-items:start) e mantém a ordem de leitura natural. */
+      .pgm-lista-fluida { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; align-items: start; }
+      /* As listas usam margin-bottom nos cards pro empilhamento do
+         celular; dentro do grid quem separa é o `gap`, senão sobra um
+         respiro duplo embaixo de cada card. */
+      /* O 2º seletor precisa nomear as duas classes pra ganhar de
+         `.pgm-hist-secao + .pgm-hist-secao` (0,2,0) — o espaçamento do
+         empilhamento no celular. Aqui quem separa é o `gap` do grid;
+         sem isso a 2ª seção descia 20px e as fileiras não batiam. */
+      .pgm-lista-fluida > * { margin-bottom: 0; margin-top: 0; }
+      .pgm-lista-fluida > .pgm-hist-secao + .pgm-hist-secao { margin-top: 0; }
       /* Praticar tem mesa de tamanho fixo e a aba de áudios é uma lista
          curta — esticar não ajuda em nada, então ficam centralizados. */
       #tab-treino, #tab-teste { max-width: 620px; margin-left: auto; margin-right: auto; }
@@ -732,9 +758,9 @@
     }
     @media (min-width: 1400px) {
       #app { max-width: 1240px; }
-      .pgm-lista-fluida { columns: 3; }
+      .pgm-lista-fluida { grid-template-columns: repeat(3, minmax(0,1fr)); }
       /* dentro de uma coluna lateral não cabem 3 sem espremer */
-      .pgm-cols-aside .pgm-lista-fluida { columns: 2; }
+      .pgm-cols-aside .pgm-lista-fluida { grid-template-columns: repeat(2, minmax(0,1fr)); }
     }
   </style>
 </head>
@@ -935,7 +961,10 @@
           </div>
           <div class="pgm-col">
 
-          <div class="pgm-section-title" style="margin-top:0.5rem">Jogadores da sessão</div>
+          <!-- o respiro do topo é só pro celular (colunas empilhadas);
+               no PC este é o 1º item da coluna da direita e o margin
+               desalinhava as duas colunas — ver .pgm-mt-so-mobile -->
+          <div class="pgm-section-title pgm-mt-so-mobile">Jogadores da sessão</div>
           <div class="pgm-new-player-form">
             <div class="pgm-field" style="margin-bottom:0">
               <input type="text" id="new-player-name" class="pgm-input" placeholder="Nome..." autocomplete="off">
@@ -6009,22 +6038,32 @@ function renderHistorico() {
     return '<div style="font-size:12px;font-weight:700;color:var(--text-dim);padding:0.5rem 0.25rem 0.25rem">' + text + '</div>';
   }
 
+  /* Cada seção (título + seus cards) vira UM bloco. Antes eram
+     irmãos soltos e, no PC, a lista vira várias colunas — um título
+     podia ficar no pé de uma coluna com os cards dele no topo da
+     outra. Agrupado, a seção inteira é uma célula só do grid e nunca
+     se parte no meio. */
+  function secao(titulo, conteudo) {
+    return '<div class="pgm-hist-secao">' +
+      '<div class="pgm-section-title">' + titulo + '</div>' + conteudo +
+    '</div>';
+  }
+
   var html = '';
 
-  html += '<div class="pgm-section-title">Sessões</div>';
   var sessoesCards = catCard('🏆', 'Sessões de Liga', oficiaisIdx.length, 'liga', 'gold') +
                       catCard('🥃', 'Sessões Casuais', casuaisIdx.length, 'casual', 'casual');
-  html += sessoesCards ? '<div class="pgm-hist-cat-grid">' + sessoesCards + '</div>' : emptyNote('Nenhuma sessão ainda.');
+  html += secao('Sessões', sessoesCards
+    ? '<div class="pgm-hist-cat-grid">' + sessoesCards + '</div>'
+    : emptyNote('Nenhuma sessão ainda.'));
 
-  html += '<div class="pgm-section-title" style="margin-top:1.25rem">Temporadas de Liga</div>';
-  html += S.pastSeasons.length
+  html += secao('Temporadas de Liga', S.pastSeasons.length
     ? '<div class="pgm-hist-cat-grid">' + catCard('📦', 'Temporadas Anteriores', S.pastSeasons.length, 'temporadas', 'dim') + '</div>'
-    : emptyNote('Nenhuma temporada arquivada ainda.');
+    : emptyNote('Nenhuma temporada arquivada ainda.'));
 
-  html += '<div class="pgm-section-title" style="margin-top:1.25rem">Torneios</div>';
-  html += torneiosIdx.length
+  html += secao('Torneios', torneiosIdx.length
     ? '<div class="pgm-hist-cat-grid">' + catCard('🥊', 'Torneios', torneiosIdx.length, 'torneio', 'torneio') + '</div>'
-    : emptyNote('Nenhum torneio finalizado ainda.');
+    : emptyNote('Nenhum torneio finalizado ainda.'));
 
   el.innerHTML = html;
 
