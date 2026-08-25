@@ -339,7 +339,13 @@
     /* O "º" de colocação, pequeno e no alto (padrão tipográfico de
        ordinal em pt-BR) — sem ele o número sozinho lia como quantidade,
        não como posição. */
-    .pgm-rpos-ord { font-size:0.62em; line-height:1; align-self:flex-start; margin-top:0.18em; margin-left:0.5px; }
+    /* O "º" de colocação. 0.72em (era 0.62) e um respiro à esquerda pra
+       ele respirar em vez de encostar no número — mais evidente sem
+       virar um segundo caractere de peso igual, que competiria com o
+       número e poluiria o círculo. O padding-right compensa a largura
+       que ele adiciona, mantendo o par opticamente centrado. */
+    .pgm-rpos-ord { font-size:0.72em; line-height:1; align-self:flex-start; margin-top:0.1em; margin-left:0.08em; }
+    .pgm-rpos { padding-right:0.12em; }
     .pgm-rpos.gold { background:linear-gradient(140deg,#ffe9a8,#d4af37); color:#3a2a06; border-color:transparent; font-size:14px; }
     .pgm-rpos.silver { background:linear-gradient(140deg,#eef0f2,#b8bec4); color:#2a2e33; border-color:transparent; font-size:14px; }
     .pgm-rpos.bronze { background:linear-gradient(140deg,#e3a869,#a86a35); color:#3a2408; border-color:transparent; font-size:14px; }
@@ -5532,8 +5538,11 @@ function pgmRankBadgeHTML(pos, size) {
 function pgmValorDireitaHTML(s, p) {
   if(s && s.type === 'torneio') {
     var n = (p.rebuys || []).length;
+    // Zero rebuy não escreve nada — "sem rebuy" era ruído, o vazio já
+    // diz o mesmo (Pedro, 2026-08-17).
+    if(!n) return '';
     return '<div class="pgm-rval-block">' +
-      '<div class="pgm-rsub" style="white-space:nowrap">' + (n ? n + (n===1?' rebuy':' rebuys') : 'sem rebuy') + '</div>' +
+      '<div class="pgm-rsub" style="white-space:nowrap">' + n + (n===1?' rebuy':' rebuys') + '</div>' +
     '</div>';
   }
   var pr = p.profit || 0;
@@ -7322,11 +7331,19 @@ function compartilharResultado(sessao) {
       ctx.stroke();
       ctx.fillStyle = '#e8e8e8';
     }
+    /* Número + "º". O número é desenhado 2px à esquerda do centro do
+       círculo (x=38) pra compensar a largura que o "º" acrescenta à
+       direita, mantendo o par opticamente centrado.
+       Bug corrigido: a largura do número era medida DEPOIS de trocar
+       ctx.font pro tamanho do "º", então media com a fonte errada e o
+       "º" saía deslocado. Agora mede com a fonte do número. */
     ctx.textAlign = 'center';
     ctx.font = 'bold 17px Arial, sans-serif';
+    var larguraNum = ctx.measureText(String(posImg)).width;
     ctx.fillText(String(posImg), 36, y+6);
-    ctx.font = 'bold 10px Arial, sans-serif';
-    ctx.fillText('º', 36 + ctx.measureText(String(posImg)).width + 6, y-2);
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 12px Arial, sans-serif';
+    ctx.fillText('º', 36 + larguraNum/2 + 1, y-1);
 
     ctx.textAlign = 'left';
     ctx.fillStyle = '#f5f5f2';
@@ -7346,9 +7363,11 @@ function compartilharResultado(sessao) {
       // Torneio: saldo não faz sentido (premiação é por colocação e
       // confundiria empates) — mostra rebuys, igual ao card da tela.
       var nRb = (p.rebuys||[]).length;
-      ctx.fillStyle = '#8a9080';
-      ctx.font = '13px Arial, sans-serif';
-      ctx.fillText(nRb ? nRb + (nRb===1?' rebuy':' rebuys') : 'sem rebuy', W-24, y + 4);
+      if(nRb) { // zero rebuy não escreve nada, igual ao card da tela
+        ctx.fillStyle = '#8a9080';
+        ctx.font = '13px Arial, sans-serif';
+        ctx.fillText(nRb + (nRb===1?' rebuy':' rebuys'), W-24, y + 4);
+      }
     } else {
       ctx.fillStyle = '#5a6a5a';
       ctx.font = 'bold 10px Arial, sans-serif';
