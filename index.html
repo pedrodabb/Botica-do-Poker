@@ -329,7 +329,13 @@
     .pgm-icon-btn-neutral { width:34px; height:34px; border-radius:50%; background:rgba(201,168,76,0.1); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--gold-light); flex-shrink:0; cursor:pointer; line-height:1; touch-action:manipulation; }
     .pgm-icon-btn-neutral:hover { border-color:var(--gold-light); background:rgba(201,168,76,0.18); }
     .pgm-rcard { position:relative; display:flex; align-items:center; gap:11px; padding:8px 10px; border-radius:14px; margin-bottom:6px; background:linear-gradient(155deg, rgba(255,255,255,0.05) 0%, var(--felt-mid) 100%); border:1px solid var(--border); }
-    .pgm-rpos { width:26px; height:26px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; font-family:'Space Mono',monospace; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-dim); }
+    /* Fora do pódio o número era var(--text-dim) (#8a9080, cinza
+       esverdeado) sobre fundo quase transparente — ficava apagado
+       demais e mal dava pra ler (Pedro: "as colocações sem pódio não
+       precisam ficar tão sem graça"). Agora o número é creme, com
+       fundo e borda um pouco mais presentes: legível, mas ainda
+       claramente abaixo do ouro/prata/bronze na hierarquia visual. */
+    .pgm-rpos { width:26px; height:26px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; font-family:'Space Mono',monospace; background:rgba(255,255,255,0.1); border:1px solid var(--border-strong); color:var(--cream-dim); }
     /* O "º" de colocação, pequeno e no alto (padrão tipográfico de
        ordinal em pt-BR) — sem ele o número sozinho lia como quantidade,
        não como posição. */
@@ -7305,7 +7311,16 @@ function compartilharResultado(sessao) {
       ctx.fill();
       ctx.fillStyle = '#2a2205';
     } else {
-      ctx.fillStyle = '#8aa08a';
+      // Mesmo tratamento do badge da tela: fora do pódio ganha um
+      // círculo discreto e número claro, em vez de texto apagado.
+      ctx.beginPath();
+      ctx.arc(38, y, 17, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(201,168,76,0.45)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = '#e8e8e8';
     }
     ctx.textAlign = 'center';
     ctx.font = 'bold 17px Arial, sans-serif';
