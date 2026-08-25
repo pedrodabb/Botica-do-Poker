@@ -366,7 +366,10 @@
        e liga isso em qualquer container com overflow-y:auto. */
     .pgm-scroll-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 5; }
     .pgm-scroll-fade.visible { opacity: 1; }
-    .pgm-scroll-fade svg { animation: pgmScrollBounce 1.3s ease-in-out infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+    /* Mesma regra da seta da página: a faixa nunca captura toque (não
+       rouba clique dos botões embaixo dela), só a seta em si. */
+    .pgm-scroll-fade svg { animation: pgmScrollBounce 1.3s ease-in-out infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); pointer-events: none; box-sizing: content-box; padding: 6px 22px; cursor: pointer; }
+    .pgm-scroll-fade.visible svg { pointer-events: auto; }
     @keyframes pgmScrollBounce { 0%,100% { transform: translateY(0); opacity: 0.6; } 50% { transform: translateY(5px); opacity: 1; } }
     /* Mesmo indicador, só que preso à TELA (não a um container) — pra
        quando quem rola é a página inteira (celular, ver comentário na
@@ -378,14 +381,15 @@
        rolagem por inércia, só voltando pro lugar certo quando o dedo
        solta. transform:translateZ(0) força esse elemento a virar sua
        própria camada de composição (GPU), o jeito padrão de evitar isso. */
-    /* pointer-events fica em none no fundo (não bloqueia o que está por
-       baixo) mas volta a auto na seta em si, que é clicável — clicar
-       desce a tela, ver ativarIndicadorRolagemPagina(). */
+    /* A FAIXA fica sempre com pointer-events:none — se ela capturasse
+       clique (como chegou a acontecer), roubaria o toque do sino
+       flutuante e de qualquer botão que caia nesses 50px de baixo.
+       Só o SVG da seta é clicável, com área de toque ampliada por
+       padding (não muda o desenho, só o alvo do dedo). */
     .pgm-scroll-fade-pagina { position: fixed; left: 0; right: 0; bottom: 0; height: 50px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: calc(10px + env(safe-area-inset-bottom)); pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 90; background: linear-gradient(to bottom, transparent, var(--felt) 70%); transform: translateZ(0); will-change: transform; }
-    .pgm-scroll-fade-pagina.visible { pointer-events: auto; cursor: pointer; }
-    .pgm-scroll-fade-pagina svg { pointer-events: auto; }
     .pgm-scroll-fade-pagina.visible { opacity: 1; }
-    .pgm-scroll-fade-pagina svg { animation: pgmScrollBounce 1.3s ease-in-out infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+    .pgm-scroll-fade-pagina svg { animation: pgmScrollBounce 1.3s ease-in-out infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); pointer-events: none; box-sizing: content-box; padding: 6px 22px; cursor: pointer; }
+    .pgm-scroll-fade-pagina.visible svg { pointer-events: auto; }
 
     /* Abaixo de 900px, voltou a ser fluxo normal de página (Pedro testou
        a versão com altura travada + só a lista rolando e achou que
@@ -5496,10 +5500,17 @@ function finishSession() {
   finishSessionCommon(s);
 }
 
-function pgmRankBadgeHTML(pos) {
-  var medals = ['🥇','🥈','🥉'];
+/* Badge de posição SEMPRE com o número escrito — as medalhas 🥇🥈🥉 não
+   mostram número nenhum, então empate ficava ilegível: dois jogadores
+   em 1º apareciam como duas medalhas de ouro seguidas, indistinguível
+   de "1º e 2º" (Pedro: "quando são dois em 1º fica difícil de
+   entender"). O número resolve a ambiguidade; a cor (ouro/prata/bronze)
+   continua dando a leitura rápida de pódio. `size` opcional pros
+   lugares compactos (pódio do histórico, cards de temporada). */
+function pgmRankBadgeHTML(pos, size) {
   var cls = pos===1?'gold':pos===2?'silver':pos===3?'bronze':'';
-  return '<div class="pgm-rpos' + (cls?' '+cls:'') + '">' + (medals[pos-1]||pos) + '</div>';
+  var st = size ? ' style="width:' + size + 'px;height:' + size + 'px;font-size:' + Math.max(9, Math.round(size*0.5)) + 'px"' : '';
+  return '<div class="pgm-rpos' + (cls?' '+cls:'') + '"' + st + '>' + pos + '</div>';
 }
 
 function finishSessionCommon(s) {
@@ -5772,7 +5783,7 @@ function renderAcumulado() {
         return rankedPts.map(function(p,i) {
         var pos = dp[i];
         return '<div class="pgm-ranking-row" style="border-color:rgba(232,201,122,0.2);padding:0.4rem 0">' +
-          '<div class="pgm-rank-pos ' + (pos<=3?'pgm-rank-'+pos:'') + '" style="font-size:13px">' + (medals[pos-1]||'#'+pos) + '</div>' +
+          pgmRankBadgeHTML(pos, 24) +
           '<div class="pgm-rank-name-block">' +
             '<div class="pgm-rank-name" style="font-size:12px">' + escHtml(p.name) + '</div>' +
             '<div class="pgm-rank-sessions" style="font-size:10px">' + p.sessions + ' sess. · 🥇' + p.wins + ' · 🏆' + p.podios + '</div>' +
@@ -5797,7 +5808,7 @@ function renderAcumulado() {
         return rankedLucro.map(function(p,i) {
         var pos = dpL[i];
         return '<div class="pgm-ranking-row" style="border-color:rgba(232,201,122,0.2);padding:0.4rem 0">' +
-          '<div class="pgm-rank-pos ' + (pos<=3?'pgm-rank-'+pos:'') + '" style="font-size:13px">' + (medals[pos-1]||'#'+pos) + '</div>' +
+          pgmRankBadgeHTML(pos, 24) +
           '<div class="pgm-rank-name-block">' +
             '<div class="pgm-rank-name" style="font-size:12px">' + escHtml(p.name) + '</div>' +
             '<div class="pgm-rank-sessions" style="font-size:10px">' + p.sessions + ' sess. · melhor ' + fmtR(p.best||0) + '</div>' +
@@ -5915,7 +5926,7 @@ function renderRanking() {
         var pos = dpR[i];
         var temDescarte = window._sessaoDescartada[p.name];
         return '<div class="pgm-ranking-row">' +
-          '<div class="pgm-rank-pos">#' + pos + '</div>' +
+          pgmRankBadgeHTML(pos, 28) +
           '<div class="pgm-rank-name-block">' +
             '<div class="pgm-rank-name">' + escHtml(p.name) + '</div>' +
             '<div class="pgm-rank-sessions">' + p.sessions + ' sessões · ' + p.wins + ' vitória(s)' + (temDescarte ? ' · <span style="color:var(--negative);font-size:10px">-1 descartada</span>' : '') + '</div>' +
@@ -6013,7 +6024,7 @@ function sessionCardHTML(s, sessionIndex) {
     var avatarInner = photo ? '<img src="'+photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">' : escHtml(p.name.slice(0,2).toUpperCase());
     var pos = dp[i];
     return '<div style="display:flex;align-items:center;gap:4px;flex:1;min-width:0">' +
-      '<span style="font-size:12px;flex-shrink:0">' + (medals[pos-1]||'#'+pos) + '</span>' +
+      pgmRankBadgeHTML(pos, 20) +
       '<div style="width:22px;height:22px;border-radius:50%;background:rgba(201,168,76,0.12);border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:var(--gold);flex-shrink:0;overflow:hidden">' + avatarInner + '</div>' +
       '<span style="font-size:11px;font-weight:800;color:var(--cream);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">' + escHtml(p.name) + '</span>' +
     '</div>';
@@ -6308,7 +6319,7 @@ function showSeasonDetail(idx) {
           : initials;
         var avg = p.sessions > 0 ? (p.points / p.sessions).toFixed(1) : '0.0';
         return '<div style="background:#14321a;border:1px solid ' + (realPos===1?'rgba(255,215,0,0.35)':'rgba(201,168,76,0.15)') + ';border-radius:12px;padding:10px 6px;text-align:center">' +
-          '<div style="font-size:16px;margin-bottom:3px">' + (medals[realPos-1]||'#'+realPos) + '</div>' +
+          '<div style="display:flex;justify-content:center;margin-bottom:3px">' + pgmRankBadgeHTML(realPos, 22) + '</div>' +
           '<div style="width:30px;height:30px;border-radius:50%;background:' + mc.bg + ';border:2px solid ' + mc.border + ';color:' + mc.color + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;margin:0 auto 5px;overflow:hidden">' + avatarInner + '</div>' +
           '<div style="font-size:11px;font-weight:900;color:#f0ede4;margin-bottom:2px">' + escHtml(p.name) + '</div>' +
           '<div style="font-size:13px;font-weight:900;color:#c9a84c;font-family:Space Mono,monospace">' + avg + '</div>' +
@@ -6415,8 +6426,21 @@ function ativarIndicadorRolagem(elRolavel, opcoes) {
     ind = document.createElement('div');
     ind.className = 'pgm-scroll-fade';
     ind.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--gold-light)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+    // Clicável: desce um pedaço da área rolável (mesmo comportamento da
+    // seta da página, ver ativarIndicadorRolagemPagina).
+    ind.addEventListener('click', function(){
+      elRolavel.scrollBy({ top: Math.round(elRolavel.clientHeight * 0.85), behavior: 'smooth' });
+    });
     ancora.appendChild(ind);
-    elRolavel.addEventListener('scroll', function(){ atualizarIndicadorRolagem(elRolavel, opcoes); }, { passive: true });
+    /* Mesma regra da seta da página: some no primeiro pixel de rolagem
+       e só reavalia quando a rolagem para. Sem isso ela ficava visível
+       durante o arrasto, que é quando o iOS/Android descolam elementos
+       posicionados e a seta "escorregava" pelo meio da área. */
+    elRolavel.addEventListener('scroll', function(){
+      ind.classList.remove('visible');
+      clearTimeout(ind._fadeTimer);
+      ind._fadeTimer = setTimeout(function(){ atualizarIndicadorRolagem(elRolavel, opcoes); }, 160);
+    }, { passive: true });
   }
   if(opcoes.corFundo) ind.style.background = 'linear-gradient(to bottom, transparent, ' + opcoes.corFundo + ' 65%)';
   atualizarIndicadorRolagem(elRolavel, opcoes);
@@ -6428,7 +6452,9 @@ function atualizarIndicadorRolagem(elRolavel, opcoes) {
   var ind = ancora && ancora.querySelector(':scope > .pgm-scroll-fade');
   if(!ind) return;
   var sobra = elRolavel.scrollHeight - elRolavel.scrollTop - elRolavel.clientHeight;
-  ind.classList.toggle('visible', sobra > 4);
+  // Só no topo, igual à seta da página: depois que já rolou, a dica
+  // deixa de fazer sentido e vira só um enfeite atrapalhando a leitura.
+  ind.classList.toggle('visible', sobra > 4 && elRolavel.scrollTop < 40);
 }
 
 /* Versão pra quando quem rola é a PÁGINA inteira (celular, onde a lista
@@ -7242,9 +7268,22 @@ function compartilharResultado(sessao) {
     const profit = p.profit || 0;
     const posImg = dpImg[i];
 
-    ctx.font = '26px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(medals[posImg-1] || posImg+'º', 24, y+8);
+    /* Mesma razão do pgmRankBadgeHTML: a medalha sozinha não mostra
+       número, então empate (dois em 1º) ficava ilegível na imagem
+       compartilhada. Círculo colorido de pódio COM o número dentro. */
+    var corPodio = posImg===1 ? '#d4af37' : posImg===2 ? '#b8bec4' : posImg===3 ? '#a86a35' : null;
+    if(corPodio) {
+      ctx.beginPath();
+      ctx.arc(36, y+1, 16, 0, Math.PI*2);
+      ctx.fillStyle = corPodio;
+      ctx.fill();
+      ctx.fillStyle = '#2a2205';
+    } else {
+      ctx.fillStyle = '#8aa08a';
+    }
+    ctx.font = 'bold 18px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(posImg), 36, y+8);
 
     ctx.fillStyle = '#f5f5f2';
     ctx.font = 'bold 18px Arial, sans-serif';
