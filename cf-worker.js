@@ -23,14 +23,28 @@ const DATABASE_URL = 'https://home-game-14a59-default-rtdb.firebaseio.com';
 const DB_PATH = 'homegame/dados';
 const PROJECT_ID = 'home-game-14a59';
 
+/* Sobe a cada mudança neste arquivo. Serve pra saber, de fora, QUAL
+   versão está de fato implantada na Cloudflare — antes disso o worker
+   respondia só "ok" em qualquer versão, então não havia como distinguir
+   "já colei a versão nova" de "esqueci de colar", e um worker antigo
+   falha de um jeito silencioso (deixa de mandar push pra estruturas que
+   ele não conhece) que é difícil de perceber jogando.
+   Confira abrindo a URL do worker no navegador. */
+const VERSAO = '2026-08-31';
+
 export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(checarBlinds(env));
   },
   async fetch(request, env, ctx) {
+    // ?versao= responde na hora, sem tocar no Firebase — dá pra conferir
+    // o que está implantado sem disparar uma checagem de verdade.
+    if (new URL(request.url).searchParams.has('versao')) {
+      return new Response('botica-blind-push ' + VERSAO);
+    }
     try {
       await checarBlinds(env);
-      return new Response('ok');
+      return new Response('ok (versao ' + VERSAO + ')');
     } catch (e) {
       return new Response('erro: ' + e.message, { status: 500 });
     }
