@@ -455,7 +455,11 @@
     .pgm-pcard.out .pgm-pcard-name { text-decoration:line-through; }
     .pgm-pcard-meta { font-size:11.5px; color:var(--text-dim); font-family:'Space Mono',monospace; display:flex; align-items:center; gap:6px; margin-top:1px; }
     .pgm-pcard-meta.saiu-pos { color:var(--positive); }
-    .pgm-rebuy-tag { font-family:'Nunito',sans-serif; font-weight:800; color:var(--negative); background:rgba(241,106,106,0.12); border-radius:20px; padding:1px 7px; font-size:10px; }
+    .pgm-rebuy-tag { font-family:'Nunito',sans-serif; font-weight:800; color:var(--negative); background:rgba(241,106,106,0.12); border-radius:20px; padding:1px 7px; font-size:10px; border:1px solid transparent; }
+    /* No modo admin o mesmo selo vira botão pra corrigir um rebuy lançado
+       por engano. Só ganha contorno (nada de ícone ou texto extra) — a
+       ideia era um atalho que não acrescentasse nada na tela. */
+    button.pgm-rebuy-tag { border-color:rgba(241,106,106,0.45); cursor:pointer; line-height:1.4; }
     .pgm-pcard-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
     .pgm-pill-rebuy { font-family:'Nunito',sans-serif; font-size:12px; font-weight:900; color:#12200f; background:linear-gradient(135deg, var(--gold-light), var(--gold)); border:none; border-radius:20px; padding:8px 14px; white-space:nowrap; cursor:pointer; }
     .pgm-icon-btn { width:34px; height:34px; border-radius:50%; background:rgba(241,106,106,0.1); border:1px solid rgba(241,106,106,0.3); display:flex; align-items:center; justify-content:center; font-size:17px; color:var(--negative); flex-shrink:0; cursor:pointer; line-height:1; touch-action:manipulation; }
@@ -4173,7 +4177,7 @@ function renderActiveSession() {
       ? (isClassico
           ? `Saiu da mesa · ${p.bustOrder||''}º`
           : `<span style="color:${(p.finalStack-(p.buyin+rt))>=0?'var(--positive)':'var(--negative)'}">Saiu · ${(p.finalStack-(p.buyin+rt))>=0?'+':''}R$ ${Math.abs(p.finalStack-(p.buyin+rt)).toFixed(2).replace('.',',')}</span>`)
-      : `${fmtRaw(p.buyin+rt)}${rt>0?` <span class="pgm-rebuy-tag">${p.rebuys.length} rebuy${p.rebuys.length>1?'s':''}</span>`:''}`;
+      : `${fmtRaw(p.buyin+rt)}${rt>0?` ${rebuyTagHTML(i, p.rebuys.length)}`:''}`;
     const actionsHTML = saiu ? '' : `
          <button class="pgm-pill-rebuy" onclick="openRebuyModal(${i})">Rebuy</button>
          <button class="pgm-icon-btn" onclick="openPlayerActionsMenu(${i})" title="Saiu / Remover">
@@ -5151,7 +5155,51 @@ function openPlayerActionsMenu(idx) {
   );
 }
 
+/* O selo "N rebuys" embaixo do nome do jogador. Pra admin ele vira botão
+   e abre a correção (openCorrigirRebuys); pra qualquer outra pessoa
+   continua sendo texto puro, exatamente como era. Escolhido justamente
+   por já existir na tela: corrigir um rebuy lançado por engano não
+   precisou de nenhum botão novo. */
+function rebuyTagHTML(idx, qtd) {
+  var txt = qtd + ' rebuy' + (qtd > 1 ? 's' : '');
+  if(!_adminAuth) return '<span class="pgm-rebuy-tag">' + txt + '</span>';
+  return '<button type="button" class="pgm-rebuy-tag" onclick="openCorrigirRebuys(' + idx + ')" title="Corrigir rebuys lançados">' + txt + '</button>';
+}
+
+/* Correção de rebuy, separada de propósito do modal de lançar rebuy: lá
+   o botão principal é "Confirmar rebuy" (ADICIONA mais um), que é o
+   oposto do que se quer quando alguém lançou um a mais sem querer.
+   Aqui só dá pra editar valor e apagar. */
+function openCorrigirRebuys(idx) {
+  if(!_adminAuth) return;
+  window._rebuyModalCorrigir = true;
+  var p = S.activeSession.players[idx];
+  if(!p) return;
+  var rebuys = p.rebuys || [];
+  var lista = rebuys.length
+    ? rebuys.map(function(r, i){ return rebuyItemHTML(idx, i, r); }).join('')
+    : '<div style="font-size:12px;font-weight:700;color:var(--text-dim)">Nenhum rebuy lançado</div>';
+  showModal(
+    '<div class="pgm-modal-title">Rebuys — ' + escHtml(p.name) + ' <button class="pgm-close-btn" onclick="closeModal()">✕</button></div>' +
+    '<div class="pgm-warn">✏️ corrige o valor · ✕ apaga um lançado por engano. Aqui não entra rebuy novo.</div>' +
+    '<div style="margin-top:0.5rem">' + lista + '</div>' +
+    '<div class="pgm-row-btns" style="margin-top:1rem">' +
+    '<button class="pgm-btn pgm-btn-sm" style="flex:1" onclick="closeModal()">Fechar</button>' +
+    '</div>'
+  );
+}
+
+/* Editar/apagar um rebuy redesenha o modal, e ele pode ter sido aberto
+   de dois lugares diferentes. Sem isso, corrigir um rebuy pelo selo
+   jogava a pessoa no modal de LANÇAR rebuy, com o botão de adicionar
+   logo ali — justamente o que ela estava tentando desfazer. */
+function reabrirRebuyModal(playerIdx) {
+  if(window._rebuyModalCorrigir) openCorrigirRebuys(playerIdx);
+  else openRebuyModal(playerIdx);
+}
+
 function openRebuyModal(idx) {
+  window._rebuyModalCorrigir = false;
   const p = S.activeSession.players[idx];
   const defaultRebuy = S.activeSession.rebuy || S.activeSession.buyin;
   const isClassico = S.activeSession.tourneyMode === 'classico';
@@ -5222,7 +5270,7 @@ function rebuyItemHTML(playerIdx, rebuyIdx, valor) {
 
 function iniciarEditarRebuy(playerIdx, rebuyIdx) {
   window._rebuyEditando = { playerIdx: playerIdx, rebuyIdx: rebuyIdx };
-  openRebuyModal(playerIdx);
+  reabrirRebuyModal(playerIdx);
   setTimeout(function() {
     var inp = document.getElementById('rebuy-edit-val');
     if(inp) { inp.focus(); inp.select(); inp.addEventListener('keydown', function(e){ if(e.key==='Enter') confirmarEditarRebuy(playerIdx, rebuyIdx); }); }
@@ -5231,7 +5279,7 @@ function iniciarEditarRebuy(playerIdx, rebuyIdx) {
 
 function cancelarEditarRebuy(playerIdx) {
   window._rebuyEditando = null;
-  openRebuyModal(playerIdx);
+  reabrirRebuyModal(playerIdx);
 }
 
 function confirmarEditarRebuy(playerIdx, rebuyIdx) {
@@ -5243,7 +5291,7 @@ function confirmarEditarRebuy(playerIdx, rebuyIdx) {
   window._rebuyEditando = null;
   renderActiveSession();
   savePatch({ ['activeSession/players/'+playerIdx+'/rebuys']: p.rebuys });
-  openRebuyModal(playerIdx);
+  reabrirRebuyModal(playerIdx);
 }
 
 function selecionarValorRebuySessao(v) {
@@ -5269,7 +5317,7 @@ function removeRebuy(playerIdx, rebuyIdx) {
   window._rebuyEditando = null;
   renderActiveSession();
   savePatch({ ['activeSession/players/'+playerIdx+'/rebuys']: p.rebuys });
-  openRebuyModal(playerIdx);
+  reabrirRebuyModal(playerIdx);
 }
 
 function confirmRemoveFromTable(idx) {
