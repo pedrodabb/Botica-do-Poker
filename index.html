@@ -43,6 +43,18 @@
     let messaging = null;
     try { messaging = getMessaging(fbApp); } catch(e) { console.log('Push messaging não suportado:', e); }
 
+    /* Quanto tempo um aparelho registrado continua recebendo push. Era 8h
+       (espelhando o login) e isso se mostrou curto demais na prática: o
+       registro só acontece quando alguém aperta o sino DENTRO do card de
+       blinds da sessão ativa, então na sessão seguinte todo mundo já
+       estava vencido e o Worker apagava o token sem avisar ninguém — o
+       app parecia simplesmente ter parado de apitar. Agora são 24h E o
+       token se renova sozinho sempre que o app é aberto (ver
+       renovarPushBlinds), então quem joga com o app na mão nunca cai
+       fora; quem sumiu de vez continua expirando sozinho, que era a
+       intenção original. */
+    window.PUSH_VALIDADE_MS = 24*60*60*1000;
+
     window._fbGetMessagingToken = async function(vapidKey) {
       if(!messaging) return null;
       try {
@@ -56,21 +68,21 @@
     };
 
     window._fbSavePushToken = function(token) {
-      // 8h A PARTIR DE AGORA (não do login) — não dura pra sempre: se
-      // ninguém reativar, para de avisar sozinho depois de expirado, em
-      // vez de continuar tocando indefinidamente pra quem nem está mais
-      // na mesa. Bug real corrigido: antes lia localStorage.pgm_auth_exp
-      // (a validade do LOGIN, fixada no momento em que a pessoa entrou
-      // no app) em vez de calcular uma validade nova a partir de agora —
-      // se o push fosse ativado bem depois do login (comum: loga no
-      // início da noite, só ativa o aviso horas depois já com o jogo
-      // rolando), o token nascia com MENOS de 8h de validade, podendo já
-      // estar expirado quando o alerta de verdade precisava disparar. O
-      // Worker da Cloudflare filtra e ignora token expirado silenciosamente
-      // (não é erro visível), então isso explicava avisos que simplesmente
-      // não chegavam com a tela apagada.
+      // Validade A PARTIR DE AGORA (não do login) — não dura pra sempre:
+      // se ninguém reativar nem abrir mais o app, para de avisar sozinho
+      // depois de expirado, em vez de continuar tocando indefinidamente
+      // pra quem nem está mais na mesa. Bug real corrigido: antes lia
+      // localStorage.pgm_auth_exp (a validade do LOGIN, fixada no momento
+      // em que a pessoa entrou no app) em vez de calcular uma validade
+      // nova a partir de agora — se o push fosse ativado bem depois do
+      // login (comum: loga no início da noite, só ativa o aviso horas
+      // depois já com o jogo rolando), o token nascia com MENOS de 8h de
+      // validade, podendo já estar expirado quando o alerta de verdade
+      // precisava disparar. O Worker da Cloudflare filtra e ignora token
+      // expirado silenciosamente (não é erro visível), então isso
+      // explicava avisos que simplesmente não chegavam com a tela apagada.
       const safeKey = token.replace(/[.#$\[\]/]/g, '_');
-      const expiresAt = Date.now() + 8*60*60*1000;
+      const expiresAt = Date.now() + window.PUSH_VALIDADE_MS;
       const patch = {};
       patch[safeKey] = { token: token, registeredAt: Date.now(), expiresAt: expiresAt };
       return update(ref(db, DB_REF + '/pushTokens'), patch);
@@ -4256,6 +4268,10 @@ function renderBlindTimerBlock() {
      o outro é "quanto falta pro próximo blind"). */
   if(!window._blindTimerInterval) window._blindTimerInterval = setInterval(atualizarBlindTimerDisplay, 1000);
   agendarGatilhoPushInstantaneo(s);
+  // Uma sessão com timer de blind acabou de aparecer na tela: é
+  // exatamente o momento em que os avisos vão importar, então vale
+  // reconfirmar o registro agora em vez de esperar o app ser reaberto.
+  try { renovarPushBlinds(); } catch(e) {}
   if(window._blindTimerSessionUid !== s._uid) {
     window._blindTimerSessionUid = s._uid;
     window._blindTimerUltimoNivel = undefined;
@@ -4856,6 +4872,11 @@ document.addEventListener('visibilitychange', function(){
   if(S.activeSession && S.activeSession.blindTimerStartedAt && !S.activeSession.blindTimerPausedAt) {
     pedirWakeLock();
   }
+  // Voltar pro app é a melhor hora pra reconfirmar o registro de push:
+  // é quando dá pra ter certeza de que a pessoa ainda está por perto, e
+  // é grátis quando o registro já está em dia (a própria função ignora
+  // chamadas seguidas em menos de 30min).
+  try { renovarPushBlinds(); } catch(e) {}
 });
 
 /* Chave VAPID pública, gerada em Firebase Console → Configurações do
@@ -4865,6 +4886,16 @@ document.addEventListener('visibilitychange', function(){
 var VAPID_KEY_PUSH = 'BK11wZ8RULnuaBohBjdR0zuSXPW8bImocMWztDAOKhZ-Vfnb78kOnmbyimQkf-DYMksBMTP27CDiR6CCpN7hM4s';
 
 var WORKER_URL_PUSH = 'https://botica-blind-push.pedrodabb.workers.dev/';
+
+/* A validade do registro de push é definida no bloco do Firebase (lá em
+   cima, junto de _fbSavePushToken) pra os dois lados gravarem exatamente
+   o mesmo prazo. O fallback existe só porque aquele bloco é um módulo e
+   roda depois deste — se algo aqui rodasse antes dele por acaso, um
+   prazo errado deixaria a tela dizendo "ativado" com o registro já
+   vencido no banco, que é justamente o tipo de silêncio que gerou o bug. */
+function validadePushMs() {
+  return window.PUSH_VALIDADE_MS || 24*60*60*1000;
+}
 
 /* O Worker da Cloudflare roda sozinho de 1 em 1 minuto (mínimo da
    plataforma) — bom o bastante como rede de segurança, mas devagar
@@ -4916,7 +4947,14 @@ function statusPushHTML() {
   // apagado, e a pessoa nunca ia saber que precisa clicar de novo.
   var pushExp = parseInt(localStorage.getItem('pgm_push_exp') || '0', 10);
   if(perm === 'granted' && Date.now() < pushExp) {
+    // Mostrar até quando vale não é enfeite: o modo de falha desse
+    // recurso é silencioso (o Worker ignora token vencido sem erro
+    // nenhum), então sem essa data a tela ficava dizendo só "ativado" e
+    // não havia como perceber que o registro tinha vencido.
+    var dExp = new Date(pushExp);
+    var horaExp = ('0'+dExp.getHours()).slice(-2) + 'h' + ('0'+dExp.getMinutes()).slice(-2);
     return '<div style="text-align:center;margin-top:8px;font-size:10px;font-weight:700;color:var(--positive)">🔔 Avisos ativados neste aparelho ' +
+      '<span style="color:var(--text-dim);font-weight:400">(até ' + horaExp + ')</span> ' +
       '<button onclick="desativarPushBlinds()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:10px;font-weight:700;text-decoration:underline;padding:0;margin-left:4px">desativar</button></div>';
   }
   return '<div style="text-align:center;margin-top:8px"><button class="pgm-btn pgm-btn-sm" id="btn-ativar-push" onclick="ativarPushBlinds()">🔔 Avisar mesmo com a tela apagada</button></div>';
@@ -4962,16 +5000,70 @@ async function ativarPushBlinds() {
     return;
   }
   window._fbSavePushToken(token);
-  // Mesma fórmula que _fbSavePushToken usa lá no Firebase (8h A PARTIR
-  // DE AGORA, não do login — bug real corrigido, ver comentário lá) —
-  // guardada aqui local pra statusPushHTML() saber quando parar de
+  // Mesma fórmula que _fbSavePushToken usa lá no Firebase (validade A
+  // PARTIR DE AGORA, não do login — bug real corrigido, ver comentário
+  // lá) — guardada aqui local pra statusPushHTML() saber quando parar de
   // mostrar "ativado" sem precisar consultar o banco.
-  localStorage.setItem('pgm_push_exp', String(Date.now() + 8*60*60*1000));
+  localStorage.setItem('pgm_push_exp', String(Date.now() + validadePushMs()));
   // Guarda o token em si (não só a validade) pra dar pra remover de novo
-  // do Firebase se a pessoa clicar em "desativar" antes das 8h vencerem.
+  // do Firebase se a pessoa clicar em "desativar" antes de vencer.
   localStorage.setItem('pgm_push_token', token);
+  // Marca DURÁVEL de "este aparelho quer receber avisos" — diferente de
+  // pgm_push_exp, não vence. É ela que autoriza renovarPushBlinds() a
+  // registrar o aparelho de novo sozinho nas próximas vezes que o app
+  // abrir, sem exigir que a pessoa ache o sino e clique toda sessão.
+  localStorage.setItem('pgm_push_ativo', '1');
   if(statusEl) statusEl.innerHTML = statusPushHTML();
   showAlert('🔔 Notificações ativadas! Você vai receber um aviso mesmo com a tela apagada.');
+}
+
+/* Renovação silenciosa (sem alerta, sem pedir permissão, sem mexer na
+   tela). Roda quando o app abre e sempre que volta pro primeiro plano.
+
+   Motivo: o registro no Firebase vence, e o único jeito de renovar era
+   apertar o sino — que só existe dentro do card de blinds de uma sessão
+   ATIVA. Na prática ninguém reaperta, então o token vencia, o Worker
+   apagava, e o app parava de apitar com a tela apagada sem nenhum sinal
+   visível de que algo tinha mudado (foi exatamente o que aconteceu).
+
+   Também resolve um problema específico de iPhone/iPad: o iOS descarta
+   a inscrição de push do PWA por conta própria de vez em quando. Pedir o
+   token de novo a cada abertura pega o token novo e regrava, em vez de
+   deixar o aparelho registrado com uma inscrição que já morreu. */
+async function renovarPushBlinds() {
+  if(localStorage.getItem('pgm_push_ativo') !== '1') return;
+  if(!('Notification' in window) || !('serviceWorker' in navigator) || !window._fbGetMessagingToken) return;
+  if(Notification.permission !== 'granted') return;
+  // Não martela o Firebase: renova no máximo de 30 em 30min. A validade
+  // é de 24h, então essa folga é enorme — é só pra não regravar a cada
+  // troca de aba.
+  var ultima = parseInt(localStorage.getItem('pgm_push_renov') || '0', 10);
+  if(Date.now() - ultima < 30*60*1000) return;
+  if(window._renovandoPush) return;
+  window._renovandoPush = true;
+  try {
+    var token = await window._fbGetMessagingToken(VAPID_KEY_PUSH);
+    if(!token) return;
+    // O FCM pode trocar o token do aparelho sozinho. Sem apagar o antigo,
+    // sobrariam duas entradas pro mesmo celular em pushTokens (a velha só
+    // sumiria ao vencer), e a pessoa receberia o mesmo aviso duplicado.
+    var anterior = localStorage.getItem('pgm_push_token');
+    if(anterior && anterior !== token && window._fbRemovePushToken) {
+      try { await window._fbRemovePushToken(anterior); } catch(e) {}
+    }
+    await window._fbSavePushToken(token);
+    localStorage.setItem('pgm_push_token', token);
+    localStorage.setItem('pgm_push_exp', String(Date.now() + validadePushMs()));
+    localStorage.setItem('pgm_push_renov', String(Date.now()));
+    var statusEl = document.getElementById('blind-push-status');
+    if(statusEl) statusEl.innerHTML = statusPushHTML();
+  } catch(e) {
+    // Falha de rede aqui é silenciosa de propósito: tenta de novo na
+    // próxima abertura. Avisar seria ruído num caminho que a pessoa nem
+    // pediu pra rodar agora.
+  } finally {
+    window._renovandoPush = false;
+  }
 }
 
 function desativarPushBlinds() {
@@ -4979,6 +5071,11 @@ function desativarPushBlinds() {
   if(token && window._fbRemovePushToken) window._fbRemovePushToken(token);
   localStorage.removeItem('pgm_push_exp');
   localStorage.removeItem('pgm_push_token');
+  localStorage.removeItem('pgm_push_renov');
+  // Sem tirar a marca durável, renovarPushBlinds() registraria o
+  // aparelho de novo na próxima abertura e o "desativar" não valeria
+  // nada.
+  localStorage.removeItem('pgm_push_ativo');
   var statusEl = document.getElementById('blind-push-status');
   if(statusEl) statusEl.innerHTML = statusPushHTML();
   showAlert('🔕 Avisos com a tela apagada desativados neste aparelho.');
@@ -7468,6 +7565,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
     senhaScreen.style.display = 'none';
     appDiv.style.display = 'block';
     iniciarApp();
+    // Abrir o app revalida o registro de avisos com a tela apagada, se
+    // este aparelho já tiver ativado alguma vez. Espera o Firebase estar
+    // pronto — antes disso _fbGetMessagingToken/_fbSavePushToken nem
+    // existem e a renovação sairia silenciosamente sem fazer nada.
+    var renovar = function(){ try { renovarPushBlinds(); } catch(e) {} };
+    if(window._fbReady) renovar();
+    else document.addEventListener('firebase-ready', renovar);
   }
 
   var DURACAO_LOGIN_MS = 8*60*60*1000; // 8 horas, igual o código temporário de casuais
